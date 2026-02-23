@@ -21,6 +21,6 @@ WORKDIR /app
 COPY --from=builder /build/server /app/server
 COPY --from=builder /build/migrations /app/migrations
 
-EXPOSE 8080
+RUN mkdir -p /var/run/rncasp
 
 ENTRYPOINT ["/app/server"]

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useMyAvailability, useSetMyAvailability } from "@/hooks/useAvailability";
 import { useEscapeKey } from "@/hooks/useKeyboard";
 import { generateTimeSlots, granularityToMinutes, formatSlotTime, formatDayHeader, isNewDay } from "@/lib/time";
-import type { Event, Availability, AvailabilityEntry } from "@/api/types";
+import type { Event, AvailabilityEntry } from "@/api/types";
 
 type AvailabilityStatus = "available" | "preferred" | "unavailable";
 

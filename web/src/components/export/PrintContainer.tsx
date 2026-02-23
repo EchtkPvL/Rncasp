@@ -38,12 +38,17 @@ export function PrintContainer({
     };
   }, []);
 
-  // Filter shifts to selected days
+  // Filter shifts that overlap any selected day (not just start on that day)
   const filteredShifts = useMemo(() => {
     if (!config) return [];
     return shifts.filter((s) => {
-      const shiftDate = new Date(s.start_time);
-      return config.selectedDays.some((d) => d.toDateString() === shiftDate.toDateString());
+      const sStart = new Date(s.start_time).getTime();
+      const sEnd = new Date(s.end_time).getTime();
+      return config.selectedDays.some((d) => {
+        const dayStart = d.getTime();
+        const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+        return sStart < dayEnd && sEnd > dayStart;
+      });
     });
   }, [shifts, config]);
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,7 +12,9 @@ import (
 	"time"
 
 	"github.com/echtkpvl/rncasp/internal/config"
+	"github.com/echtkpvl/rncasp/internal/migrate"
 	"github.com/echtkpvl/rncasp/internal/sse"
+	"github.com/echtkpvl/rncasp/migrations"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 )
@@ -32,7 +35,18 @@ func New(cfg *config.Config, logger *slog.Logger) (*Server, error) {
 	}
 
 	// Connect to PostgreSQL
-	dbPool, err := pgxpool.New(context.Background(), cfg.Database.DSN())
+	dsn := cfg.Database.DSN()
+	logger.Info("connecting to PostgreSQL",
+		"socket_dir", cfg.Database.SocketDir,
+		"host", cfg.Database.Host,
+		"dsn_prefix", func() string {
+			if len(dsn) > 40 {
+				return dsn[:40] + "..."
+			}
+			return dsn
+		}(),
+	)
+	dbPool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to database: %w", err)
 	}
@@ -41,10 +55,21 @@ func New(cfg *config.Config, logger *slog.Logger) (*Server, error) {
 		return nil, fmt.Errorf("pinging database: %w", err)
 	}
 	s.db = dbPool
-	logger.Info("connected to PostgreSQL", "host", cfg.Database.Host, "db", cfg.Database.Name)
+	if cfg.Database.SocketDir != "" {
+		logger.Info("connected to PostgreSQL", "socket", cfg.Database.SocketDir, "db", cfg.Database.Name)
+	} else {
+		logger.Info("connected to PostgreSQL", "host", cfg.Database.Host, "db", cfg.Database.Name)
+	}
+
+	// Run migrations
+	if err := migrate.Run(context.Background(), dbPool, migrations.FS, logger); err != nil {
+		dbPool.Close()
+		return nil, fmt.Errorf("running migrations: %w", err)
+	}
 
 	// Connect to Redis
 	rdb := redis.NewClient(&redis.Options{
+		Network:  cfg.Redis.Network(),
 		Addr:     cfg.Redis.Addr(),
 		Password: cfg.Redis.Password,
 		DB:       cfg.Redis.DB,
@@ -54,7 +79,7 @@ func New(cfg *config.Config, logger *slog.Logger) (*Server, error) {
 		return nil, fmt.Errorf("connecting to redis: %w", err)
 	}
 	s.rdb = rdb
-	logger.Info("connected to Redis", "addr", cfg.Redis.Addr())
+	logger.Info("connected to Redis", "network", cfg.Redis.Network(), "addr", cfg.Redis.Addr())
 
 	// Setup routes
 	s.router = s.setupRoutes()
@@ -63,21 +88,44 @@ func New(cfg *config.Config, logger *slog.Logger) (*Server, error) {
 }
 
 func (s *Server) Start() error {
-	addr := fmt.Sprintf("%s:%d", s.cfg.Server.Host, s.cfg.Server.Port)
-
 	srv := &http.Server{
-		Addr:         addr,
 		Handler:      s.router,
 		ReadTimeout:  s.cfg.Server.ReadTimeout,
 		WriteTimeout: s.cfg.Server.WriteTimeout,
 		IdleTimeout:  s.cfg.Server.IdleTimeout,
 	}
 
+	var listener net.Listener
+	var listenErr error
+	var listenAddr string
+
+	if s.cfg.Server.SocketPath != "" {
+		// Remove stale socket file from previous run
+		os.Remove(s.cfg.Server.SocketPath)
+		listener, listenErr = net.Listen("unix", s.cfg.Server.SocketPath)
+		if listenErr != nil {
+			return fmt.Errorf("listen unix %s: %w", s.cfg.Server.SocketPath, listenErr)
+		}
+		// Allow other containers (nginx) to connect
+		if err := os.Chmod(s.cfg.Server.SocketPath, 0777); err != nil {
+			listener.Close()
+			return fmt.Errorf("chmod socket: %w", err)
+		}
+		listenAddr = s.cfg.Server.SocketPath
+	} else {
+		addr := fmt.Sprintf("%s:%d", s.cfg.Server.Host, s.cfg.Server.Port)
+		listener, listenErr = net.Listen("tcp", addr)
+		if listenErr != nil {
+			return fmt.Errorf("listen tcp %s: %w", addr, listenErr)
+		}
+		listenAddr = addr
+	}
+
 	// Graceful shutdown
 	errCh := make(chan error, 1)
 	go func() {
-		s.logger.Info("server starting", "addr", addr)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		s.logger.Info("server starting", "addr", listenAddr)
+		if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
 			errCh <- err
 		}
 	}()

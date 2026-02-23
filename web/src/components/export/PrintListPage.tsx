@@ -13,42 +13,50 @@ interface PrintListPageProps {
 export function PrintListPage({ event, shifts, selectedDays, showTeamColors }: PrintListPageProps) {
   const { t } = useTranslation(["events"]);
 
-  // Filter shifts to selected days
+  // Filter shifts that overlap any selected day
   const filteredShifts = useMemo(() => {
     return shifts.filter((s) => {
-      const shiftDate = new Date(s.start_time);
-      return selectedDays.some((d) => d.toDateString() === shiftDate.toDateString());
+      const sStart = new Date(s.start_time).getTime();
+      const sEnd = new Date(s.end_time).getTime();
+      return selectedDays.some((d) => {
+        const dayStart = d.getTime();
+        const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+        return sStart < dayEnd && sEnd > dayStart;
+      });
     });
   }, [shifts, selectedDays]);
 
   // Group by user
   const users = useMemo(() => groupShiftsByUser(filteredShifts), [filteredShifts]);
 
-  // Group shifts by user then by day
+  // Group shifts by user then by day.
+  // A cross-midnight shift appears under each selected day it overlaps.
   const userGroups = useMemo(() => {
+    const sortedDays = [...selectedDays].sort((a, b) => a.getTime() - b.getTime());
+
     return users.map((user) => {
       const userShifts = filteredShifts
         .filter((s) => s.user_id === user.id)
         .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
-      // Group by day
-      const dayMap = new Map<string, Shift[]>();
-      for (const shift of userShifts) {
-        const dayKey = new Date(shift.start_time).toDateString();
-        if (!dayMap.has(dayKey)) dayMap.set(dayKey, []);
-        dayMap.get(dayKey)!.push(shift);
+      // For each selected day, collect shifts overlapping that day
+      const days: { date: Date; shifts: Shift[] }[] = [];
+      for (const day of sortedDays) {
+        const dayStartMs = day.getTime();
+        const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
+        const overlapping = userShifts.filter((s) => {
+          const sStart = new Date(s.start_time).getTime();
+          const sEnd = new Date(s.end_time).getTime();
+          return sStart < dayEndMs && sEnd > dayStartMs;
+        });
+        if (overlapping.length > 0) {
+          days.push({ date: day, shifts: overlapping });
+        }
       }
-
-      const days = Array.from(dayMap.entries())
-        .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
-        .map(([, dayShifts]) => ({
-          date: new Date(dayShifts[0].start_time),
-          shifts: dayShifts,
-        }));
 
       return { user, days };
     });
-  }, [users, filteredShifts]);
+  }, [users, filteredShifts, selectedDays]);
 
   const now = new Date();
 
