@@ -26,7 +26,7 @@ A full-stack shift planning web application for LAN party events and multi-day g
 | **Backend** | Go 1.23, Chi v5 router |
 | **Database** | PostgreSQL 17, sqlc + pgx v5 |
 | **Cache/Sessions** | Redis 7 |
-| **Migrations** | goose v3 |
+| **Migrations** | Auto-run on startup (embedded SQL) |
 | **Frontend** | React 19, TypeScript, Vite |
 | **UI** | shadcn/ui, Tailwind CSS v4 |
 | **State** | TanStack Query v5 |
@@ -83,8 +83,9 @@ cd web && npm run dev
 
 ### Database
 
+Migrations run automatically on API startup. To add a new migration, create a file in `api/migrations/` following the naming convention `NNN_description.sql` with goose-format markers (`-- +goose Up` / `-- +goose Down`).
+
 ```bash
-make migrate      # Run database migrations
 make sqlc         # Regenerate Go code from SQL queries
 ```
 
@@ -106,14 +107,68 @@ make lint
 
 ## Production Deployment
 
+### Initial Setup
+
 ```bash
-# Build and start production containers
+# Clone the repository
+git clone https://github.com/EchtkPvL/Rncasp.git
+cd Rncasp
+
+# Configure environment
+cp .env.example .env
+# Edit .env — at minimum change DB_PASSWORD and APP_BASE_URL
+```
+
+Key `.env` settings:
+
+| Variable | What to set |
+|----------|-------------|
+| `DB_PASSWORD` | Strong database password |
+| `APP_BASE_URL` | Your public URL (e.g. `https://shifts.example.com`) |
+| `APP_ENV` | `production` |
+| `AUTH_COOKIE_SECURE` | `true` if behind HTTPS (recommended) |
+| `AUTH_COOKIE_DOMAIN` | Your domain (e.g. `shifts.example.com`) |
+| `CORS_ALLOWED_ORIGINS` | Same as `APP_BASE_URL` |
+| `HTTP_LISTEN` | Host bind address (default `0.0.0.0:80`, e.g. `127.0.0.1:8080` behind a reverse proxy) |
+
+```bash
+# Build and start
 docker compose up -d --build
 ```
 
-Production uses multi-stage Docker builds:
-- **API**: Go binary on Alpine (~20MB)
-- **Web**: Vite build served by nginx
+The first registered user is automatically promoted to super-admin.
+
+### Updating Production
+
+```bash
+# Pull latest changes
+git pull
+
+# Rebuild and restart (zero-downtime for web, brief restart for API)
+docker compose up -d --build
+
+# Verify
+docker compose logs api --tail 20
+```
+
+Database migrations run automatically on API startup — no manual migration step needed. The API checks a `schema_migrations` table and applies any pending `.sql` files before accepting traffic.
+
+To force a full rebuild (e.g. after dependency changes):
+
+```bash
+docker compose build --no-cache
+docker compose up -d
+```
+
+### Architecture
+
+Production uses multi-stage Docker builds and Unix sockets for all inter-service communication:
+
+- **API**: Go binary on Alpine (~20MB), listens on Unix socket
+- **Web**: Vite build served by nginx, proxies `/api` to API via Unix socket
+- **PostgreSQL**: Connected via Unix socket (`/var/run/postgresql`)
+- **Redis**: Connected via Unix socket (`/var/run/redis/redis.sock`)
+- Only the HTTP port (nginx) is exposed to the host
 
 ## Project Structure
 
@@ -131,7 +186,8 @@ rncasp/
         queries/                    # SQL query definitions (15 files)
       model/                        # DTOs, domain errors, response helpers
       sse/                          # SSE event broker with Redis Pub/Sub
-    migrations/                     # PostgreSQL migrations (goose)
+      migrate/                      # Auto-migration runner (embedded SQL)
+    migrations/                     # PostgreSQL schema migrations (auto-applied on startup)
 
   web/                              # React frontend
     src/
@@ -203,21 +259,23 @@ Page Component
 
 ## Environment Variables
 
-See [`.env.example`](.env.example) for all configuration options:
+See [`.env.example`](.env.example) for all configuration options. Service connection details (hosts, ports, sockets) are handled by Docker Compose and don't need to be set in `.env`.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `APP_ENV` | Environment mode | `development` |
-| `APP_NAME` | Application name | `Rncasp` |
-| `APP_BASE_URL` | Base URL for links | `http://localhost:8080` |
+| `APP_ENV` | `production` or `development` | `production` |
+| `APP_NAME` | Application display name | `Rncasp` |
+| `APP_BASE_URL` | Public URL for links/CORS | `http://localhost:8080` |
 | `APP_REGISTRATION_ENABLED` | Allow new user registration | `true` |
-| `APP_DEFAULT_LANGUAGE` | Default language (en/de) | `en` |
-| `DB_HOST` | PostgreSQL host | `postgres` |
-| `DB_PORT` | PostgreSQL port | `5432` |
-| `REDIS_HOST` | Redis host | `redis` |
+| `APP_DEFAULT_LANGUAGE` | Default language (`en`/`de`) | `en` |
+| `DB_USER` | PostgreSQL username | `rncasp` |
+| `DB_PASSWORD` | PostgreSQL password | `rncasp` |
+| `DB_NAME` | PostgreSQL database name | `rncasp` |
 | `AUTH_SESSION_TTL` | Session duration | `24h` |
-| `AUTH_BCRYPT_COST` | bcrypt hash cost | `12` |
-| `CORS_ALLOWED_ORIGINS` | Allowed CORS origins | `http://localhost:5173,http://localhost:8080` |
+| `AUTH_COOKIE_SECURE` | Require HTTPS for cookies | `true` |
+| `AUTH_COOKIE_DOMAIN` | Cookie domain scope | (empty) |
+| `CORS_ALLOWED_ORIGINS` | Allowed CORS origins (comma-separated) | `http://localhost:5173` |
+| `HTTP_LISTEN` | Host-side `ip:port` for nginx | `0.0.0.0:80` |
 
 ## Database Schema
 
@@ -240,7 +298,7 @@ All IDs are UUIDs. All timestamps are TIMESTAMPTZ (UTC). Shifts are stored as ti
 
 ### Adding a New Feature (End-to-End)
 
-1. Add/modify tables in a new migration (`api/migrations/NNN_description.sql`)
+1. Add/modify tables in a new migration (`api/migrations/NNN_description.sql`) — applied automatically on next startup
 2. Write SQL queries in `api/internal/repository/queries/`, run `make sqlc`
 3. Add business logic in `api/internal/service/`
 4. Add HTTP handler in `api/internal/handler/`, register route in `routes.go`
@@ -296,4 +354,4 @@ The implementation progressed through 12 phases in roughly this order:
 
 ## License
 
-Private project.
+[GNU AGPL v3](LICENSE)
