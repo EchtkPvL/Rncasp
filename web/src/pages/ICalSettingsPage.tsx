@@ -4,6 +4,7 @@ import { useICalTokens, useCreateICalToken, useRevokeICalToken } from "@/hooks/u
 import { useEvents } from "@/hooks/useEvents";
 import { useTeams } from "@/hooks/useTeams";
 import type { ICalToken, CreateICalTokenRequest } from "@/api/types";
+import { SettingsTabs } from "@/components/common/SettingsTabs";
 
 export function ICalSettingsPage() {
   const { t } = useTranslation(["settings", "common"]);
@@ -60,9 +61,11 @@ export function ICalSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
+      <h1 className="text-2xl font-bold">{t("common:nav.settings")}</h1>
+      <SettingsTabs />
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("settings:ical.title")}</h1>
+        <h2 className="text-lg font-semibold">{t("settings:ical.title")}</h2>
         {!showForm && (
           <button
             type="button"
@@ -162,11 +165,11 @@ export function ICalSettingsPage() {
       {isLoading ? (
         <p className="text-sm text-[var(--color-muted-foreground)]">{t("common:loading")}</p>
       ) : tokens && tokens.length > 0 ? (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {tokens.map((token) => (
             <div
               key={token.id}
-              className="rounded-lg border border-[var(--color-border)] px-4 py-3"
+              className="rounded-lg border border-[var(--color-border)] px-4 py-3 space-y-2"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -179,15 +182,6 @@ export function ICalSettingsPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  {token.url && (
-                    <button
-                      type="button"
-                      onClick={() => handleCopyUrl(token)}
-                      className="text-sm text-[var(--color-primary)] hover:underline"
-                    >
-                      {copiedId === token.id ? t("settings:ical.copied") : t("settings:ical.copy_url")}
-                    </button>
-                  )}
                   {confirmRevoke === token.id ? (
                     <button
                       type="button"
@@ -210,6 +204,24 @@ export function ICalSettingsPage() {
                   )}
                 </div>
               </div>
+              {token.url && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={token.url}
+                    className="flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-muted)] px-3 py-1.5 text-xs font-mono select-all"
+                    onFocus={(e) => e.target.select()}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleCopyUrl(token)}
+                    className="shrink-0 rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:bg-[var(--color-muted)]"
+                  >
+                    {copiedId === token.id ? t("settings:ical.copied") : t("settings:ical.copy_url")}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

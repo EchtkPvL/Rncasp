@@ -12,6 +12,7 @@
   "back": "Back",
   "search": "Search",
   "no_results": "No results found",
+  "access_denied": "You don't have permission to access this page.",
   "language": "Language",
   "nav": {
     "dashboard": "Dashboard",

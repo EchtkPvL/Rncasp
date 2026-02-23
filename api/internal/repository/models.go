@@ -148,6 +148,7 @@ type IcalToken struct {
 	ID         uuid.UUID  `json:"id"`
 	UserID     uuid.UUID  `json:"user_id"`
 	TokenHash  string     `json:"token_hash"`
+	Token      string     `json:"token"`
 	Label      string     `json:"label"`
 	Scope      string     `json:"scope"`
 	EventID    *uuid.UUID `json:"event_id"`

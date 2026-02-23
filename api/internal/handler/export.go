@@ -97,7 +97,7 @@ func (h *ExportHandler) CreateToken(w http.ResponseWriter, r *http.Request) {
 		input.TeamID = &id
 	}
 
-	resp, _, err := h.exportService.CreateToken(r.Context(), *userID, input, h.baseURL)
+	resp, err := h.exportService.CreateToken(r.Context(), *userID, input, h.baseURL)
 	if err != nil {
 		model.ErrorResponse(w, err)
 		return

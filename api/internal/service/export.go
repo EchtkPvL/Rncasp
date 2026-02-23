@@ -113,64 +113,64 @@ type CreateICalTokenInput struct {
 }
 
 // CreateToken generates a new iCal subscription token for a user.
-func (s *ExportService) CreateToken(ctx context.Context, userID uuid.UUID, input CreateICalTokenInput, baseURL string) (ICalTokenResponse, string, error) {
+func (s *ExportService) CreateToken(ctx context.Context, userID uuid.UUID, input CreateICalTokenInput, baseURL string) (ICalTokenResponse, error) {
 	if input.Label == "" {
-		return ICalTokenResponse{}, "", model.NewFieldError(model.ErrInvalidInput, "label", "label is required")
+		return ICalTokenResponse{}, model.NewFieldError(model.ErrInvalidInput, "label", "label is required")
 	}
 
 	validScopes := map[string]bool{"user": true, "event": true, "team": true}
 	if !validScopes[input.Scope] {
-		return ICalTokenResponse{}, "", model.NewFieldError(model.ErrInvalidInput, "scope", "scope must be user, event, or team")
+		return ICalTokenResponse{}, model.NewFieldError(model.ErrInvalidInput, "scope", "scope must be user, event, or team")
 	}
 
 	if input.Scope == "event" && input.EventID == nil {
-		return ICalTokenResponse{}, "", model.NewFieldError(model.ErrInvalidInput, "event_id", "event_id required for event scope")
+		return ICalTokenResponse{}, model.NewFieldError(model.ErrInvalidInput, "event_id", "event_id required for event scope")
 	}
 	if input.Scope == "team" && (input.EventID == nil || input.TeamID == nil) {
-		return ICalTokenResponse{}, "", model.NewFieldError(model.ErrInvalidInput, "team_id", "event_id and team_id required for team scope")
+		return ICalTokenResponse{}, model.NewFieldError(model.ErrInvalidInput, "team_id", "event_id and team_id required for team scope")
 	}
 
 	// Generate random token
 	tokenBytes := make([]byte, 32)
 	if _, err := rand.Read(tokenBytes); err != nil {
-		return ICalTokenResponse{}, "", fmt.Errorf("generating token: %w", err)
+		return ICalTokenResponse{}, fmt.Errorf("generating token: %w", err)
 	}
 	rawToken := hex.EncodeToString(tokenBytes)
 
-	// Store SHA-256 hash
+	// Store SHA-256 hash for lookup + raw token for URL display
 	hash := sha256.Sum256([]byte(rawToken))
 	tokenHash := hex.EncodeToString(hash[:])
 
 	token, err := s.queries.CreateICalToken(ctx, repository.CreateICalTokenParams{
 		UserID:    userID,
 		TokenHash: tokenHash,
+		Token:     rawToken,
 		Label:     input.Label,
 		Scope:     input.Scope,
 		EventID:   input.EventID,
 		TeamID:    input.TeamID,
 	})
 	if err != nil {
-		return ICalTokenResponse{}, "", fmt.Errorf("creating token: %w", err)
+		return ICalTokenResponse{}, fmt.Errorf("creating token: %w", err)
 	}
 
-	// Build URL context for spec-format URLs
-	urlCtx := &icalURLContext{userUUID: userID.String()}
+	// Build URL using the event/team info we already have
+	var eventSlug, teamAbbr string
 	if input.EventID != nil {
-		event, err := s.queries.GetEventByID(ctx, *input.EventID)
-		if err == nil {
-			urlCtx.eventSlug = event.Slug
+		if event, err := s.queries.GetEventByID(ctx, *input.EventID); err == nil {
+			eventSlug = event.Slug
 		}
 	}
 	if input.TeamID != nil {
-		team, err := s.queries.GetTeamByID(ctx, *input.TeamID)
-		if err == nil {
-			urlCtx.teamAbbr = team.Abbreviation
+		if team, err := s.queries.GetTeamByID(ctx, *input.TeamID); err == nil {
+			teamAbbr = team.Abbreviation
 		}
 	}
 
-	resp := icalTokenToResponse(token, baseURL, rawToken, urlCtx)
+	url := buildICalURL(baseURL, token.Scope, rawToken, userID.String(), eventSlug, teamAbbr)
+
 	s.logger.Info("iCal token created", "token_id", token.ID, "user_id", userID, "scope", input.Scope)
-	return resp, rawToken, nil
+	return toICalTokenResponse(token.ID, token.Label, token.Scope, token.EventID, token.TeamID, token.CreatedAt, token.LastUsedAt, url), nil
 }
 
 // ListTokens returns all active iCal tokens for a user.
@@ -182,7 +182,15 @@ func (s *ExportService) ListTokens(ctx context.Context, userID uuid.UUID, baseUR
 
 	result := make([]ICalTokenResponse, len(tokens))
 	for i, t := range tokens {
-		result[i] = icalTokenToResponse(t, baseURL, "", nil)
+		var eventSlug, teamAbbr string
+		if t.EventSlug != nil {
+			eventSlug = *t.EventSlug
+		}
+		if t.TeamAbbreviation != nil {
+			teamAbbr = *t.TeamAbbreviation
+		}
+		url := buildICalURL(baseURL, t.Scope, t.Token, t.UserID.String(), eventSlug, teamAbbr)
+		result[i] = toICalTokenResponse(t.ID, t.Label, t.Scope, t.EventID, t.TeamID, t.CreatedAt, t.LastUsedAt, url)
 	}
 	return result, nil
 }
@@ -332,50 +340,43 @@ func buildICalFromTeamShifts(eventName, eventSlug string, shifts []repository.Li
 	return b.String()
 }
 
-type icalURLContext struct {
-	userUUID string
-	eventSlug string
-	teamAbbr  string
+func buildICalURL(baseURL, scope, token, userUUID, eventSlug, teamAbbr string) string {
+	switch scope {
+	case "user":
+		return fmt.Sprintf("%s/ical/user/%s/%s", baseURL, userUUID, token)
+	case "event":
+		return fmt.Sprintf("%s/ical/event/%s/all/%s", baseURL, eventSlug, token)
+	case "team":
+		return fmt.Sprintf("%s/ical/event/%s/%s/%s", baseURL, eventSlug, teamAbbr, token)
+	default:
+		return ""
+	}
 }
 
-func icalTokenToResponse(t repository.IcalToken, baseURL string, rawToken string, urlCtx *icalURLContext) ICalTokenResponse {
+func toICalTokenResponse(id uuid.UUID, label, scope string, eventID, teamID *uuid.UUID, createdAt time.Time, lastUsedAt *time.Time, url string) ICalTokenResponse {
 	var eventIDStr *string
-	if t.EventID != nil {
-		s := t.EventID.String()
+	if eventID != nil {
+		s := eventID.String()
 		eventIDStr = &s
 	}
 	var teamIDStr *string
-	if t.TeamID != nil {
-		s := t.TeamID.String()
+	if teamID != nil {
+		s := teamID.String()
 		teamIDStr = &s
 	}
 	var lastUsed *string
-	if t.LastUsedAt != nil {
-		s := t.LastUsedAt.Format(time.RFC3339)
+	if lastUsedAt != nil {
+		s := lastUsedAt.Format(time.RFC3339)
 		lastUsed = &s
 	}
 
-	url := ""
-	if rawToken != "" && urlCtx != nil {
-		switch t.Scope {
-		case "user":
-			url = fmt.Sprintf("%s/ical/user/%s/%s", baseURL, urlCtx.userUUID, rawToken)
-		case "event":
-			url = fmt.Sprintf("%s/ical/event/%s/all/%s", baseURL, urlCtx.eventSlug, rawToken)
-		case "team":
-			url = fmt.Sprintf("%s/ical/event/%s/%s/%s", baseURL, urlCtx.eventSlug, urlCtx.teamAbbr, rawToken)
-		default:
-			url = fmt.Sprintf("%s/ical/%s/%s", baseURL, t.ID.String(), rawToken)
-		}
-	}
-
 	return ICalTokenResponse{
-		ID:         t.ID.String(),
-		Label:      t.Label,
-		Scope:      t.Scope,
+		ID:         id.String(),
+		Label:      label,
+		Scope:      scope,
 		EventID:    eventIDStr,
 		TeamID:     teamIDStr,
-		CreatedAt:  t.CreatedAt.Format(time.RFC3339),
+		CreatedAt:  createdAt.Format(time.RFC3339),
 		LastUsedAt: lastUsed,
 		URL:        url,
 	}

@@ -83,6 +83,13 @@ func (h *EventHandler) GetBySlug(w http.ResponseWriter, r *http.Request) {
 		model.ErrorResponse(w, err)
 		return
 	}
+
+	// Enrich response with caller's event admin status
+	if userID := middleware.GetUserID(r.Context()); userID != nil {
+		isAdmin, _ := h.eventService.IsEventAdmin(r.Context(), slug, *userID)
+		event.IsEventAdmin = isAdmin
+	}
+
 	model.JSON(w, http.StatusOK, event)
 }
 

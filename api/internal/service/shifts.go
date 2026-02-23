@@ -187,9 +187,9 @@ func (s *ShiftService) Create(ctx context.Context, input CreateShiftInput, calle
 
 	// Self-signup: users can only create shifts for themselves (unless event admin)
 	isAdmin := false
-	if callerRole == "user" && input.UserID != callerID {
+	if callerRole == "user" {
 		isAdmin, _ = s.queries.IsEventAdmin(ctx, event.ID, callerID)
-		if !isAdmin {
+		if input.UserID != callerID && !isAdmin {
 			return ShiftWithWarnings{}, model.NewDomainError(model.ErrForbidden, "users can only create their own shifts")
 		}
 	}

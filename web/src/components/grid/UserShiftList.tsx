@@ -49,6 +49,7 @@ export function UserShiftList({ shifts, userName }: UserShiftListProps) {
             {dayShifts.map((shift) => {
               const start = new Date(shift.start_time);
               const end = new Date(shift.end_time);
+              const crossesMidnight = start.toDateString() !== end.toDateString();
               return (
                 <div key={shift.id} className="flex items-center gap-3 px-4 py-2.5">
                   <div
@@ -57,6 +58,11 @@ export function UserShiftList({ shifts, userName }: UserShiftListProps) {
                   />
                   <span className="text-sm font-medium">
                     {formatSlotTime(start)}–{formatSlotTime(end)}
+                    {crossesMidnight && (
+                      <span className="ml-1 text-xs font-normal text-[var(--color-muted-foreground)]">
+                        ({formatDayHeader(end)})
+                      </span>
+                    )}
                   </span>
                   <span className="rounded-full px-2 py-0.5 text-xs" style={{
                     backgroundColor: shift.team_color + "20",

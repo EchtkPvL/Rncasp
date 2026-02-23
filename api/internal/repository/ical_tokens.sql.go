@@ -13,14 +13,15 @@ import (
 )
 
 const createICalToken = `-- name: CreateICalToken :one
-INSERT INTO ical_tokens (user_id, token_hash, label, scope, event_id, team_id)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, token_hash, label, scope, event_id, team_id, created_at, last_used_at, is_active
+INSERT INTO ical_tokens (user_id, token_hash, token, label, scope, event_id, team_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, user_id, token_hash, token, label, scope, event_id, team_id, created_at, last_used_at, is_active
 `
 
 type CreateICalTokenParams struct {
 	UserID    uuid.UUID  `json:"user_id"`
 	TokenHash string     `json:"token_hash"`
+	Token     string     `json:"token"`
 	Label     string     `json:"label"`
 	Scope     string     `json:"scope"`
 	EventID   *uuid.UUID `json:"event_id"`
@@ -31,6 +32,7 @@ func (q *Queries) CreateICalToken(ctx context.Context, arg CreateICalTokenParams
 	row := q.db.QueryRow(ctx, createICalToken,
 		arg.UserID,
 		arg.TokenHash,
+		arg.Token,
 		arg.Label,
 		arg.Scope,
 		arg.EventID,
@@ -41,6 +43,7 @@ func (q *Queries) CreateICalToken(ctx context.Context, arg CreateICalTokenParams
 		&i.ID,
 		&i.UserID,
 		&i.TokenHash,
+		&i.Token,
 		&i.Label,
 		&i.Scope,
 		&i.EventID,
@@ -53,24 +56,46 @@ func (q *Queries) CreateICalToken(ctx context.Context, arg CreateICalTokenParams
 }
 
 const listICalTokensByUser = `-- name: ListICalTokensByUser :many
-SELECT id, user_id, token_hash, label, scope, event_id, team_id, created_at, last_used_at, is_active FROM ical_tokens
-WHERE user_id = $1 AND is_active = true
-ORDER BY created_at DESC
+SELECT it.id, it.user_id, it.token_hash, it.token, it.label, it.scope, it.event_id, it.team_id, it.created_at, it.last_used_at, it.is_active,
+       e.slug AS event_slug,
+       t.abbreviation AS team_abbreviation
+FROM ical_tokens it
+LEFT JOIN events e ON it.event_id = e.id
+LEFT JOIN teams t ON it.team_id = t.id
+WHERE it.user_id = $1 AND it.is_active = true
+ORDER BY it.created_at DESC
 `
 
-func (q *Queries) ListICalTokensByUser(ctx context.Context, userID uuid.UUID) ([]IcalToken, error) {
+type ListICalTokensByUserRow struct {
+	ID               uuid.UUID  `json:"id"`
+	UserID           uuid.UUID  `json:"user_id"`
+	TokenHash        string     `json:"token_hash"`
+	Token            string     `json:"token"`
+	Label            string     `json:"label"`
+	Scope            string     `json:"scope"`
+	EventID          *uuid.UUID `json:"event_id"`
+	TeamID           *uuid.UUID `json:"team_id"`
+	CreatedAt        time.Time  `json:"created_at"`
+	LastUsedAt       *time.Time `json:"last_used_at"`
+	IsActive         bool       `json:"is_active"`
+	EventSlug        *string    `json:"event_slug"`
+	TeamAbbreviation *string    `json:"team_abbreviation"`
+}
+
+func (q *Queries) ListICalTokensByUser(ctx context.Context, userID uuid.UUID) ([]ListICalTokensByUserRow, error) {
 	rows, err := q.db.Query(ctx, listICalTokensByUser, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []IcalToken{}
+	items := []ListICalTokensByUserRow{}
 	for rows.Next() {
-		var i IcalToken
+		var i ListICalTokensByUserRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
 			&i.TokenHash,
+			&i.Token,
 			&i.Label,
 			&i.Scope,
 			&i.EventID,
@@ -78,6 +103,8 @@ func (q *Queries) ListICalTokensByUser(ctx context.Context, userID uuid.UUID) ([
 			&i.CreatedAt,
 			&i.LastUsedAt,
 			&i.IsActive,
+			&i.EventSlug,
+			&i.TeamAbbreviation,
 		); err != nil {
 			return nil, err
 		}
@@ -90,7 +117,7 @@ func (q *Queries) ListICalTokensByUser(ctx context.Context, userID uuid.UUID) ([
 }
 
 const getICalTokenByHash = `-- name: GetICalTokenByHash :one
-SELECT it.id, it.user_id, it.token_hash, it.label, it.scope, it.event_id, it.team_id, it.created_at, it.last_used_at, it.is_active, u.username
+SELECT it.id, it.user_id, it.token_hash, it.token, it.label, it.scope, it.event_id, it.team_id, it.created_at, it.last_used_at, it.is_active, u.username
 FROM ical_tokens it
 JOIN users u ON it.user_id = u.id
 WHERE it.token_hash = $1 AND it.is_active = true
@@ -100,6 +127,7 @@ type GetICalTokenByHashRow struct {
 	ID         uuid.UUID  `json:"id"`
 	UserID     uuid.UUID  `json:"user_id"`
 	TokenHash  string     `json:"token_hash"`
+	Token      string     `json:"token"`
 	Label      string     `json:"label"`
 	Scope      string     `json:"scope"`
 	EventID    *uuid.UUID `json:"event_id"`
@@ -117,6 +145,7 @@ func (q *Queries) GetICalTokenByHash(ctx context.Context, tokenHash string) (Get
 		&i.ID,
 		&i.UserID,
 		&i.TokenHash,
+		&i.Token,
 		&i.Label,
 		&i.Scope,
 		&i.EventID,

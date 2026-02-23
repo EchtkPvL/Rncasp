@@ -18,12 +18,16 @@ import {
 import { useTeams } from "@/hooks/useTeams";
 import { useSearchUsers } from "@/hooks/useUsers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function EventSettingsPage() {
   const { slug } = useParams<{ slug: string }>();
   const { t } = useTranslation(["events", "common"]);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  const isSuperAdmin = user?.role === "super_admin";
 
   const { data: event, isLoading } = useEvent(slug!);
   const updateEvent = useUpdateEvent();
@@ -31,7 +35,7 @@ export function EventSettingsPage() {
   const setLocked = useSetEventLocked();
   const setPublic = useSetEventPublic();
   const { data: eventTeams } = useEventTeams(slug!);
-  const { data: eventAdmins } = useEventAdmins(slug!);
+  const { data: eventAdmins } = useEventAdmins(slug!, isSuperAdmin);
   const { data: hiddenRanges } = useEventHiddenRanges(slug!);
   const { data: allTeams } = useTeams();
   const { data: coverageList } = useQuery({
@@ -81,6 +85,20 @@ export function EventSettingsPage() {
 
   if (!event) {
     return <p className="text-[var(--color-muted-foreground)]">{t("events:not_found")}</p>;
+  }
+
+  const isEventAdmin = event.is_event_admin ?? false;
+  const canAccessSettings = isSuperAdmin || isEventAdmin;
+
+  if (!canAccessSettings) {
+    return (
+      <div className="space-y-4">
+        <Link to={`/events/${slug}`} className="text-sm text-[var(--color-primary)] hover:underline">
+          {t("common:back")}
+        </Link>
+        <p className="text-[var(--color-muted-foreground)]">{t("common:access_denied")}</p>
+      </div>
+    );
   }
 
   function startEditDetails() {
@@ -374,7 +392,8 @@ export function EventSettingsPage() {
         )}
       </section>
 
-      {/* Lock / Public Toggles */}
+      {/* Lock / Public Toggles — super admin only */}
+      {isSuperAdmin && (
       <section className="rounded-lg border border-[var(--color-border)] p-4">
         <h2 className="text-lg font-semibold">{t("events:access_control")}</h2>
         <div className="mt-3 flex flex-wrap gap-3">
@@ -398,6 +417,7 @@ export function EventSettingsPage() {
           </button>
         </div>
       </section>
+      )}
 
       {/* Team Visibility */}
       <section className="rounded-lg border border-[var(--color-border)] p-4">
@@ -445,7 +465,8 @@ export function EventSettingsPage() {
         </div>
       </section>
 
-      {/* Event Admins */}
+      {/* Event Admins — super admin only */}
+      {isSuperAdmin && (
       <section className="rounded-lg border border-[var(--color-border)] p-4">
         <h2 className="text-lg font-semibold">{t("events:admins")}</h2>
         <div className="mt-3 space-y-2">
@@ -507,6 +528,7 @@ export function EventSettingsPage() {
           </form>
         </div>
       </section>
+      )}
 
       {/* Hidden Hours */}
       <section className="rounded-lg border border-[var(--color-border)] p-4">
@@ -713,7 +735,8 @@ export function EventSettingsPage() {
         <WebhookManager slug={slug!} />
       </section>
 
-      {/* Danger Zone */}
+      {/* Danger Zone — super admin only */}
+      {isSuperAdmin && (
       <section className="rounded-lg border border-[var(--color-destructive-border)] p-4">
         <h2 className="text-lg font-semibold text-[var(--color-destructive)]">{t("events:danger_zone")}</h2>
         <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
@@ -727,6 +750,7 @@ export function EventSettingsPage() {
           {t("events:delete_event")}
         </button>
       </section>
+      )}
     </div>
   );
 }

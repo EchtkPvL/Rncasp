@@ -6,6 +6,7 @@ import { authApi } from "@/api/auth";
 import { oauthApi } from "@/api/oauth";
 import { ApiError } from "@/api/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { SettingsTabs } from "@/components/common/SettingsTabs";
 
 export function SecuritySettingsPage() {
   const { t } = useTranslation(["common", "admin"]);
@@ -14,6 +15,7 @@ export function SecuritySettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <h1 className="text-2xl font-bold">{t("common:nav.settings")}</h1>
+      <SettingsTabs />
       <ProfileSection />
       <TOTPSection totpEnabled={user?.totp_enabled ?? false} />
       <OAuthConnectionsSection />

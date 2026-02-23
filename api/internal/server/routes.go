@@ -212,14 +212,6 @@ func (s *Server) setupRoutes() http.Handler {
 			r.Get("/export/ical", publicHandler.ExportICal)
 		})
 
-		// iCal subscription feeds (public, token-based auth)
-		// Legacy generic route
-		r.Get("/ical/{tokenId}/{token}", exportHandler.ServeICalFeed)
-		// Spec-format scoped routes
-		r.Get("/ical/user/{uuid}/{token}", exportHandler.ServeICalFeed)
-		r.Get("/ical/event/{slug}/all/{token}", exportHandler.ServeICalFeed)
-		r.Get("/ical/event/{slug}/{teamAbbr}/{token}", exportHandler.ServeICalFeed)
-
 		// Events endpoints
 		r.Route("/events", func(r chi.Router) {
 			r.Use(middleware.RequireAuth)
@@ -292,6 +284,12 @@ func (s *Server) setupRoutes() http.Handler {
 			})
 		})
 	})
+
+	// iCal subscription feeds — outside /api for clean calendar URLs
+	r.Get("/ical/{tokenId}/{token}", exportHandler.ServeICalFeed)
+	r.Get("/ical/user/{uuid}/{token}", exportHandler.ServeICalFeed)
+	r.Get("/ical/event/{slug}/all/{token}", exportHandler.ServeICalFeed)
+	r.Get("/ical/event/{slug}/{teamAbbr}/{token}", exportHandler.ServeICalFeed)
 
 	return r
 }

@@ -12,6 +12,7 @@
   "back": "Zurück",
   "search": "Suchen",
   "no_results": "Keine Ergebnisse gefunden",
+  "access_denied": "Sie haben keine Berechtigung, auf diese Seite zuzugreifen.",
   "language": "Sprache",
   "nav": {
     "dashboard": "Übersicht",

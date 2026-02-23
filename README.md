@@ -12,7 +12,7 @@ A full-stack shift planning web application for LAN party events and multi-day g
 - **Role-Based Permissions** - Super-admin, event admin (per-event), user, read-only, plus dummy (placeholder) accounts
 - **Notifications** - In-app bell, email (SMTP), webhooks (HMAC-signed, Discord/Slack compatible)
 - **iCal Subscriptions** - Token-scoped calendar feeds (per-user, per-event, per-team)
-- **Export** - CSV download, iCal export, CSS print styles (A4/A3 landscape)
+- **Export & Print** - Unified export modal with CSV download, iCal export, and dedicated print layouts (grid table with colspan shifts, user-grouped list), configurable paper size (A4/A3), orientation, day selection, coverage bars, and team colors
 - **Internationalization** - German and English, browser-detected, user-overridable
 - **Configurable Color Palette** - Super-admin editable theme injected as CSS custom properties
 - **Audit Logging** - All mutations recorded with before/after JSONB diffs
@@ -143,7 +143,7 @@ rncasp/
         layout/                     # AppLayout, Navbar
         events/                     # EventCard, CreateEventDialog
         notifications/              # NotificationBell, NotificationList
-        export/                     # ExportMenu, ICalSettings
+        export/                     # ExportMenu, ExportModal, PrintContainer, PrintGridPage, PrintListPage
         common/                     # Toast, ErrorBoundary, LanguageSwitcher
         ui/                         # shadcn/ui base components
       pages/                        # Route-level page components (16 files)
@@ -258,7 +258,8 @@ Write SQL in `api/internal/repository/queries/*.sql`, run `make sqlc`, **never e
 - **API endpoint tests**: httptest-based handler tests (services require DB connection)
 - **Frontend tests**: Vitest + Testing Library component tests (requires Vitest setup)
 - **E2E tests**: Playwright end-to-end tests (requires Playwright setup)
-- **Server-side PDF**: chromedp-based PDF generation (requires headless browser; CSS print styles are sufficient)
+- **Server-side PDF**: chromedp-based PDF generation (requires headless browser; dedicated print layouts are sufficient)
+- **Public page export modal**: PublicEventPage still uses a simple print dialog; can be unified with the full ExportModal in a follow-up
 
 ## Build History
 

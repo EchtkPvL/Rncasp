@@ -87,6 +87,7 @@ type EventResponse struct {
 	TimeGranularity  string  `json:"time_granularity"`
 	IsLocked         bool    `json:"is_locked"`
 	IsPublic         bool    `json:"is_public"`
+	IsEventAdmin     bool    `json:"is_event_admin"`
 	CreatedBy        *string `json:"created_by"`
 	CreatedAt        string  `json:"created_at"`
 	UpdatedAt        string  `json:"updated_at"`

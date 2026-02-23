@@ -91,69 +91,130 @@ body {
   }
 }
 
+/* Print container: hidden on screen */
+.print-container {
+  display: none;
+}
+
 /* Print styles */
 @media print {
-  /* Default page setup: A4 landscape */
-  @page {
-    size: A4 landscape;
-    margin: 10mm;
-  }
-
-  /* A3 paper size via data attribute */
-  body[data-print-size="A3"] {
-    /* A3 override applied via @page below */
-  }
-
-  /* Hide navigation, buttons, and interactive elements */
-  nav,
-  header,
-  [data-print-hide],
-  button,
-  .no-print {
+  /* Hide everything except print container */
+  body > *:not(#print-root) {
     display: none !important;
   }
+  #print-root {
+    display: block !important;
+  }
 
-  /* Reset background for printing */
+  /* Body reset */
   body {
     background: white;
     color: black;
     min-width: 0;
-    font-size: 10pt;
+    font-size: 9pt;
   }
 
-  /* Make the grid fit the page */
-  .overflow-auto {
-    overflow: visible !important;
-  }
-
-  /* Page break rules for grid rows */
-  [class*="border-b"] {
-    page-break-inside: avoid;
-  }
-
-  /* Keep coverage bars together */
-  [class*="border-t-2"] {
-    page-break-inside: avoid;
-    page-break-before: auto;
-  }
-
-  /* Ensure borders and colors print */
+  /* Ensure colors print */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Remove shadows and rounded corners for cleaner print */
+  /* Page header */
+  .print-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 8pt;
+    border-bottom: 0.5pt solid #999;
+    padding-bottom: 1mm;
+    margin-bottom: 2mm;
+  }
+
+  .print-event-name {
+    font-weight: bold;
+    font-size: 10pt;
+  }
+
+  /* Grid table */
+  .print-grid-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 7pt;
+  }
+
+  .print-grid-table th,
+  .print-grid-table td {
+    border: 0.5pt solid #ccc;
+    padding: 1mm;
+    text-align: center;
+    overflow: hidden;
+  }
+
+  .print-name-col {
+    width: 25mm;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .print-shift-cell {
+    font-weight: bold;
+    font-size: 7pt;
+  }
+
+  .print-coverage-row td {
+    font-size: 6pt;
+    height: 5mm;
+  }
+
+  /* Page breaks */
+  .print-day-break {
+    break-before: page;
+  }
+
+  /* List layout */
+  .print-list-user {
+    break-inside: avoid;
+    margin-bottom: 4mm;
+  }
+
+  .print-list-user-name {
+    font-size: 10pt;
+    font-weight: bold;
+    border-bottom: 0.5pt solid #ccc;
+    padding-bottom: 0.5mm;
+    margin-bottom: 1mm;
+  }
+
+  .print-list-day-header {
+    font-size: 8pt;
+    font-weight: bold;
+    padding-left: 3mm;
+    margin-top: 1mm;
+  }
+
+  .print-list-shift {
+    font-size: 8pt;
+    display: flex;
+    gap: 2mm;
+    padding-left: 6mm;
+  }
+
+  .print-team-dot {
+    display: inline-block;
+    width: 2.5mm;
+    height: 2.5mm;
+    flex-shrink: 0;
+    margin-top: 0.5mm;
+  }
+
+  /* Remove shadows */
   .shadow-lg,
   .shadow-md,
   .shadow {
     box-shadow: none !important;
-  }
-
-  /* Proper margins for the main content */
-  .mx-auto {
-    margin: 0 !important;
-    max-width: none !important;
-    padding: 0 !important;
   }
 }

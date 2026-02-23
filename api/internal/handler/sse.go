@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/echtkpvl/rncasp/internal/model"
 	"github.com/echtkpvl/rncasp/internal/server/middleware"
@@ -29,6 +30,9 @@ func (h *SSEHandler) Subscribe(w http.ResponseWriter, r *http.Request) {
 
 	// Use ResponseController to handle middleware-wrapped writers
 	rc := http.NewResponseController(w)
+
+	// Disable the server's WriteTimeout for this long-lived connection
+	rc.SetWriteDeadline(time.Time{})
 
 	// Optional: subscribe to a specific event's updates
 	eventSlug := chi.URLParam(r, "slug")

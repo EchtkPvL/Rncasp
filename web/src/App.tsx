@@ -143,9 +143,9 @@ function App() {
                 <Route
                   path="events/:slug/settings"
                   element={
-                    <SuperAdminRoute>
+                    <ProtectedRoute>
                       <EventSettingsPage />
-                    </SuperAdminRoute>
+                    </ProtectedRoute>
                   }
                 />
                 <Route

@@ -64,6 +64,7 @@ export interface Event {
   time_granularity: "15min" | "30min" | "1hour";
   is_locked: boolean;
   is_public: boolean;
+  is_event_admin: boolean;
   created_by: string;
   created_at: string;
 }
@@ -386,6 +387,16 @@ export interface AuditLogEntry {
   new_value: unknown;
   ip_address: string | null;
   created_at: string;
+}
+
+// Print config
+export interface PrintConfig {
+  layout: "grid" | "list";
+  paperSize: "A4" | "A3";
+  landscape: boolean;
+  showCoverage: boolean;
+  showTeamColors: boolean;
+  selectedDays: Date[];
 }
 
 // SSE

@@ -8,7 +8,7 @@ import { ShiftGrid } from "@/components/grid/ShiftGrid";
 import { ShiftStats } from "@/components/grid/ShiftStats";
 import { UserShiftList } from "@/components/grid/UserShiftList";
 import { DayFilter } from "@/components/grid/DayFilter";
-import { PrintDialog } from "@/components/export/PrintDialog";
+import { useEscapeKey } from "@/hooks/useKeyboard";
 import { GridSkeleton } from "@/components/common/Skeleton";
 import { groupShiftsByUser } from "@/lib/time";
 import type { EventTeam } from "@/api/types";
@@ -361,7 +361,48 @@ function PublicExportMenu({ slug }: { slug: string }) {
         )}
       </div>
 
-      {showPrint && <PrintDialog onClose={() => setShowPrint(false)} />}
+      {showPrint && <PublicPrintDialog onClose={() => setShowPrint(false)} />}
     </>
+  );
+}
+
+/** Simple print dialog for public page */
+function PublicPrintDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation(["events", "common"]);
+  useEscapeKey(useCallback(() => onClose(), [onClose]));
+
+  function handlePrint() {
+    onClose();
+    requestAnimationFrame(() => window.print());
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50" onClick={onClose}>
+      <div
+        className="w-full max-w-sm rounded-t-lg sm:rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-6 shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-bold">{t("events:print_settings")}</h2>
+        <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+          {t("events:print")}
+        </p>
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-[var(--color-border)] px-4 py-2 text-sm"
+          >
+            {t("common:cancel")}
+          </button>
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-[var(--color-primary-foreground)]"
+          >
+            {t("events:print")}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

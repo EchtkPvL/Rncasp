@@ -1,9 +1,9 @@
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router";
 import {
   useNotificationPreferences,
   useUpdateNotificationPreference,
 } from "@/hooks/useNotifications";
+import { SettingsTabs } from "@/components/common/SettingsTabs";
 
 const TRIGGER_TYPES = [
   "shift.created",
@@ -60,16 +60,9 @@ export function NotificationPreferencesPage() {
   }
 
   return (
-    <div>
-      <div className="mb-2">
-        <Link to="/settings/security" className="text-sm text-[var(--color-primary)] hover:underline">
-          {t("common:back")}
-        </Link>
-      </div>
-
-      <h1 className="mb-6 text-2xl font-bold">
-        {t("notifications.preferences_title", "Notification Preferences")}
-      </h1>
+    <div className="mx-auto max-w-2xl">
+      <h1 className="mb-6 text-2xl font-bold">{t("common:nav.settings")}</h1>
+      <SettingsTabs />
 
       <p className="mb-4 text-sm text-[var(--color-muted-foreground)]">
         {t("notifications.preferences_description", "Choose which notifications you want to receive and how.")}

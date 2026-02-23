@@ -86,14 +86,14 @@ export function useEventTeams(slug: string) {
   });
 }
 
-export function useEventAdmins(slug: string) {
+export function useEventAdmins(slug: string, enabled = true) {
   return useQuery({
     queryKey: ["events", slug, "admins"],
     queryFn: async () => {
       const res = await eventsApi.listAdmins(slug);
       return res.data!;
     },
-    enabled: !!slug,
+    enabled: !!slug && enabled,
   });
 }
 

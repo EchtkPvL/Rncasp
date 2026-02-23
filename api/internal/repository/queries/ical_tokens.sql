@@ -1,12 +1,17 @@
 -- name: CreateICalToken :one
-INSERT INTO ical_tokens (user_id, token_hash, label, scope, event_id, team_id)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO ical_tokens (user_id, token_hash, token, label, scope, event_id, team_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: ListICalTokensByUser :many
-SELECT * FROM ical_tokens
-WHERE user_id = $1 AND is_active = true
-ORDER BY created_at DESC;
+SELECT it.*,
+       e.slug AS event_slug,
+       t.abbreviation AS team_abbreviation
+FROM ical_tokens it
+LEFT JOIN events e ON it.event_id = e.id
+LEFT JOIN teams t ON it.team_id = t.id
+WHERE it.user_id = $1 AND it.is_active = true
+ORDER BY it.created_at DESC;
 
 -- name: GetICalTokenByHash :one
 SELECT it.*, u.username

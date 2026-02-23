@@ -1,0 +1,273 @@
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import type { Event, Shift, CoverageRequirement, EventTeam, HiddenRange } from "@/api/types";
+import { generateTimeSlots, granularityToMinutes, formatSlotTime, formatDayHeader, groupShiftsByUser } from "@/lib/time";
+
+interface PrintGridPageProps {
+  event: Event;
+  shifts: Shift[];
+  coverage: CoverageRequirement[];
+  eventTeams: EventTeam[];
+  hiddenRanges: HiddenRange[];
+  day: Date;
+  showCoverage: boolean;
+  showTeamColors: boolean;
+  isFirstPage: boolean;
+}
+
+const ROWS_PER_PAGE = 25;
+
+export function PrintGridPage({
+  event,
+  shifts,
+  coverage,
+  eventTeams,
+  hiddenRanges,
+  day,
+  showCoverage,
+  showTeamColors,
+  isFirstPage,
+}: PrintGridPageProps) {
+  const { t } = useTranslation(["events"]);
+
+  // Compute day boundaries clamped to event range
+  const dayRange = useMemo(() => {
+    const dayStart = new Date(day);
+    const dayEnd = new Date(day);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+    const eventStart = new Date(event.start_time);
+    const eventEnd = new Date(event.end_time);
+    return {
+      start: (dayStart > eventStart ? dayStart : eventStart).toISOString(),
+      end: (dayEnd < eventEnd ? dayEnd : eventEnd).toISOString(),
+    };
+  }, [day, event.start_time, event.end_time]);
+
+  // Generate time slots for this day
+  const slots = useMemo(
+    () => generateTimeSlots(dayRange.start, dayRange.end, event.time_granularity, hiddenRanges),
+    [dayRange.start, dayRange.end, event.time_granularity, hiddenRanges]
+  );
+
+  const granMinutes = granularityToMinutes(event.time_granularity);
+
+  // Filter shifts that overlap this day
+  const dayShifts = useMemo(() => {
+    if (slots.length === 0) return [];
+    const dayStartMs = slots[0].getTime();
+    const dayEndMs = slots[slots.length - 1].getTime() + granMinutes * 60 * 1000;
+    return shifts.filter((s) => {
+      const sStart = new Date(s.start_time).getTime();
+      const sEnd = new Date(s.end_time).getTime();
+      return sStart < dayEndMs && sEnd > dayStartMs;
+    });
+  }, [shifts, slots, granMinutes]);
+
+  // Get distinct users
+  const users = useMemo(() => groupShiftsByUser(dayShifts), [dayShifts]);
+
+  // Split users into page chunks
+  const userChunks = useMemo(() => {
+    if (users.length === 0) return [[]];
+    const chunks: (typeof users)[] = [];
+    for (let i = 0; i < users.length; i += ROWS_PER_PAGE) {
+      chunks.push(users.slice(i, i + ROWS_PER_PAGE));
+    }
+    return chunks;
+  }, [users]);
+
+  // Build team lookup
+  const teamMap = useMemo(() => {
+    const map = new Map<string, { name: string; abbreviation: string; color: string }>();
+    for (const et of eventTeams) {
+      map.set(et.team_id, { name: et.team_name, abbreviation: et.team_abbreviation, color: et.team_color });
+    }
+    for (const s of dayShifts) {
+      if (!map.has(s.team_id)) {
+        map.set(s.team_id, { name: s.team_name, abbreviation: s.team_abbreviation, color: s.team_color });
+      }
+    }
+    return map;
+  }, [eventTeams, dayShifts]);
+
+  // Build coverage data per slot per team
+  const coverageData = useMemo(() => {
+    if (!showCoverage) return null;
+    const teams = Array.from(teamMap.entries());
+    if (teams.length === 0) return null;
+
+    return teams.map(([teamId, team]) => {
+      const slotData = slots.map((slot) => {
+        const slotMs = slot.getTime();
+        const slotEndMs = slotMs + granMinutes * 60 * 1000;
+
+        // Count shifts covering this slot for this team
+        const count = dayShifts.filter((s) => {
+          if (s.team_id !== teamId) return false;
+          const sStart = new Date(s.start_time).getTime();
+          const sEnd = new Date(s.end_time).getTime();
+          return sStart < slotEndMs && sEnd > slotMs;
+        }).length;
+
+        // Find coverage requirement for this slot + team
+        const req = coverage.find((c) => {
+          if (c.team_id !== teamId) return false;
+          const cStart = new Date(c.start_time).getTime();
+          const cEnd = new Date(c.end_time).getTime();
+          return cStart <= slotMs && cEnd > slotMs;
+        });
+
+        return { count, required: req?.required_count ?? 0 };
+      });
+
+      return { teamId, team, slotData };
+    });
+  }, [showCoverage, teamMap, slots, granMinutes, dayShifts, coverage]);
+
+  if (slots.length === 0) return null;
+
+  const now = new Date();
+
+  return (
+    <>
+      {userChunks.map((chunk, chunkIdx) => {
+        const isFirst = isFirstPage && chunkIdx === 0;
+        const isLastChunk = chunkIdx === userChunks.length - 1;
+
+        return (
+          <div key={chunkIdx} className={isFirst ? "" : "print-day-break"}>
+            {/* Page header */}
+            <div className="print-page-header">
+              <span className="print-event-name">{event.name}</span>
+              <span>{formatDayHeader(day)}</span>
+              <span>
+                {t("events:printed_at")} {formatSlotTime(now)}
+              </span>
+            </div>
+
+            {/* Grid table */}
+            <table className="print-grid-table">
+              <thead>
+                <tr>
+                  <th className="print-name-col">&nbsp;</th>
+                  {slots.map((slot, i) => {
+                    const min = slot.getMinutes();
+                    const showTime = min === 0;
+                    return (
+                      <th key={i}>
+                        {showTime ? formatSlotTime(slot) : ""}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {chunk.map((user) => {
+                  const userShifts = dayShifts.filter((s) => s.user_id === user.id);
+                  return (
+                    <UserRow
+                      key={user.id}
+                      userName={user.displayName || user.fullName}
+                      userShifts={userShifts}
+                      slots={slots}
+                      granMinutes={granMinutes}
+                      showTeamColors={showTeamColors}
+                    />
+                  );
+                })}
+
+                {/* Coverage rows - only on last chunk */}
+                {isLastChunk && coverageData && coverageData.map(({ teamId, team, slotData }) => (
+                  <tr key={`cov-${teamId}`} className="print-coverage-row">
+                    <td className="print-name-col">{team.abbreviation}</td>
+                    {slotData.map((sd, i) => {
+                      let bgColor = "transparent";
+                      if (sd.required > 0) {
+                        bgColor = sd.count >= sd.required ? "#dcfce7" : "#fef2f2";
+                      }
+                      return (
+                        <td key={i} style={{ backgroundColor: bgColor }}>
+                          {sd.required > 0 ? `${sd.count}/${sd.required}` : ""}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+/** Renders a single user row with colspan-based shift cells */
+function UserRow({
+  userName,
+  userShifts,
+  slots,
+  granMinutes,
+  showTeamColors,
+}: {
+  userName: string;
+  userShifts: Shift[];
+  slots: Date[];
+  granMinutes: number;
+  showTeamColors: boolean;
+}) {
+  const cells: React.ReactNode[] = [];
+  const rendered = new Set<string>();
+  let skipUntil = -1;
+
+  for (let i = 0; i < slots.length; i++) {
+    if (i < skipUntil) continue;
+
+    const slotMs = slots[i].getTime();
+    const slotEndMs = slotMs + granMinutes * 60 * 1000;
+
+    // Find shift covering this slot
+    const shift = userShifts.find((s) => {
+      if (rendered.has(s.id)) return false;
+      const sStart = new Date(s.start_time).getTime();
+      const sEnd = new Date(s.end_time).getTime();
+      return sStart < slotEndMs && sEnd > slotMs;
+    });
+
+    if (shift) {
+      rendered.add(shift.id);
+      // Calculate colspan: how many slots does this shift cover within remaining day slots
+      const shiftEndMs = new Date(shift.end_time).getTime();
+      let span = 0;
+      for (let j = i; j < slots.length; j++) {
+        const jMs = slots[j].getTime();
+        if (jMs >= shiftEndMs) break;
+        span++;
+      }
+      span = Math.max(span, 1);
+      skipUntil = i + span;
+
+      const bgColor = showTeamColors ? shift.team_color + "33" : "#f0f0f0";
+
+      cells.push(
+        <td
+          key={i}
+          colSpan={span}
+          className="print-shift-cell"
+          style={{ backgroundColor: bgColor }}
+        >
+          {shift.team_abbreviation}
+        </td>
+      );
+    } else {
+      cells.push(<td key={i} />);
+    }
+  }
+
+  return (
+    <tr>
+      <td className="print-name-col">{userName}</td>
+      {cells}
+    </tr>
+  );
+}

@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router";
 import { useTranslation } from "react-i18next";
-import { useEvent, useEventAdmins, useEventHiddenRanges, useEventTeams } from "@/hooks/useEvents";
+import { useEvent, useEventHiddenRanges, useEventTeams } from "@/hooks/useEvents";
 import { useGridData, useUpdateShift } from "@/hooks/useShifts";
 import { useTeams } from "@/hooks/useTeams";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,15 +10,16 @@ import { useViewParams } from "@/hooks/useViewParams";
 import { ShiftGrid } from "@/components/grid/ShiftGrid";
 import { ShiftStats } from "@/components/grid/ShiftStats";
 import { UserShiftList } from "@/components/grid/UserShiftList";
-import { ViewSelector, type GridView } from "@/components/grid/ViewSelector";
+import { ViewSelector } from "@/components/grid/ViewSelector";
 import { groupShiftsByUser } from "@/lib/time";
 import { DayFilter } from "@/components/grid/DayFilter";
 import { CreateShiftDialog } from "@/components/shifts/CreateShiftDialog";
 import { ShiftDetailDialog } from "@/components/shifts/ShiftDetailDialog";
 import { ExportMenu } from "@/components/export/ExportMenu";
+import { PrintContainer } from "@/components/export/PrintContainer";
 import { AvailabilityEditor } from "@/components/availability/AvailabilityEditor";
 import { GridSkeleton } from "@/components/common/Skeleton";
-import type { Shift } from "@/api/types";
+import type { Shift, PrintConfig } from "@/api/types";
 
 export function EventPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -28,8 +29,6 @@ export function EventPage() {
   const { data: hiddenRanges } = useEventHiddenRanges(slug!);
   const { data: teams } = useTeams();
   const { data: eventTeams } = useEventTeams(slug!);
-  const { data: admins } = useEventAdmins(slug!);
-
   // Connect to SSE for real-time updates on this event
   useSSE({ slug, enabled: !!slug });
   const { user } = useAuth();
@@ -47,6 +46,34 @@ export function EventPage() {
   const [createDialogState, setCreateDialogState] = useState<{ time: Date; userId?: string } | null>(null);
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [showAvailability, setShowAvailability] = useState(false);
+  const [printConfig, setPrintConfig] = useState<PrintConfig | null>(null);
+  const pendingPrintRef = useRef<PrintConfig | null>(null);
+
+  function handlePrint(config: PrintConfig) {
+    pendingPrintRef.current = config;
+    setPrintConfig(config);
+  }
+
+  const handlePrintReady = useCallback(() => {
+    const config = pendingPrintRef.current;
+    if (!config) return;
+    pendingPrintRef.current = null;
+
+    // Inject dynamic @page style
+    const style = document.createElement("style");
+    style.id = "print-page-override";
+    const orientation = config.landscape ? "landscape" : "portrait";
+    style.textContent = `@page { size: ${config.paperSize} ${orientation}; margin: 8mm; }`;
+    document.head.appendChild(style);
+
+    // Wait one more frame to ensure portal content is painted
+    requestAnimationFrame(() => {
+      window.print();
+      // Cleanup
+      document.getElementById("print-page-override")?.remove();
+      setPrintConfig(null);
+    });
+  }, []);
 
   // Build user list from shifts for per_user view
   const shiftUsers = useMemo(() => {
@@ -89,7 +116,7 @@ export function EventPage() {
 
   const isSuperAdmin = user?.role === "super_admin";
   const isReadOnly = user?.role === "read_only";
-  const isEventAdmin = admins?.some((a) => a.user_id === user?.id) ?? false;
+  const isEventAdmin = event.is_event_admin;
   const canManageShifts = isSuperAdmin || isEventAdmin;
   const canEdit = !isReadOnly && !event.is_locked;
 
@@ -144,8 +171,17 @@ export function EventPage() {
               {t("events:public")}
             </span>
           )}
-          <ExportMenu slug={event.slug} />
-          {isSuperAdmin && (
+          <ExportMenu
+            slug={event.slug}
+            event={event}
+            shifts={gridData?.shifts || []}
+            coverage={gridData?.coverage || []}
+            eventTeams={eventTeams || []}
+            hiddenRanges={hiddenRanges || []}
+            selectedDay={selectedDay}
+            onPrint={handlePrint}
+          />
+          {canManageShifts && (
             <Link
               to={`/events/${event.slug}/settings`}
               className="rounded-md bg-[var(--color-muted)] px-3 py-1.5 text-sm hover:bg-[var(--color-border)]"
@@ -292,6 +328,17 @@ export function EventPage() {
           onClose={() => setShowAvailability(false)}
         />
       )}
+
+      {/* Print Container (hidden on screen, visible for print) */}
+      <PrintContainer
+        event={event}
+        shifts={gridData?.shifts || []}
+        coverage={gridData?.coverage || []}
+        eventTeams={eventTeams || []}
+        hiddenRanges={hiddenRanges || []}
+        config={printConfig}
+        onReady={handlePrintReady}
+      />
     </div>
   );
 }
