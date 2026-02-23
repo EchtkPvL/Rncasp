@@ -11,8 +11,7 @@ interface CreateEventDialogProps {
 
 function toSlug(name: string): string {
   return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
 
@@ -103,7 +102,7 @@ export function CreateEventDialog({ onClose }: CreateEventDialogProps) {
               value={slug}
               onChange={(e) => { setSlug(e.target.value); setSlugManual(true); }}
               required
-              pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              pattern="^[a-zA-Z0-9]+(?:[-_][a-zA-Z0-9]+)*$"
               className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm font-mono"
             />
           </div>
