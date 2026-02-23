@@ -1,0 +1,58 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { exportApi } from "@/api/export";
+import type { CreateICalTokenRequest } from "@/api/types";
+
+export function useICalTokens() {
+  return useQuery({
+    queryKey: ["ical-tokens"],
+    queryFn: exportApi.listTokens,
+  });
+}
+
+export function useCreateICalToken() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateICalTokenRequest) => exportApi.createToken(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ical-tokens"] });
+    },
+  });
+}
+
+export function useRevokeICalToken() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (tokenId: string) => exportApi.revokeToken(tokenId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ical-tokens"] });
+    },
+  });
+}
+
+export function useDownloadCSV() {
+  return useMutation({
+    mutationFn: async (slug: string) => {
+      const blob = await exportApi.downloadCSV(slug);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${slug}-shifts.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+  });
+}
+
+export function useDownloadICal() {
+  return useMutation({
+    mutationFn: async (slug: string) => {
+      const blob = await exportApi.downloadICal(slug);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${slug}-shifts.ics`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+  });
+}

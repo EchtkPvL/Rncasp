@@ -1,0 +1,22 @@
+{
+  "ical": {
+    "title": "iCal-Abonnements",
+    "description": "Erstellen Sie Abonnement-URLs, um Ihre Schichten mit externen Kalenderanwendungen wie Google Kalender, Apple Kalender oder Outlook zu synchronisieren.",
+    "create": "Token erstellen",
+    "label": "Bezeichnung",
+    "label_placeholder": "z.B. Mein Google Kalender",
+    "scope": "Bereich",
+    "scope_user": "Alle meine Schichten",
+    "scope_event": "Bestimmte Veranstaltung",
+    "scope_team": "Bestimmtes Team in Veranstaltung",
+    "event": "Veranstaltung",
+    "team": "Team",
+    "select_event": "Veranstaltung auswählen...",
+    "select_team": "Team auswählen...",
+    "last_used": "Zuletzt verwendet",
+    "copy_url": "URL kopieren",
+    "copied": "Kopiert!",
+    "revoke": "Widerrufen",
+    "empty": "Noch keine iCal-Abonnement-Tokens. Erstellen Sie einen, um Ihre Schichten mit einem externen Kalender zu synchronisieren."
+  }
+}

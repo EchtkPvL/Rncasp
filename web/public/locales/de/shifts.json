@@ -1,0 +1,25 @@
+{
+  "title": "Schichten",
+  "create": "Schicht erstellen",
+  "edit": "Schicht bearbeiten",
+  "delete": "Schicht löschen",
+  "delete_confirm": "Möchten Sie diese Schicht wirklich löschen?",
+  "team": "Team",
+  "start_time": "Startzeit",
+  "end_time": "Endzeit",
+  "overlap_warning": "Diese Schicht überschneidet sich mit einer anderen",
+  "overbooking_error": "Personalbedarf für diesen Zeitraum bereits gedeckt",
+  "event_locked": "Diese Veranstaltung ist gesperrt",
+  "all_days": "Alle Tage",
+  "no_shifts": "Noch keine Schichten zugewiesen",
+  "assign_to": "Zuweisen an",
+  "search_user": "Benutzer suchen...",
+  "coverage": "Besetzung",
+  "views": {
+    "everything": "Alle",
+    "by_team": "Nach Team",
+    "by_day": "Nach Tag",
+    "my_shifts": "Meine Schichten",
+    "per_user": "Pro Benutzer"
+  }
+}

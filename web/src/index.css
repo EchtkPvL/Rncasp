@@ -1,0 +1,159 @@
+@import "tailwindcss";
+
+/* Dynamic color palette - overridden by API values via useColorPalette */
+:root {
+  --color-primary: #e26729;
+  --color-primary-dark: #c4551f;
+  --color-primary-foreground: #ffffff;
+  --color-background: #f4f4f4;
+  --color-foreground: #000000;
+  --color-surface: #f4f4f4;
+  --color-surface-alt: #efefef;
+  --color-muted: #efefef;
+  --color-muted-foreground: #818181;
+  --color-border: #cccccc;
+  --color-destructive: #b20101;
+  --color-destructive-foreground: #ffffff;
+  --color-destructive-light: #fef2f2;
+  --color-destructive-border: #fca5a5;
+  --color-warning: #FAE55F;
+  --color-warning-foreground: #854d0e;
+  --color-warning-light: #fefce8;
+  --color-warning-border: #fde68a;
+  --color-success: #2d8a4e;
+  --color-success-foreground: #ffffff;
+  --color-success-light: #f0fdf4;
+  --color-success-border: #86efac;
+  --color-info: #5bbad5;
+  --color-info-foreground: #ffffff;
+  --color-info-light: #eff6ff;
+  --color-info-border: #93c5fd;
+  --color-accent: #efefef;
+  --color-accent-foreground: #000000;
+  --color-nav-background: #303030;
+  --color-nav-text: #ffffff;
+  --color-nav-hover: rgba(255, 255, 255, 0.1);
+  --color-nav-active: rgba(255, 255, 255, 0.2);
+  --color-nav-border: rgba(255, 255, 255, 0.1);
+  --color-text-on-dark: #ffffff;
+  --color-text-on-color: #ffffff;
+  --color-button-primary: #e26729;
+  --color-button-secondary: #818181;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+
+/* Skeleton loading animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--color-muted) 25%, var(--color-border) 50%, var(--color-muted) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 0.375rem;
+}
+
+/* Toast animation */
+@keyframes toast-in {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes toast-out {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(100%); opacity: 0; }
+}
+
+/* Mobile touch targets */
+@media (max-width: 640px) {
+  /* Ensure minimum 44px touch targets on mobile */
+  button,
+  [role="button"],
+  select,
+  a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Compact buttons can be smaller if explicitly styled */
+  .text-xs {
+    min-height: 36px;
+  }
+}
+
+/* Print styles */
+@media print {
+  /* Default page setup: A4 landscape */
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  /* A3 paper size via data attribute */
+  body[data-print-size="A3"] {
+    /* A3 override applied via @page below */
+  }
+
+  /* Hide navigation, buttons, and interactive elements */
+  nav,
+  header,
+  [data-print-hide],
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Reset background for printing */
+  body {
+    background: white;
+    color: black;
+    min-width: 0;
+    font-size: 10pt;
+  }
+
+  /* Make the grid fit the page */
+  .overflow-auto {
+    overflow: visible !important;
+  }
+
+  /* Page break rules for grid rows */
+  [class*="border-b"] {
+    page-break-inside: avoid;
+  }
+
+  /* Keep coverage bars together */
+  [class*="border-t-2"] {
+    page-break-inside: avoid;
+    page-break-before: auto;
+  }
+
+  /* Ensure borders and colors print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Remove shadows and rounded corners for cleaner print */
+  .shadow-lg,
+  .shadow-md,
+  .shadow {
+    box-shadow: none !important;
+  }
+
+  /* Proper margins for the main content */
+  .mx-auto {
+    margin: 0 !important;
+    max-width: none !important;
+    padding: 0 !important;
+  }
+}

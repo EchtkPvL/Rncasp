@@ -1,0 +1,25 @@
+{
+  "title": "Shifts",
+  "create": "Create Shift",
+  "edit": "Edit Shift",
+  "delete": "Delete Shift",
+  "delete_confirm": "Are you sure you want to delete this shift?",
+  "team": "Team",
+  "start_time": "Start Time",
+  "end_time": "End Time",
+  "overlap_warning": "This shift overlaps with another shift",
+  "overbooking_error": "Coverage requirement already met for this time slot",
+  "event_locked": "This event is locked",
+  "all_days": "All days",
+  "no_shifts": "No shifts assigned yet",
+  "assign_to": "Assign to",
+  "search_user": "Search users...",
+  "coverage": "Coverage",
+  "views": {
+    "everything": "Everything",
+    "by_team": "By Team",
+    "by_day": "By Day",
+    "my_shifts": "My Shifts",
+    "per_user": "Per User"
+  }
+}

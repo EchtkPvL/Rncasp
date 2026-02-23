@@ -1,0 +1,22 @@
+{
+  "ical": {
+    "title": "iCal Subscriptions",
+    "description": "Create subscription URLs to sync your shifts with external calendar applications like Google Calendar, Apple Calendar, or Outlook.",
+    "create": "Create Token",
+    "label": "Label",
+    "label_placeholder": "e.g. My Google Calendar",
+    "scope": "Scope",
+    "scope_user": "All my shifts",
+    "scope_event": "Specific event",
+    "scope_team": "Specific team in event",
+    "event": "Event",
+    "team": "Team",
+    "select_event": "Select an event...",
+    "select_team": "Select a team...",
+    "last_used": "Last used",
+    "copy_url": "Copy URL",
+    "copied": "Copied!",
+    "revoke": "Revoke",
+    "empty": "No iCal subscription tokens yet. Create one to sync your shifts with an external calendar."
+  }
+}
