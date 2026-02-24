@@ -10,9 +10,18 @@ import (
 
 func main() {
 	// Setup structured logger
-	logLevel := slog.LevelInfo
+	logLevel := new(slog.LevelVar)
+	logLevel.Set(slog.LevelInfo)
 	if os.Getenv("APP_ENV") == "development" {
-		logLevel = slog.LevelDebug
+		logLevel.Set(slog.LevelDebug)
+	}
+	if lvl := os.Getenv("LOG_LEVEL"); lvl != "" {
+		var l slog.Level
+		if err := l.UnmarshalText([]byte(lvl)); err != nil {
+			slog.Error("invalid LOG_LEVEL, using default", "value", lvl, "error", err)
+		} else {
+			logLevel.Set(l)
+		}
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: logLevel,
@@ -27,7 +36,7 @@ func main() {
 
 	if cfg.IsDev() {
 		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelDebug,
+			Level: logLevel,
 		}))
 	}
 

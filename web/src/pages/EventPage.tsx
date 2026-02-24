@@ -9,7 +9,7 @@ import { useTimeFormat } from "@/hooks/useTimeFormat";
 import { useSSE } from "@/hooks/useSSE";
 import { useViewParams } from "@/hooks/useViewParams";
 import { useGridNavigation } from "@/hooks/useKeyboard";
-import { generateTimeSlots, granularityToMinutes } from "@/lib/time";
+import { generateTimeSlots } from "@/lib/time";
 import { ShiftGrid } from "@/components/grid/ShiftGrid";
 import { ShiftStats } from "@/components/grid/ShiftStats";
 import { UserShiftList } from "@/components/grid/UserShiftList";
