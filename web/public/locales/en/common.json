@@ -69,7 +69,10 @@
     "totp_code": "Authentication Code",
     "totp_verify_button": "Verify",
     "totp_recovery_hint": "You can also use a recovery code.",
-    "weak_password": "Weak password — consider using at least 8 characters"
+    "weak_password": "Weak password — consider using at least 8 characters",
+    "registration_disabled": "Registration is currently disabled. Please contact an administrator.",
+    "username_taken": "This username is already taken.",
+    "email_taken": "This email address is already in use."
   },
   "keyboard": {
     "title": "Keyboard Shortcuts",

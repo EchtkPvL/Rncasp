@@ -4,7 +4,6 @@ import { useAppSettings, useUpdateSetting } from "@/hooks/useAdmin";
 
 interface ColorPalette {
   primary: string;
-  primaryDark: string;
   background: string;
   surface: string;
   surfaceAlt: string;
@@ -19,13 +18,28 @@ interface ColorPalette {
   info: string;
   navBackground: string;
   navText: string;
-  buttonPrimary: string;
-  buttonSecondary: string;
 }
+
+const DEFAULT_PALETTE: ColorPalette = {
+  primary: "#e26729",
+  background: "#f4f4f4",
+  surface: "#f4f4f4",
+  surfaceAlt: "#efefef",
+  textPrimary: "#000000",
+  textSecondary: "#818181",
+  textOnPrimary: "#ffffff",
+  textOnDark: "#ffffff",
+  border: "#cccccc",
+  error: "#b20101",
+  warning: "#FAE55F",
+  success: "#2d8a4e",
+  info: "#5bbad5",
+  navBackground: "#303030",
+  navText: "#ffffff",
+};
 
 const PALETTE_KEYS: Record<keyof ColorPalette, string> = {
   primary: "admin:palette.primary",
-  primaryDark: "admin:palette.primary_dark",
   background: "admin:palette.background",
   surface: "admin:palette.surface",
   surfaceAlt: "admin:palette.surface_alt",
@@ -40,8 +54,6 @@ const PALETTE_KEYS: Record<keyof ColorPalette, string> = {
   info: "admin:palette.info",
   navBackground: "admin:palette.nav_background",
   navText: "admin:palette.nav_text",
-  buttonPrimary: "admin:palette.button_primary",
-  buttonSecondary: "admin:palette.button_secondary",
 };
 
 export function AppSettingsPage() {
@@ -101,6 +113,10 @@ export function AppSettingsPage() {
     updateSetting.mutate({ key: "color_palette", value: palette });
   }
 
+  function handleResetPalette() {
+    setPalette({ ...DEFAULT_PALETTE });
+  }
+
   if (isLoading) {
     return <p className="text-[var(--color-muted-foreground)]">{t("common:loading")}</p>;
   }
@@ -111,7 +127,10 @@ export function AppSettingsPage() {
 
       {/* App Name */}
       <section className="mt-6 rounded-lg border border-[var(--color-border)] p-4">
-        <h2 className="text-lg font-semibold">{t("common:app_name")}</h2>
+        <h2 className="text-lg font-semibold">{t("admin:settings.app_name")}</h2>
+        <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
+          {t("admin:settings.app_name_description")}
+        </p>
         <div className="mt-3 flex gap-2">
           <input
             type="text"
@@ -135,9 +154,12 @@ export function AppSettingsPage() {
           <div>
             <h2 className="text-lg font-semibold">{t("admin:settings.registration")}</h2>
             <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
+              {t("admin:settings.registration_description")}
+            </p>
+            <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">
               {registrationEnabled
-                ? t("admin:settings.registration_on", "New users can register accounts")
-                : t("admin:settings.registration_off", "Registration is disabled")}
+                ? t("admin:settings.registration_on")
+                : t("admin:settings.registration_off")}
             </p>
           </div>
           <button
@@ -159,6 +181,9 @@ export function AppSettingsPage() {
       {/* Default Language */}
       <section className="mt-4 rounded-lg border border-[var(--color-border)] p-4">
         <h2 className="text-lg font-semibold">{t("admin:settings.default_language")}</h2>
+        <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
+          {t("admin:settings.default_language_description")}
+        </p>
         <div className="mt-3 flex gap-2">
           <button
             onClick={() => handleLanguageChange("en")}
@@ -188,13 +213,21 @@ export function AppSettingsPage() {
         <section className="mt-4 rounded-lg border border-[var(--color-border)] p-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">{t("admin:settings.color_palette")}</h2>
-            <button
-              onClick={handleSavePalette}
-              disabled={updateSetting.isPending}
-              className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-[var(--color-primary-foreground)] disabled:opacity-50"
-            >
-              {t("common:save")}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleResetPalette}
+                className="rounded-md border border-[var(--color-border)] px-4 py-2 text-sm hover:bg-[var(--color-muted)]"
+              >
+                {t("admin:settings.reset_palette")}
+              </button>
+              <button
+                onClick={handleSavePalette}
+                disabled={updateSetting.isPending}
+                className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-[var(--color-primary-foreground)] disabled:opacity-50"
+              >
+                {t("common:save")}
+              </button>
+            </div>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {(Object.keys(PALETTE_KEYS) as (keyof ColorPalette)[]).map((key) => (
@@ -267,14 +300,14 @@ export function AppSettingsPage() {
                 <button
                   type="button"
                   className="rounded-md px-3 py-1 text-xs font-medium"
-                  style={{ backgroundColor: palette.buttonPrimary, color: palette.textOnPrimary }}
+                  style={{ backgroundColor: palette.primary, color: palette.textOnPrimary }}
                 >
                   {t("admin:palette.primary")}
                 </button>
                 <button
                   type="button"
                   className="rounded-md px-3 py-1 text-xs font-medium"
-                  style={{ backgroundColor: palette.buttonSecondary, color: palette.textOnDark }}
+                  style={{ backgroundColor: palette.textSecondary, color: palette.textOnDark }}
                 >
                   {t("admin:palette.preview_secondary_btn")}
                 </button>

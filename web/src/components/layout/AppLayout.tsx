@@ -1,14 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet } from "react-router";
 import { Navbar } from "./Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColorPalette } from "@/hooks/useColorPalette";
+import { useAppName } from "@/hooks/useAppName";
 import { useHotkey } from "@/hooks/useKeyboard";
 import { KeyboardShortcutHelp } from "@/components/common/KeyboardShortcutHelp";
 
 export function AppLayout() {
   const { user, logout } = useAuth();
   useColorPalette();
+  const appName = useAppName();
+
+  useEffect(() => {
+    document.title = appName;
+  }, [appName]);
 
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   useHotkey("?", () => setShowKeyboardHelp(true));

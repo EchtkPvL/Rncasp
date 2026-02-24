@@ -39,7 +39,7 @@ func (s *Server) setupRoutes() http.Handler {
 	s.sseBroker = sseBroker
 
 	// Initialize services
-	authService := service.NewAuthService(queries, s.rdb, &s.cfg.Auth, &s.cfg.App, s.logger)
+	authService := service.NewAuthService(queries, s.rdb, &s.cfg.Auth, s.logger)
 	oauthService := service.NewOAuthService(queries, s.rdb, &s.cfg.App, &s.cfg.Auth, s.logger)
 	teamService := service.NewTeamService(queries, s.logger)
 	notificationService := service.NewNotificationService(queries, s.logger)

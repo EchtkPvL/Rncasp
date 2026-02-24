@@ -79,11 +79,8 @@ type AuthConfig struct {
 }
 
 type AppConfig struct {
-	Name                string
-	Environment         string
-	BaseURL             string
-	RegistrationEnabled bool
-	DefaultLanguage     string
+	Environment        string
+	BaseURL            string
 	CORSAllowedOrigins []string
 }
 
@@ -122,11 +119,8 @@ func Load() (*Config, error) {
 			BcryptCost:   getEnvInt("AUTH_BCRYPT_COST", 12),
 		},
 		App: AppConfig{
-			Name:                getEnv("APP_NAME", "Rncasp"),
-			Environment:         getEnv("APP_ENV", "production"),
-			BaseURL:             getEnv("APP_BASE_URL", "http://localhost:8080"),
-			RegistrationEnabled: getEnvBool("APP_REGISTRATION_ENABLED", true),
-			DefaultLanguage:     getEnv("APP_DEFAULT_LANGUAGE", "en"),
+			Environment:        getEnv("APP_ENV", "production"),
+			BaseURL:            getEnv("APP_BASE_URL", "http://localhost:8080"),
 			CORSAllowedOrigins: getEnvSlice("CORS_ALLOWED_ORIGINS", []string{"http://localhost:5173"}),
 		},
 	}

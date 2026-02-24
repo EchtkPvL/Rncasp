@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { useAppName } from "@/hooks/useAppName";
 
 interface NavbarProps {
   user: { username: string; role: string } | null;
@@ -11,6 +12,7 @@ interface NavbarProps {
 
 export function Navbar({ user, onLogout }: NavbarProps) {
   const { t } = useTranslation(["common", "admin"]);
+  const appName = useAppName();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -40,7 +42,7 @@ export function Navbar({ user, onLogout }: NavbarProps) {
             to="/"
             className="text-lg font-semibold text-[var(--color-nav-text)]"
           >
-            {t("app_name")}
+            {appName}
           </Link>
           {user && (
             <div className="hidden items-center gap-4 sm:flex">

@@ -35,7 +35,15 @@ export function EventCard({ event }: EventCardProps) {
             </span>
           )}
           {event.is_public && (
-            <span className="rounded-full bg-[var(--color-info-light)] px-2 py-0.5 text-xs text-[var(--color-info)]">
+            <span
+              role="link"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.open(`/public/events/${event.slug}`, "_blank");
+              }}
+              className="cursor-pointer rounded-full bg-[var(--color-info-light)] px-2 py-0.5 text-xs text-[var(--color-info-foreground)] hover:bg-[var(--color-info-border)]"
+            >
               {t("public")}
             </span>
           )}

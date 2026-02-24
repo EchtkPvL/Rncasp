@@ -420,7 +420,7 @@ export function EventSettingsPage() {
             onClick={togglePublic}
             disabled={setPublic.isPending}
             className={`rounded-md px-4 py-2 text-sm ${
-              event.is_public ? "bg-[var(--color-info-light)] text-[var(--color-info)]" : "bg-[var(--color-muted)] text-[var(--color-foreground)]"
+              event.is_public ? "bg-[var(--color-info-light)] text-[var(--color-info-foreground)]" : "bg-[var(--color-muted)] text-[var(--color-foreground)]"
             }`}
           >
             {event.is_public ? t("events:make_private") : t("events:make_public")}

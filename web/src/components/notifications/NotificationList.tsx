@@ -70,7 +70,7 @@ export function NotificationList({ onClose }: NotificationListProps) {
               type="button"
               onClick={() => handleClick(notification.id, notification.is_read)}
               className={`w-full border-b border-[var(--color-border)] px-4 py-3 text-left last:border-b-0 hover:bg-[var(--color-muted)] ${
-                !notification.is_read ? "bg-[var(--color-accent,#f0f9ff)]" : ""
+                !notification.is_read ? "bg-[var(--color-accent)]" : ""
               }`}
             >
               <div className="flex items-start gap-2">

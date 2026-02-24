@@ -21,9 +21,9 @@ interface GridRowProps {
 }
 
 const AVAILABILITY_COLORS: Record<string, string> = {
-  available: "rgba(34, 197, 94, 0.15)",
-  preferred: "rgba(59, 130, 246, 0.15)",
-  unavailable: "rgba(239, 68, 68, 0.12)",
+  available: "var(--color-availability-available)",
+  preferred: "var(--color-availability-preferred)",
+  unavailable: "var(--color-availability-unavailable)",
 };
 
 export function GridRow({

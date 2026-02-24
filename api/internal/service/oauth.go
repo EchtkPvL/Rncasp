@@ -593,7 +593,7 @@ func (s *OAuthService) loginOrCreateUser(
 		Email:        email,
 		PasswordHash: nil, // OAuth users have no password
 		Role:         role,
-		Language:     s.appCfg.DefaultLanguage,
+		Language:     getAppSettingString(ctx, s.queries, "default_language", "en"),
 		AccountType:  "oauth",
 	})
 	if err != nil {

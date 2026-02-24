@@ -4,8 +4,14 @@ import { Link, useNavigate } from "react-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/api/client";
 
+const API_ERROR_KEYS: Record<string, string> = {
+  "registration is disabled": "auth.registration_disabled",
+  "username already taken": "auth.username_taken",
+  "email already in use": "auth.email_taken",
+};
+
 export function RegisterPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { register } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
@@ -27,12 +33,12 @@ export function RegisterPage() {
         password,
         fullName,
         email || undefined,
-        i18n.language
       );
       navigate("/");
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        const key = API_ERROR_KEYS[err.message];
+        setError(key ? t(key) : err.message);
         if (err.field) setFieldError(err.field);
       } else {
         setError(t("error"));

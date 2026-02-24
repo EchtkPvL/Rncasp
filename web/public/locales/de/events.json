@@ -84,5 +84,7 @@
   "pdf_description": "Schichtplan als PDF-Datei herunterladen.",
   "active_events": "Kommende Veranstaltungen",
   "past_events": "Vergangene Veranstaltungen",
-  "no_past_events": "Keine vergangenen Veranstaltungen"
+  "no_past_events": "Keine vergangenen Veranstaltungen",
+  "copy_public_link": "Öffentlichen Link kopieren",
+  "public_link_copied": "Öffentlicher Link in die Zwischenablage kopiert"
 }

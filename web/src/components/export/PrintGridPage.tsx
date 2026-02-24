@@ -185,7 +185,7 @@ export function PrintGridPage({
                     {slotData.map((sd, i) => {
                       let bgColor = "transparent";
                       if (sd.required > 0) {
-                        bgColor = sd.count >= sd.required ? "#dcfce7" : "#fef2f2";
+                        bgColor = sd.count >= sd.required ? "var(--color-success-light)" : "var(--color-destructive-light)";
                       }
                       return (
                         <td key={i} style={{ backgroundColor: bgColor }}>
@@ -249,7 +249,7 @@ function UserRow({
       span = Math.max(span, 1);
       skipUntil = i + span;
 
-      const bgColor = showTeamColors ? shift.team_color + "33" : "#f0f0f0";
+      const bgColor = showTeamColors ? shift.team_color + "33" : "var(--color-surface-alt)";
 
       cells.push(
         <td

@@ -3,7 +3,6 @@
 /* Dynamic color palette - overridden by API values via useColorPalette */
 :root {
   --color-primary: #e26729;
-  --color-primary-dark: #c4551f;
   --color-primary-foreground: #ffffff;
   --color-background: #f4f4f4;
   --color-foreground: #000000;
@@ -25,7 +24,7 @@
   --color-success-light: #f0fdf4;
   --color-success-border: #86efac;
   --color-info: #5bbad5;
-  --color-info-foreground: #ffffff;
+  --color-info-foreground: #1a1a1a;
   --color-info-light: #eff6ff;
   --color-info-border: #93c5fd;
   --color-accent: #efefef;
@@ -37,8 +36,9 @@
   --color-nav-border: rgba(255, 255, 255, 0.1);
   --color-text-on-dark: #ffffff;
   --color-text-on-color: #ffffff;
-  --color-button-primary: #e26729;
-  --color-button-secondary: #818181;
+  --color-availability-available: rgba(45, 138, 78, 0.15);
+  --color-availability-preferred: rgba(91, 186, 213, 0.15);
+  --color-availability-unavailable: rgba(178, 1, 1, 0.12);
 }
 
 body {
@@ -126,7 +126,7 @@ body {
     justify-content: space-between;
     align-items: baseline;
     font-size: 8pt;
-    border-bottom: 0.5pt solid #999;
+    border-bottom: 0.5pt solid var(--color-muted-foreground);
     padding-bottom: 1mm;
     margin-bottom: 2mm;
   }
@@ -146,7 +146,7 @@ body {
 
   .print-grid-table th,
   .print-grid-table td {
-    border: 0.5pt solid #ccc;
+    border: 0.5pt solid var(--color-border);
     padding: 1mm;
     text-align: center;
     overflow: hidden;
@@ -184,7 +184,7 @@ body {
   .print-list-user-name {
     font-size: 10pt;
     font-weight: bold;
-    border-bottom: 0.5pt solid #ccc;
+    border-bottom: 0.5pt solid var(--color-border);
     padding-bottom: 0.5mm;
     margin-bottom: 1mm;
   }

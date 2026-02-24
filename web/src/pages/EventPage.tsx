@@ -22,6 +22,7 @@ import { ExportMenu } from "@/components/export/ExportMenu";
 import { PrintContainer } from "@/components/export/PrintContainer";
 import { AvailabilityEditor } from "@/components/availability/AvailabilityEditor";
 import { GridSkeleton } from "@/components/common/Skeleton";
+import { useToast } from "@/components/common/Toast";
 import type { Shift, PrintConfig } from "@/api/types";
 
 export function EventPage() {
@@ -36,6 +37,7 @@ export function EventPage() {
   useSSE({ slug, enabled: !!slug });
   const { user } = useAuth();
   const hour12 = useTimeFormat();
+  const { toast } = useToast();
   const updateShift = useUpdateShift();
 
   // View state (synced with URL search params for shareable links)
@@ -229,9 +231,17 @@ export function EventPage() {
             </span>
           )}
           {event.is_public && (
-            <span className="rounded-full bg-[var(--color-info-light)] px-2.5 py-1 text-xs text-[var(--color-info)]">
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/public/events/${event.slug}`);
+                toast(t("events:public_link_copied"));
+              }}
+              className="rounded-full bg-[var(--color-info-light)] px-2.5 py-1 text-xs text-[var(--color-info-foreground)] hover:bg-[var(--color-info-border)]"
+              title={t("events:copy_public_link")}
+            >
               {t("events:public")}
-            </span>
+            </button>
           )}
           <ExportMenu
             slug={event.slug}

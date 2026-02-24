@@ -5,8 +5,8 @@ import { adminApi } from "@/api/admin";
 // Maps DB palette keys to CSS custom property names
 const CSS_VAR_MAP: Record<string, string[]> = {
   primary: ["--color-primary"],
-  primaryDark: ["--color-primary-dark"],
-  surface: ["--color-background"],
+  background: ["--color-background"],
+  surface: ["--color-surface", "--color-muted", "--color-accent"],
   surfaceAlt: ["--color-surface-alt"],
   textPrimary: ["--color-foreground"],
   textSecondary: ["--color-muted-foreground"],
@@ -19,8 +19,6 @@ const CSS_VAR_MAP: Record<string, string[]> = {
   info: ["--color-info"],
   navBackground: ["--color-nav-background"],
   navText: ["--color-nav-text"],
-  buttonPrimary: ["--color-button-primary"],
-  buttonSecondary: ["--color-button-secondary"],
 };
 
 // Derive light/foreground/border variants from a hex color

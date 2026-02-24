@@ -69,7 +69,10 @@
     "totp_code": "Authentifizierungscode",
     "totp_verify_button": "Bestätigen",
     "totp_recovery_hint": "Sie können auch einen Wiederherstellungscode verwenden.",
-    "weak_password": "Schwaches Passwort — mindestens 8 Zeichen empfohlen"
+    "weak_password": "Schwaches Passwort — mindestens 8 Zeichen empfohlen",
+    "registration_disabled": "Die Registrierung ist derzeit deaktiviert. Bitte wenden Sie sich an einen Administrator.",
+    "username_taken": "Dieser Benutzername ist bereits vergeben.",
+    "email_taken": "Diese E-Mail-Adresse wird bereits verwendet."
   },
   "keyboard": {
     "title": "Tastenkombinationen",

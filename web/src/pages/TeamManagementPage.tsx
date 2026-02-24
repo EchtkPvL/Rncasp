@@ -20,13 +20,15 @@ export function TeamManagementPage() {
   // Form state
   const [name, setName] = useState("");
   const [abbreviation, setAbbreviation] = useState("");
-  const [color, setColor] = useState("#3B82F6");
+  const [color, setColor] = useState(() =>
+    getComputedStyle(document.documentElement).getPropertyValue("--color-primary").trim() || "#e26729"
+  );
   const [sortOrder, setSortOrder] = useState(0);
 
   function resetForm() {
     setName("");
     setAbbreviation("");
-    setColor("#3B82F6");
+    setColor(getComputedStyle(document.documentElement).getPropertyValue("--color-primary").trim() || "#e26729");
     setSortOrder(0);
     setEditing(null);
     setShowForm(false);

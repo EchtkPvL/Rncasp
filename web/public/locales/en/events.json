@@ -84,5 +84,7 @@
   "pdf_description": "Download the shift plan as a PDF file.",
   "active_events": "Upcoming Events",
   "past_events": "Past Events",
-  "no_past_events": "No past events"
+  "no_past_events": "No past events",
+  "copy_public_link": "Copy public link",
+  "public_link_copied": "Public link copied to clipboard"
 }

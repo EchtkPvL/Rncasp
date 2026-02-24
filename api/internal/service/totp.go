@@ -62,7 +62,7 @@ func (s *AuthService) SetupTOTP(ctx context.Context, userID uuid.UUID) (SetupTOT
 	}
 
 	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer:      s.appCfg.Name,
+		Issuer:      getAppSettingString(ctx, s.queries, "app_name", "Rncasp"),
 		AccountName: user.Username,
 	})
 	if err != nil {

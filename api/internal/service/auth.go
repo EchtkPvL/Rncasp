@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -23,7 +24,6 @@ type AuthService struct {
 	queries *repository.Queries
 	rdb     *redis.Client
 	cfg     *config.AuthConfig
-	appCfg  *config.AppConfig
 	logger  *slog.Logger
 }
 
@@ -31,14 +31,12 @@ func NewAuthService(
 	queries *repository.Queries,
 	rdb *redis.Client,
 	cfg *config.AuthConfig,
-	appCfg *config.AppConfig,
 	logger *slog.Logger,
 ) *AuthService {
 	return &AuthService{
 		queries: queries,
 		rdb:     rdb,
 		cfg:     cfg,
-		appCfg:  appCfg,
 		logger:  logger,
 	}
 }
@@ -94,7 +92,7 @@ func userToResponse(u repository.User) UserResponse {
 }
 
 func (s *AuthService) Register(ctx context.Context, input RegisterInput, ip, userAgent string) (UserResponse, SessionInfo, error) {
-	if !s.appCfg.RegistrationEnabled {
+	if !getAppSettingBool(ctx, s.queries, "registration_enabled", true) {
 		return UserResponse{}, SessionInfo{}, model.NewDomainError(model.ErrForbidden, "registration is disabled")
 	}
 
@@ -142,7 +140,7 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput, ip, use
 
 	lang := input.Language
 	if lang == "" {
-		lang = s.appCfg.DefaultLanguage
+		lang = getAppSettingString(ctx, s.queries, "default_language", "en")
 	}
 
 	var email *string
@@ -353,6 +351,30 @@ func hashToken(token string) string {
 
 func redisSessionKey(tokenHash string) string {
 	return "session:" + tokenHash
+}
+
+func getAppSettingString(ctx context.Context, q *repository.Queries, key, fallback string) string {
+	setting, err := q.GetAppSetting(ctx, key)
+	if err != nil {
+		return fallback
+	}
+	var val string
+	if json.Unmarshal(setting.Value, &val) != nil {
+		return fallback
+	}
+	return val
+}
+
+func getAppSettingBool(ctx context.Context, q *repository.Queries, key string, fallback bool) bool {
+	setting, err := q.GetAppSetting(ctx, key)
+	if err != nil {
+		return fallback
+	}
+	var val bool
+	if json.Unmarshal(setting.Value, &val) != nil {
+		return fallback
+	}
+	return val
 }
 
 func validateRegisterInput(input RegisterInput) error {
