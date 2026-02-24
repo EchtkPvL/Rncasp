@@ -7,13 +7,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEscapeKey } from "@/hooks/useKeyboard";
 import { ApiError } from "@/api/client";
 import type { Event } from "@/api/types";
-import { granularityToMinutes } from "@/lib/time";
+import { granularityToMinutes, granularityToStep, snapToGranularity } from "@/lib/time";
 
 interface CreateShiftDialogProps {
   event: Event;
   initialTime?: Date;
   targetUserId?: string;
   canSelectUser?: boolean;
+  visibleTeamIds?: Set<string>;
   onClose: () => void;
 }
 
@@ -22,7 +23,7 @@ function toLocalDatetime(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export function CreateShiftDialog({ event, initialTime, targetUserId, canSelectUser, onClose }: CreateShiftDialogProps) {
+export function CreateShiftDialog({ event, initialTime, targetUserId, canSelectUser, visibleTeamIds, onClose }: CreateShiftDialogProps) {
   const { t } = useTranslation(["shifts", "common"]);
   const { user } = useAuth();
   const createShift = useCreateShift();
@@ -30,14 +31,17 @@ export function CreateShiftDialog({ event, initialTime, targetUserId, canSelectU
   useEscapeKey(useCallback(() => onClose(), [onClose]));
 
   const granMinutes = granularityToMinutes(event.time_granularity);
+  const step = granularityToStep(event.time_granularity);
   const defaultStart = initialTime || new Date(event.start_time);
   const defaultEnd = new Date(defaultStart.getTime() + granMinutes * 60 * 1000);
   const eventMin = toLocalDatetime(new Date(event.start_time));
   const eventMax = toLocalDatetime(new Date(event.end_time));
 
+  const snap = (v: string) => snapToGranularity(v, event.time_granularity);
+
   const [teamId, setTeamId] = useState("");
-  const [startTime, setStartTime] = useState(toLocalDatetime(defaultStart));
-  const [endTime, setEndTime] = useState(toLocalDatetime(defaultEnd));
+  const [startTime, setStartTime] = useState(snap(toLocalDatetime(defaultStart)));
+  const [endTime, setEndTime] = useState(snap(toLocalDatetime(defaultEnd)));
   const [error, setError] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
 
@@ -137,7 +141,7 @@ export function CreateShiftDialog({ event, initialTime, targetUserId, canSelectU
               className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
             >
               <option value="">{t("common:select", "Select...")}</option>
-              {teams?.map((team) => (
+              {teams?.filter((team) => !visibleTeamIds || visibleTeamIds.has(team.id)).map((team) => (
                 <option key={team.id} value={team.id}>
                   {team.name} ({team.abbreviation})
                 </option>
@@ -191,7 +195,8 @@ export function CreateShiftDialog({ event, initialTime, targetUserId, canSelectU
                 value={startTime}
                 min={eventMin}
                 max={eventMax}
-                onChange={(e) => setStartTime(e.target.value)}
+                step={step}
+                onChange={(e) => setStartTime(snap(e.target.value))}
                 required
                 className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
               />
@@ -203,7 +208,8 @@ export function CreateShiftDialog({ event, initialTime, targetUserId, canSelectU
                 value={endTime}
                 min={eventMin}
                 max={eventMax}
-                onChange={(e) => setEndTime(e.target.value)}
+                step={step}
+                onChange={(e) => setEndTime(snap(e.target.value))}
                 required
                 className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
               />

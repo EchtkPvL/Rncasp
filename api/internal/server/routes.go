@@ -232,8 +232,8 @@ func (s *Server) setupRoutes() http.Handler {
 				r.With(middleware.RequireSuperAdmin).Put("/lock", eventHandler.SetLocked)
 				r.With(middleware.RequireSuperAdmin).Put("/public", eventHandler.SetPublic)
 
-				// Team visibility: event admin or super-admin
-				r.With(middleware.RequireEventAdminOrSuperAdmin(eventService)).Get("/teams", eventHandler.ListTeams)
+				// Team visibility: any authenticated user can read, admins can modify
+				r.Get("/teams", eventHandler.ListTeams)
 				r.With(middleware.RequireEventAdminOrSuperAdmin(eventService)).Post("/teams", eventHandler.SetTeam)
 				r.With(middleware.RequireEventAdminOrSuperAdmin(eventService)).Delete("/teams/{teamId}", eventHandler.RemoveTeam)
 
@@ -242,8 +242,8 @@ func (s *Server) setupRoutes() http.Handler {
 				r.With(middleware.RequireSuperAdmin).Post("/admins", eventHandler.AddAdmin)
 				r.With(middleware.RequireSuperAdmin).Delete("/admins/{userId}", eventHandler.RemoveAdmin)
 
-				// Hidden hours: event admin or super-admin
-				r.With(middleware.RequireEventAdminOrSuperAdmin(eventService)).Get("/hidden-ranges", eventHandler.ListHiddenRanges)
+				// Hidden hours: any authenticated user can read, admins can modify
+				r.Get("/hidden-ranges", eventHandler.ListHiddenRanges)
 				r.With(middleware.RequireEventAdminOrSuperAdmin(eventService)).Put("/hidden-ranges", eventHandler.SetHiddenRanges)
 
 				// Shifts: any authenticated user can read, create (with permission checks in service)

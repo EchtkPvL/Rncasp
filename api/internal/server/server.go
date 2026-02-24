@@ -113,12 +113,11 @@ func (s *Server) Start() error {
 		}
 		listenAddr = s.cfg.Server.SocketPath
 	} else {
-		addr := fmt.Sprintf("%s:%d", s.cfg.Server.Host, s.cfg.Server.Port)
-		listener, listenErr = net.Listen("tcp", addr)
+		listener, listenErr = net.Listen("tcp", s.cfg.Server.ListenAddr)
 		if listenErr != nil {
-			return fmt.Errorf("listen tcp %s: %w", addr, listenErr)
+			return fmt.Errorf("listen tcp %s: %w", s.cfg.Server.ListenAddr, listenErr)
 		}
-		listenAddr = addr
+		listenAddr = s.cfg.Server.ListenAddr
 	}
 
 	// Graceful shutdown

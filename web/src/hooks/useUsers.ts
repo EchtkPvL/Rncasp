@@ -60,7 +60,7 @@ export function useSearchUsers(query: string) {
       const res = await usersApi.search(query);
       return res.data!;
     },
-    enabled: query.length >= 2,
+    enabled: query.length >= 1,
   });
 }
 

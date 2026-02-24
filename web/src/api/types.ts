@@ -397,6 +397,7 @@ export interface PrintConfig {
   showCoverage: boolean;
   showTeamColors: boolean;
   selectedDays: Date[];
+  selectedUserIds: string[] | null; // null = all users
 }
 
 // SSE

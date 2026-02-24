@@ -14,6 +14,7 @@ import (
 type Event struct {
 	Type    string `json:"type"`
 	EventID string `json:"event_id,omitempty"`
+	Slug    string `json:"-"` // used for routing to per-event subscribers, not serialized
 	Payload any    `json:"payload,omitempty"`
 }
 
@@ -31,8 +32,8 @@ const redisPubSubChannel = "sse:events"
 
 // client represents a connected SSE client.
 type client struct {
-	ch      chan []byte
-	eventID string // empty string means subscribed to all events
+	ch   chan []byte
+	slug string // event slug filter; empty string means subscribed to all events
 }
 
 // Broker manages SSE client connections and event broadcasting.
@@ -74,26 +75,26 @@ func (b *Broker) Close() {
 }
 
 // Subscribe registers a new client to receive SSE events.
-// If eventID is empty, the client receives all events.
+// If slug is empty, the client receives all events.
 // Returns a channel that delivers serialized SSE data and a cleanup function.
-func (b *Broker) Subscribe(eventID string) (<-chan []byte, func()) {
+func (b *Broker) Subscribe(slug string) (<-chan []byte, func()) {
 	c := &client{
-		ch:      make(chan []byte, 64),
-		eventID: eventID,
+		ch:   make(chan []byte, 64),
+		slug: slug,
 	}
 
 	b.mu.Lock()
 	b.clients[c] = struct{}{}
 	b.mu.Unlock()
 
-	b.logger.Debug("sse client subscribed", "event_id", eventID, "total_clients", b.clientCount())
+	b.logger.Debug("sse client subscribed", "slug", slug, "total_clients", b.clientCount())
 
 	cleanup := func() {
 		b.mu.Lock()
 		delete(b.clients, c)
 		close(c.ch)
 		b.mu.Unlock()
-		b.logger.Debug("sse client unsubscribed", "event_id", eventID, "total_clients", b.clientCount())
+		b.logger.Debug("sse client unsubscribed", "slug", slug, "total_clients", b.clientCount())
 	}
 
 	return c.ch, cleanup
@@ -102,16 +103,26 @@ func (b *Broker) Subscribe(eventID string) (<-chan []byte, func()) {
 // Publish sends an event to all connected clients via Redis Pub/Sub.
 // This ensures the event reaches clients on all server instances.
 func (b *Broker) Publish(ctx context.Context, evt Event) {
-	data, err := json.Marshal(evt)
+	inner, err := json.Marshal(evt)
 	if err != nil {
 		b.logger.Error("failed to marshal SSE event", "error", err)
 		return
 	}
 
-	if err := b.rdb.Publish(ctx, redisPubSubChannel, data).Err(); err != nil {
+	// Wrap in envelope with slug for per-event routing
+	envelope, err := json.Marshal(struct {
+		Slug  string `json:"slug"`
+		Inner string `json:"inner"`
+	}{Slug: evt.Slug, Inner: string(inner)})
+	if err != nil {
+		b.logger.Error("failed to marshal SSE envelope", "error", err)
+		return
+	}
+
+	if err := b.rdb.Publish(ctx, redisPubSubChannel, envelope).Err(); err != nil {
 		b.logger.Error("failed to publish SSE event to Redis", "error", err)
 		// Fall back to local-only broadcast
-		b.broadcast(data, evt.EventID)
+		b.broadcast(formatSSE(inner), evt.Slug)
 	}
 }
 
@@ -129,26 +140,29 @@ func (b *Broker) subscribe() {
 			if !ok {
 				return
 			}
-			var evt Event
-			if err := json.Unmarshal([]byte(msg.Payload), &evt); err != nil {
-				b.logger.Error("failed to unmarshal SSE event from Redis", "error", err)
+			var envelope struct {
+				Slug  string `json:"slug"`
+				Inner string `json:"inner"`
+			}
+			if err := json.Unmarshal([]byte(msg.Payload), &envelope); err != nil {
+				b.logger.Error("failed to unmarshal SSE envelope from Redis", "error", err)
 				continue
 			}
 
-			sseData := formatSSE(evt.Type, []byte(msg.Payload))
-			b.broadcast(sseData, evt.EventID)
+			sseData := formatSSE([]byte(envelope.Inner))
+			b.broadcast(sseData, envelope.Slug)
 		}
 	}
 }
 
 // broadcast sends serialized SSE data to matching local clients.
-func (b *Broker) broadcast(data []byte, eventID string) {
+func (b *Broker) broadcast(data []byte, slug string) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
 	for c := range b.clients {
 		// Send to clients subscribed to this specific event or to all events
-		if c.eventID == "" || c.eventID == eventID {
+		if c.slug == "" || c.slug == slug {
 			select {
 			case c.ch <- data:
 			default:
@@ -165,7 +179,8 @@ func (b *Broker) clientCount() int {
 	return len(b.clients)
 }
 
-// formatSSE formats data as an SSE message: "event: <type>\ndata: <json>\n\n"
-func formatSSE(eventType string, data []byte) []byte {
-	return []byte(fmt.Sprintf("event: %s\ndata: %s\n\n", eventType, data))
+// formatSSE formats data as an SSE message: "data: <json>\n\n"
+// No named "event:" field — all messages arrive via EventSource.onmessage.
+func formatSSE(data []byte) []byte {
+	return []byte(fmt.Sprintf("data: %s\n\n", data))
 }

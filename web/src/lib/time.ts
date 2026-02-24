@@ -9,6 +9,23 @@ export function granularityToMinutes(granularity: "15min" | "30min" | "1hour"): 
   }
 }
 
+/** Step value (in seconds) for datetime-local inputs */
+export function granularityToStep(granularity: "15min" | "30min" | "1hour"): number {
+  return granularityToMinutes(granularity) * 60;
+}
+
+/** Snap a datetime-local value string to the nearest granularity boundary */
+export function snapToGranularity(value: string, granularity: "15min" | "30min" | "1hour"): string {
+  if (!value) return value;
+  const minutes = granularityToMinutes(granularity);
+  const date = new Date(value);
+  const m = date.getMinutes();
+  const snapped = Math.round(m / minutes) * minutes;
+  date.setMinutes(snapped, 0, 0);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 /** Generate time slots between start and end at the given granularity */
 export function generateTimeSlots(
   startTime: string,

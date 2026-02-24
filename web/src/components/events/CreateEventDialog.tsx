@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useCreateEvent } from "@/hooks/useEvents";
 import { useEscapeKey } from "@/hooks/useKeyboard";
 import { ApiError } from "@/api/client";
+import { granularityToStep, snapToGranularity } from "@/lib/time";
 
 interface CreateEventDialogProps {
   onClose: () => void;
@@ -29,8 +30,11 @@ export function CreateEventDialog({ onClose }: CreateEventDialogProps) {
   const [participantCount, setParticipantCount] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
-  const [granularity, setGranularity] = useState("30min");
+  const [granularity, setGranularity] = useState<"15min" | "30min" | "1hour">("30min");
   const [error, setError] = useState("");
+
+  const step = granularityToStep(granularity);
+  const snap = (v: string) => snapToGranularity(v, granularity);
 
   function handleNameChange(value: string) {
     setName(value);
@@ -145,7 +149,8 @@ export function CreateEventDialog({ onClose }: CreateEventDialogProps) {
               <input
                 type="datetime-local"
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                step={step}
+                onChange={(e) => setStartTime(snap(e.target.value))}
                 required
                 className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
               />
@@ -155,7 +160,8 @@ export function CreateEventDialog({ onClose }: CreateEventDialogProps) {
               <input
                 type="datetime-local"
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                step={step}
+                onChange={(e) => setEndTime(snap(e.target.value))}
                 required
                 className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
               />
@@ -166,7 +172,7 @@ export function CreateEventDialog({ onClose }: CreateEventDialogProps) {
             <label className="mb-1 block text-sm font-medium">{t("events:granularity")}</label>
             <select
               value={granularity}
-              onChange={(e) => setGranularity(e.target.value)}
+              onChange={(e) => setGranularity(e.target.value as "15min" | "30min" | "1hour")}
               className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
             >
               <option value="15min">{t("events:granularity_15min")}</option>

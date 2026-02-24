@@ -9,9 +9,11 @@ interface ExportMenuProps {
   shifts: Shift[];
   coverage: CoverageRequirement[];
   eventTeams: EventTeam[];
-  hiddenRanges: HiddenRange[];
+  hiddenRanges?: HiddenRange[];
   selectedDay: Date | null;
   onPrint: (config: PrintConfig) => void;
+  onDownloadCSV?: (slug: string) => void;
+  onDownloadICal?: (slug: string) => void;
 }
 
 export function ExportMenu({
@@ -23,6 +25,8 @@ export function ExportMenu({
   hiddenRanges,
   selectedDay,
   onPrint,
+  onDownloadCSV,
+  onDownloadICal,
 }: ExportMenuProps) {
   const { t } = useTranslation(["events"]);
   const [showModal, setShowModal] = useState(false);
@@ -48,6 +52,8 @@ export function ExportMenu({
           slug={slug}
           onPrint={onPrint}
           onClose={() => setShowModal(false)}
+          onDownloadCSV={onDownloadCSV}
+          onDownloadICal={onDownloadICal}
         />
       )}
     </>

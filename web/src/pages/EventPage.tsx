@@ -75,18 +75,29 @@ export function EventPage() {
     });
   }, []);
 
+  // Filter event teams to only visible ones
+  const visibleEventTeams = useMemo(
+    () => (eventTeams || []).filter((et) => et.is_visible),
+    [eventTeams],
+  );
+
+  const visibleTeamIds = useMemo(
+    () => new Set(visibleEventTeams.map((et) => et.team_id)),
+    [visibleEventTeams],
+  );
+
   // Build user list from shifts for per_user view
   const shiftUsers = useMemo(() => {
-    const shifts = gridData?.shifts || [];
+    const shifts = (gridData?.shifts || []).filter((s) => visibleTeamIds.has(s.team_id));
     return groupShiftsByUser(shifts).map((u) => ({
       id: u.id,
       name: u.displayName || u.fullName,
     }));
-  }, [gridData?.shifts]);
+  }, [gridData?.shifts, visibleTeamIds]);
 
-  // Filter shifts based on current view
+  // Filter shifts based on team visibility and current view
   const filteredShifts = useMemo(() => {
-    const shifts = gridData?.shifts || [];
+    const shifts = (gridData?.shifts || []).filter((s) => visibleTeamIds.has(s.team_id));
     switch (view) {
       case "by_team":
         return selectedTeamId ? shifts.filter((s) => s.team_id === selectedTeamId) : shifts;
@@ -97,7 +108,7 @@ export function EventPage() {
       default:
         return shifts;
     }
-  }, [gridData?.shifts, view, selectedTeamId, selectedUserId, user]);
+  }, [gridData?.shifts, visibleTeamIds, view, selectedTeamId, selectedUserId, user]);
 
   if (isLoading) {
     return <p className="text-[var(--color-muted-foreground)]">{t("common:loading")}</p>;
@@ -176,7 +187,7 @@ export function EventPage() {
             event={event}
             shifts={gridData?.shifts || []}
             coverage={gridData?.coverage || []}
-            eventTeams={eventTeams || []}
+            eventTeams={visibleEventTeams}
             hiddenRanges={hiddenRanges || []}
             selectedDay={selectedDay}
             onPrint={handlePrint}
@@ -231,7 +242,7 @@ export function EventPage() {
             <ViewSelector
               view={view}
               onViewChange={setView}
-              teams={teams}
+              teams={teams?.filter((t) => visibleTeamIds.has(t.id))}
               selectedTeamId={selectedTeamId}
               onTeamChange={setSelectedTeamId}
               users={shiftUsers}
@@ -274,7 +285,7 @@ export function EventPage() {
               coverage={gridData.coverage || []}
               availability={gridData.availability || []}
               hiddenRanges={hiddenRanges || []}
-              eventTeams={eventTeams || []}
+              eventTeams={visibleEventTeams}
               dayFilter={selectedDay}
               onCellClick={handleCellClick}
               onShiftClick={handleShiftClick}
@@ -292,9 +303,9 @@ export function EventPage() {
       {/* Stats */}
       {gridData && gridData.shifts.length > 0 && (
         <ShiftStats
-          shifts={gridData.shifts}
+          shifts={filteredShifts}
           coverage={gridData.coverage || []}
-          eventTeams={eventTeams || []}
+          eventTeams={visibleEventTeams}
           eventStartTime={event.start_time}
           eventEndTime={event.end_time}
         />
@@ -307,6 +318,7 @@ export function EventPage() {
           initialTime={createDialogState.time}
           targetUserId={createDialogState.userId}
           canSelectUser={canManageShifts}
+          visibleTeamIds={visibleTeamIds}
           onClose={() => setCreateDialogState(null)}
         />
       )}
@@ -317,6 +329,7 @@ export function EventPage() {
           shift={selectedShift}
           eventSlug={event.slug}
           canManageShifts={canManageShifts}
+          timeGranularity={event.time_granularity}
           onClose={() => setSelectedShift(null)}
         />
       )}
@@ -334,7 +347,7 @@ export function EventPage() {
         event={event}
         shifts={gridData?.shifts || []}
         coverage={gridData?.coverage || []}
-        eventTeams={eventTeams || []}
+        eventTeams={visibleEventTeams}
         hiddenRanges={hiddenRanges || []}
         config={printConfig}
         onReady={handlePrintReady}

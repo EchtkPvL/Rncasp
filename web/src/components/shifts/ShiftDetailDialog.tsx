@@ -5,12 +5,14 @@ import { useTeams } from "@/hooks/useTeams";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEscapeKey } from "@/hooks/useKeyboard";
 import { ApiError } from "@/api/client";
+import { granularityToStep, snapToGranularity } from "@/lib/time";
 import type { Shift } from "@/api/types";
 
 interface ShiftDetailDialogProps {
   shift: Shift;
   eventSlug: string;
   canManageShifts?: boolean;
+  timeGranularity?: "15min" | "30min" | "1hour";
   onClose: () => void;
 }
 
@@ -19,7 +21,7 @@ function toLocalDatetime(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export function ShiftDetailDialog({ shift, eventSlug, canManageShifts, onClose }: ShiftDetailDialogProps) {
+export function ShiftDetailDialog({ shift, eventSlug, canManageShifts, timeGranularity, onClose }: ShiftDetailDialogProps) {
   const { t } = useTranslation(["shifts", "common"]);
   const { user } = useAuth();
   const deleteShift = useDeleteShift();
@@ -27,14 +29,17 @@ export function ShiftDetailDialog({ shift, eventSlug, canManageShifts, onClose }
   const { data: teams } = useTeams();
   useEscapeKey(useCallback(() => onClose(), [onClose]));
 
+  const step = timeGranularity ? granularityToStep(timeGranularity) : undefined;
+  const snap = (v: string) => timeGranularity ? snapToGranularity(v, timeGranularity) : v;
+
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState("");
 
   // Edit form state
   const [editTeamId, setEditTeamId] = useState(shift.team_id);
-  const [editStartTime, setEditStartTime] = useState(toLocalDatetime(new Date(shift.start_time)));
-  const [editEndTime, setEditEndTime] = useState(toLocalDatetime(new Date(shift.end_time)));
+  const [editStartTime, setEditStartTime] = useState(snap(toLocalDatetime(new Date(shift.start_time))));
+  const [editEndTime, setEditEndTime] = useState(snap(toLocalDatetime(new Date(shift.end_time))));
 
   const isOwner = user?.id === shift.user_id;
   const isSuperAdmin = user?.role === "super_admin";
@@ -134,7 +139,8 @@ export function ShiftDetailDialog({ shift, eventSlug, canManageShifts, onClose }
                 <input
                   type="datetime-local"
                   value={editStartTime}
-                  onChange={(e) => setEditStartTime(e.target.value)}
+                  step={step}
+                  onChange={(e) => setEditStartTime(snap(e.target.value))}
                   required
                   className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
                 />
@@ -144,7 +150,8 @@ export function ShiftDetailDialog({ shift, eventSlug, canManageShifts, onClose }
                 <input
                   type="datetime-local"
                   value={editEndTime}
-                  onChange={(e) => setEditEndTime(e.target.value)}
+                  step={step}
+                  onChange={(e) => setEditEndTime(snap(e.target.value))}
                   required
                   className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
                 />

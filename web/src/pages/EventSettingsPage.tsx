@@ -19,6 +19,7 @@ import { useTeams } from "@/hooks/useTeams";
 import { useSearchUsers } from "@/hooks/useUsers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { granularityToStep, snapToGranularity } from "@/lib/time";
 
 export function EventSettingsPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -255,6 +256,8 @@ export function EventSettingsPage() {
   // Event time bounds for datetime-local min/max
   const eventMinTime = event ? toLocalInput(event.start_time) : "";
   const eventMaxTime = event ? toLocalInput(event.end_time) : "";
+  const covStep = event ? granularityToStep(event.time_granularity) : undefined;
+  const covSnap = (v: string) => event ? snapToGranularity(v, event.time_granularity) : v;
 
   async function handleAddCoverage(e: React.FormEvent) {
     e.preventDefault();
@@ -489,9 +492,9 @@ export function EventSettingsPage() {
                 onChange={(e) => {
                   setAdminSearch(e.target.value);
                   setAdminSelectedId("");
-                  setAdminDropdownOpen(e.target.value.length >= 2);
+                  setAdminDropdownOpen(e.target.value.length >= 1);
                 }}
-                onFocus={() => { if (adminSearch.length >= 2) setAdminDropdownOpen(true); }}
+                onFocus={() => { if (adminSearch.length >= 1) setAdminDropdownOpen(true); }}
                 placeholder={t("events:search_user")}
                 className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1.5 text-sm"
               />
@@ -609,13 +612,15 @@ export function EventSettingsPage() {
                             </div>
                             <div>
                               <label className="mb-1 block text-xs">{t("events:start")}</label>
-                              <input type="datetime-local" value={editCovStart} onChange={(e) => setEditCovStart(e.target.value)}
+                              <input type="datetime-local" value={editCovStart} step={covStep}
+                                onChange={(e) => setEditCovStart(covSnap(e.target.value))}
                                 min={eventMinTime} max={eventMaxTime} required
                                 className="rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-2 py-1.5 text-sm" />
                             </div>
                             <div>
                               <label className="mb-1 block text-xs">{t("events:end")}</label>
-                              <input type="datetime-local" value={editCovEnd} onChange={(e) => setEditCovEnd(e.target.value)}
+                              <input type="datetime-local" value={editCovEnd} step={covStep}
+                                onChange={(e) => setEditCovEnd(covSnap(e.target.value))}
                                 min={eventMinTime} max={eventMaxTime} required
                                 className="rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-2 py-1.5 text-sm" />
                             </div>
@@ -688,7 +693,8 @@ export function EventSettingsPage() {
                   <input
                     type="datetime-local"
                     value={covStartTime || eventMinTime}
-                    onChange={(e) => setCovStartTime(e.target.value)}
+                    step={covStep}
+                    onChange={(e) => setCovStartTime(covSnap(e.target.value))}
                     min={eventMinTime}
                     max={eventMaxTime}
                     required
@@ -700,7 +706,8 @@ export function EventSettingsPage() {
                   <input
                     type="datetime-local"
                     value={covEndTime || eventMaxTime}
-                    onChange={(e) => setCovEndTime(e.target.value)}
+                    step={covStep}
+                    onChange={(e) => setCovEndTime(covSnap(e.target.value))}
                     min={eventMinTime}
                     max={eventMaxTime}
                     required

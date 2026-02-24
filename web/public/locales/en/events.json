@@ -76,5 +76,8 @@
   "ical_description": "Download all shifts as an iCal file.",
   "download_csv": "Download CSV",
   "download_ical": "Download iCal",
-  "printed_at": "Printed"
+  "printed_at": "Printed",
+  "print_select_users": "Users to include",
+  "print_all_users": "All",
+  "print_no_users": "None"
 }

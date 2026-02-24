@@ -16,7 +16,7 @@ export function UserManagementPage() {
   const { data: searchResults } = useSearchUsers(search);
   const updateUser = useUpdateUser();
 
-  const users = search.length >= 2 ? searchResults : allUsers;
+  const users = search.length >= 1 ? searchResults : allUsers;
 
   async function handleRoleChange(user: User, newRole: string) {
     setError("");

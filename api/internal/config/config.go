@@ -16,9 +16,8 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Host         string
-	Port         int
-	SocketPath   string // Unix socket path (overrides Host/Port when set)
+	ListenAddr   string // TCP address (host:port) from HTTP_LISTEN
+	SocketPath   string // Unix socket path (overrides ListenAddr when set)
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 	IdleTimeout  time.Duration
@@ -91,8 +90,7 @@ type AppConfig struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
-			Host:         getEnv("SERVER_HOST", "0.0.0.0"),
-			Port:         getEnvInt("SERVER_PORT", 8080),
+			ListenAddr:   getEnv("API_LISTEN", "0.0.0.0:3000"),
 			SocketPath:   getEnv("SERVER_SOCKET", ""),
 			ReadTimeout:  getEnvDuration("SERVER_READ_TIMEOUT", 15*time.Second),
 			WriteTimeout: getEnvDuration("SERVER_WRITE_TIMEOUT", 15*time.Second),

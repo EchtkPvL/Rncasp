@@ -272,7 +272,7 @@ func (s *ShiftService) Create(ctx context.Context, input CreateShiftInput, calle
 	}
 
 	if s.sseBroker != nil {
-		s.sseBroker.Publish(ctx, sse.Event{Type: sse.TypeShiftCreated, EventID: event.ID.String(), Payload: resp})
+		s.sseBroker.Publish(ctx, sse.Event{Type: sse.TypeShiftCreated, EventID: event.ID.String(), Slug: event.Slug, Payload: resp})
 	}
 
 	// Trigger notifications and webhooks asynchronously
@@ -365,7 +365,7 @@ func (s *ShiftService) Update(ctx context.Context, shiftID uuid.UUID, input Upda
 	}
 
 	if s.sseBroker != nil {
-		s.sseBroker.Publish(ctx, sse.Event{Type: sse.TypeShiftUpdated, EventID: existing.EventID.String(), Payload: resp})
+		s.sseBroker.Publish(ctx, sse.Event{Type: sse.TypeShiftUpdated, EventID: existing.EventID.String(), Slug: event.Slug, Payload: resp})
 	}
 
 	go func() {
@@ -428,7 +428,7 @@ func (s *ShiftService) Delete(ctx context.Context, shiftID uuid.UUID, callerID u
 	}
 
 	if s.sseBroker != nil {
-		s.sseBroker.Publish(ctx, sse.Event{Type: sse.TypeShiftDeleted, EventID: existing.EventID.String(), Payload: map[string]string{"id": shiftID.String()}})
+		s.sseBroker.Publish(ctx, sse.Event{Type: sse.TypeShiftDeleted, EventID: existing.EventID.String(), Slug: event.Slug, Payload: map[string]string{"id": shiftID.String()}})
 	}
 
 	go func() {
@@ -499,7 +499,7 @@ func (s *ShiftService) CreateCoverage(ctx context.Context, input CreateCoverageI
 	s.logger.Info("coverage requirement created", "event", input.EventSlug, "team", input.TeamID)
 
 	if s.sseBroker != nil {
-		s.sseBroker.Publish(ctx, sse.Event{Type: sse.TypeCoverageUpdated, EventID: event.ID.String(), Payload: resp})
+		s.sseBroker.Publish(ctx, sse.Event{Type: sse.TypeCoverageUpdated, EventID: event.ID.String(), Slug: event.Slug, Payload: resp})
 	}
 
 	return resp, nil
@@ -539,7 +539,7 @@ func (s *ShiftService) UpdateCoverage(ctx context.Context, input UpdateCoverageI
 	s.logger.Info("coverage requirement updated", "event", input.EventSlug, "id", input.CoverageID)
 
 	if s.sseBroker != nil {
-		s.sseBroker.Publish(ctx, sse.Event{Type: sse.TypeCoverageUpdated, EventID: event.ID.String(), Payload: resp})
+		s.sseBroker.Publish(ctx, sse.Event{Type: sse.TypeCoverageUpdated, EventID: event.ID.String(), Slug: event.Slug, Payload: resp})
 	}
 
 	return resp, nil
@@ -561,7 +561,7 @@ func (s *ShiftService) DeleteCoverage(ctx context.Context, slug string, coverage
 	s.logger.Info("coverage requirement deleted", "event", slug, "id", coverageID)
 
 	if s.sseBroker != nil {
-		s.sseBroker.Publish(ctx, sse.Event{Type: sse.TypeCoverageUpdated, EventID: event.ID.String(), Payload: map[string]string{"id": coverageID.String(), "action": "deleted"}})
+		s.sseBroker.Publish(ctx, sse.Event{Type: sse.TypeCoverageUpdated, EventID: event.ID.String(), Slug: event.Slug, Payload: map[string]string{"id": coverageID.String(), "action": "deleted"}})
 	}
 
 	return nil
@@ -583,7 +583,7 @@ func (s *ShiftService) DeleteCoverageByTeam(ctx context.Context, slug string, te
 	s.logger.Info("coverage requirements deleted", "event", slug, "team", teamID)
 
 	if s.sseBroker != nil {
-		s.sseBroker.Publish(ctx, sse.Event{Type: sse.TypeCoverageUpdated, EventID: event.ID.String(), Payload: map[string]string{"team_id": teamID.String(), "action": "deleted"}})
+		s.sseBroker.Publish(ctx, sse.Event{Type: sse.TypeCoverageUpdated, EventID: event.ID.String(), Slug: event.Slug, Payload: map[string]string{"team_id": teamID.String(), "action": "deleted"}})
 	}
 
 	return nil

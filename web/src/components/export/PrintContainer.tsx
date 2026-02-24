@@ -38,10 +38,10 @@ export function PrintContainer({
     };
   }, []);
 
-  // Filter shifts that overlap any selected day (not just start on that day)
+  // Filter shifts that overlap any selected day, then by selected users
   const filteredShifts = useMemo(() => {
     if (!config) return [];
-    return shifts.filter((s) => {
+    let result = shifts.filter((s) => {
       const sStart = new Date(s.start_time).getTime();
       const sEnd = new Date(s.end_time).getTime();
       return config.selectedDays.some((d) => {
@@ -50,6 +50,11 @@ export function PrintContainer({
         return sStart < dayEnd && sEnd > dayStart;
       });
     });
+    if (config.selectedUserIds !== null) {
+      const userSet = new Set(config.selectedUserIds);
+      result = result.filter((s) => userSet.has(s.user_id));
+    }
+    return result;
   }, [shifts, config]);
 
   // Notify parent when content has rendered

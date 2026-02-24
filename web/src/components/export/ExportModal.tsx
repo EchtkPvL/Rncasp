@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useEscapeKey } from "@/hooks/useKeyboard";
 import { useDownloadCSV, useDownloadICal } from "@/hooks/useExport";
-import { getEventDays, formatDayHeader } from "@/lib/time";
+import { getEventDays, formatDayHeader, groupShiftsByUser } from "@/lib/time";
 import type { Event, Shift, CoverageRequirement, EventTeam, HiddenRange, PrintConfig } from "@/api/types";
 
 type Tab = "print" | "csv" | "ical";
@@ -14,19 +14,24 @@ interface ExportModalProps {
   shifts: Shift[];
   coverage: CoverageRequirement[];
   eventTeams: EventTeam[];
-  hiddenRanges: HiddenRange[];
+  hiddenRanges?: HiddenRange[];
   selectedDay: Date | null;
   slug: string;
   onPrint: (config: PrintConfig) => void;
   onClose: () => void;
+  onDownloadCSV?: (slug: string) => void;
+  onDownloadICal?: (slug: string) => void;
 }
 
 export function ExportModal({
   event,
+  shifts,
   selectedDay,
   slug,
   onPrint,
   onClose,
+  onDownloadCSV,
+  onDownloadICal,
 }: ExportModalProps) {
   const { t } = useTranslation(["events", "common"]);
   const downloadCSV = useDownloadCSV();
@@ -54,6 +59,16 @@ export function ExportModal({
     return allDays;
   });
 
+  // User selection: null = all users
+  const availableUsers = useMemo(
+    () => groupShiftsByUser(shifts).map((u) => ({
+      id: u.id,
+      name: u.displayName || u.fullName,
+    })),
+    [shifts]
+  );
+  const [selectedUserIds, setSelectedUserIds] = useState<string[] | null>(null);
+
   useEscapeKey(useCallback(() => onClose(), [onClose]));
 
   function handlePrint() {
@@ -64,6 +79,7 @@ export function ExportModal({
       showCoverage,
       showTeamColors,
       selectedDays,
+      selectedUserIds,
     });
   }
 
@@ -82,6 +98,49 @@ export function ExportModal({
   function selectNoDays() {
     setSelectedDays([]);
   }
+
+  function toggleUser(userId: string) {
+    setSelectedUserIds((prev) => {
+      if (prev === null) {
+        // Currently "all" — expand to all-except-toggled
+        return availableUsers.map((u) => u.id).filter((id) => id !== userId);
+      }
+      const exists = prev.includes(userId);
+      if (exists) return prev.filter((id) => id !== userId);
+      return [...prev, userId];
+    });
+  }
+
+  function selectAllUsers() {
+    setSelectedUserIds(null);
+  }
+
+  function selectNoUsers() {
+    setSelectedUserIds([]);
+  }
+
+  function handleCSV() {
+    if (onDownloadCSV) {
+      onDownloadCSV(slug);
+    } else {
+      downloadCSV.mutate(slug);
+    }
+    onClose();
+  }
+
+  function handleICal() {
+    if (onDownloadICal) {
+      onDownloadICal(slug);
+    } else {
+      downloadICal.mutate(slug);
+    }
+    onClose();
+  }
+
+  const csvPending = onDownloadCSV ? false : downloadCSV.isPending;
+  const icalPending = onDownloadICal ? false : downloadICal.isPending;
+
+  const printDisabled = selectedDays.length === 0 || (selectedUserIds !== null && selectedUserIds.length === 0);
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "print", label: t("events:export_tab_print") },
@@ -235,6 +294,47 @@ export function ExportModal({
                 </div>
               </div>
 
+              {/* User selection */}
+              {availableUsers.length > 0 && (
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="block text-sm font-medium">{t("events:print_select_users")}</label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={selectAllUsers}
+                        className="text-xs text-[var(--color-primary)] hover:underline"
+                      >
+                        {t("events:print_all_users")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={selectNoUsers}
+                        className="text-xs text-[var(--color-primary)] hover:underline"
+                      >
+                        {t("events:print_no_users")}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto space-y-1">
+                    {availableUsers.map((user) => {
+                      const checked = selectedUserIds === null || selectedUserIds.includes(user.id);
+                      return (
+                        <label key={user.id} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleUser(user.id)}
+                            className="rounded"
+                          />
+                          {user.name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Print button */}
               <div className="flex justify-end gap-2 pt-2">
                 <button
@@ -247,7 +347,7 @@ export function ExportModal({
                 <button
                   type="button"
                   onClick={handlePrint}
-                  disabled={selectedDays.length === 0}
+                  disabled={printDisabled}
                   className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-[var(--color-primary-foreground)] disabled:opacity-50"
                 >
                   {t("events:print")}
@@ -271,11 +371,8 @@ export function ExportModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    downloadCSV.mutate(slug);
-                    onClose();
-                  }}
-                  disabled={downloadCSV.isPending}
+                  onClick={handleCSV}
+                  disabled={csvPending}
                   className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-[var(--color-primary-foreground)] disabled:opacity-50"
                 >
                   {t("events:download_csv")}
@@ -299,11 +396,8 @@ export function ExportModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    downloadICal.mutate(slug);
-                    onClose();
-                  }}
-                  disabled={downloadICal.isPending}
+                  onClick={handleICal}
+                  disabled={icalPending}
                   className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-[var(--color-primary-foreground)] disabled:opacity-50"
                 >
                   {t("events:download_ical")}

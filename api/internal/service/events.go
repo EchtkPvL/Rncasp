@@ -301,7 +301,7 @@ func (s *EventService) SetLocked(ctx context.Context, slug string, locked bool) 
 		if !locked {
 			evtType = sse.TypeEventUnlocked
 		}
-		s.sseBroker.Publish(ctx, sse.Event{Type: evtType, EventID: event.ID.String(), Payload: map[string]any{"slug": slug, "locked": locked}})
+		s.sseBroker.Publish(ctx, sse.Event{Type: evtType, EventID: event.ID.String(), Slug: slug, Payload: map[string]any{"slug": slug, "locked": locked}})
 	}
 
 	go func() {

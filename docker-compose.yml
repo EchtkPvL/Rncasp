@@ -27,8 +27,7 @@ services:
       context: ./web
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
-      - "${HTTP_LISTEN:-0.0.0.0:80}:80"
+    # ports defined per environment (dev/prod overlays)
     depends_on:
       - api
     volumes:

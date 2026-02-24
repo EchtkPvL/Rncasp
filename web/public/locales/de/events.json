@@ -76,5 +76,8 @@
   "ical_description": "Alle Schichten als iCal-Datei herunterladen.",
   "download_csv": "CSV herunterladen",
   "download_ical": "iCal herunterladen",
-  "printed_at": "Gedruckt"
+  "printed_at": "Gedruckt",
+  "print_select_users": "Einzuschließende Benutzer",
+  "print_all_users": "Alle",
+  "print_no_users": "Keine"
 }
