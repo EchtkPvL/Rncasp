@@ -6,6 +6,12 @@
 # Plan files
 PLAN-followup.md
 
+# Persistent data (bind-mounted by Docker)
+data/postgres/*
+!data/postgres/.gitkeep
+data/redis/*
+!data/redis/.gitkeep
+
 # Environment
 .env
 

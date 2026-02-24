@@ -26,7 +26,7 @@ services:
     volumes:
       - ./web:/app
       - web-node-modules:/app/node_modules
-    ports:
+    ports: !override
       - "${HTTP_LISTEN:-0.0.0.0:5173}:5173"
     environment:
       VITE_API_URL: http://api:3000

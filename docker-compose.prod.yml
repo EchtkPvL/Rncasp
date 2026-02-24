@@ -1,5 +1,0 @@
-# Production overlay: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-services:
-  web:
-    ports:
-      - "${HTTP_LISTEN:-0.0.0.0:80}:80"
