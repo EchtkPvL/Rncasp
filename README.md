@@ -105,7 +105,61 @@ cd api && go test -coverprofile=coverage.out ./... && go tool cover -func=covera
 make lint
 ```
 
-## Production Deployment
+## Deployment (Pre-built Images)
+
+The easiest way to deploy — no source code or build tools required. Pre-built images are published to GitHub Container Registry on every release.
+
+### Setup
+
+```bash
+# Download the standalone compose file and env template
+mkdir rncasp && cd rncasp
+curl -O https://raw.githubusercontent.com/EchtkPvL/Rncasp/main/deploy/docker-compose.yml
+curl -O https://raw.githubusercontent.com/EchtkPvL/Rncasp/main/deploy/.env.example
+cp .env.example .env
+```
+
+Edit `.env` — at minimum change `DB_PASSWORD` and `APP_BASE_URL`.
+
+```bash
+# Start all services
+docker compose up -d
+```
+
+The first registered user is automatically promoted to super-admin.
+
+### Updating
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+### Pin a Version
+
+Change `:latest` to a specific version in `docker-compose.yml`:
+
+```yaml
+image: ghcr.io/echtkpvl/rncasp-api:v1.0.0
+image: ghcr.io/echtkpvl/rncasp-web:v1.0.0
+```
+
+Then: `docker compose pull && docker compose up -d`
+
+### Rollback
+
+Change the image tags back to the previous version, then pull and restart.
+
+### Backup & Restore
+
+```bash
+# Backup PostgreSQL
+docker compose exec postgres pg_dump -U rncasp rncasp > backup_$(date +%Y%m%d).sql
+
+# Restore
+docker compose exec -T postgres psql -U rncasp rncasp < backup_20260101.sql
+```
+
+## Building from Source
 
 ### Initial Setup
 
@@ -138,7 +192,7 @@ docker compose up -d --build
 
 The first registered user is automatically promoted to super-admin.
 
-### Updating Production
+### Updating from Source
 
 ```bash
 # Pull latest changes

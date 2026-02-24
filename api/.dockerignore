@@ -1,0 +1,4 @@
+**/*_test.go
+.air.toml
+Dockerfile.dev
+tmp/

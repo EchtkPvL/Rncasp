@@ -111,6 +111,9 @@ make sqlc
 
 # Production build
 docker compose up -d --build
+
+# Release (triggers GitHub Actions to build + push images to ghcr.io)
+make release VERSION=v1.0.0
 ```
 
 ## Do's

@@ -1,13 +1,9 @@
 services:
   api:
     image: ghcr.io/echtkpvl/rncasp-api:latest
-    build:
-      context: ./api
-      dockerfile: Dockerfile
     restart: unless-stopped
     env_file: .env
     environment:
-      # Socket connections (production) — override TCP defaults from .env
       SERVER_SOCKET: /var/run/rncasp/api.sock
       DB_SOCKET_DIR: /var/run/postgresql
       REDIS_SOCKET: /var/run/redis/redis.sock
@@ -25,9 +21,6 @@ services:
 
   web:
     image: ghcr.io/echtkpvl/rncasp-web:latest
-    build:
-      context: ./web
-      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
       - "${HTTP_LISTEN:-0.0.0.0:80}:80"
@@ -79,7 +72,6 @@ services:
       - rncasp
 
 volumes:
-  # Socket volumes — tmpfs (RAM-backed, no persistence needed for sockets)
   pg-socket:
     driver_opts:
       type: tmpfs

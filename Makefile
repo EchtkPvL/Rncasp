@@ -1,4 +1,4 @@
-.PHONY: dev dev-down build migrate sqlc lint test test-api test-web clean
+.PHONY: dev dev-down build migrate sqlc lint test test-api test-web clean release
 
 # Development
 dev:
@@ -38,6 +38,13 @@ test-api:
 
 test-web:
 	cd web && npm test 2>/dev/null || true
+
+# Release
+release:
+	@if [ -z "$(VERSION)" ]; then echo "Usage: make release VERSION=v1.0.0"; exit 1; fi
+	git tag $(VERSION)
+	git push origin $(VERSION)
+	@echo "Tagged $(VERSION) — GitHub Actions will build and push images"
 
 # Cleanup
 clean:
