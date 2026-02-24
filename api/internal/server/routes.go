@@ -54,6 +54,9 @@ func (s *Server) setupRoutes() http.Handler {
 	eventService := service.NewEventService(queries, s.logger, sseBroker)
 	shiftService := service.NewShiftService(queries, s.logger, sseBroker)
 
+	// Wire SMTP into auth service for registration notifications
+	authService.SetSMTPService(smtpService)
+
 	// Wire notification, webhook, and audit triggers into event/shift services
 	eventService.SetNotificationService(notificationService)
 	eventService.SetWebhookService(webhookService)

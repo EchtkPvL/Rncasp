@@ -13,10 +13,10 @@ interface AvailabilityEditorProps {
   onClose: () => void;
 }
 
-const STATUS_COLORS: Record<AvailabilityStatus, string> = {
-  available: "bg-[var(--color-success-light)] border-[var(--color-success-border)]",
-  preferred: "bg-[var(--color-info-light)] border-[var(--color-info-border)]",
-  unavailable: "bg-[var(--color-destructive-light)] border-[var(--color-destructive-border)]",
+const STATUS_COLORS: Record<AvailabilityStatus, { bg: string; border: string; cls: string }> = {
+  available: { bg: "#bbf7d0", border: "#22c55e", cls: "bg-[#bbf7d0] border-[#22c55e]" },
+  preferred: { bg: "#bfdbfe", border: "#3b82f6", cls: "bg-[#bfdbfe] border-[#3b82f6]" },
+  unavailable: { bg: "#fecaca", border: "#ef4444", cls: "bg-[#fecaca] border-[#ef4444]" },
 };
 
 const STATUS_LABELS: Record<AvailabilityStatus, string> = {
@@ -175,7 +175,7 @@ export function AvailabilityEditor({ event, onClose }: AvailabilityEditorProps) 
               key={status}
               type="button"
               onClick={() => setPaintStatus(status)}
-              className={`rounded-md border-2 px-3 py-1.5 text-xs font-medium transition-colors ${STATUS_COLORS[status]} ${
+              className={`rounded-md border-2 px-3 py-1.5 text-xs font-medium transition-colors ${STATUS_COLORS[status].cls} ${
                 paintStatus === status ? "ring-2 ring-[var(--color-primary)] ring-offset-1" : "opacity-70"
               }`}
             >
@@ -193,7 +193,7 @@ export function AvailabilityEditor({ event, onClose }: AvailabilityEditorProps) 
 
         {/* Slot grid */}
         <div
-          className="mt-4 select-none"
+          className="mt-4 flex flex-wrap gap-y-1 select-none"
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
         >
@@ -203,16 +203,19 @@ export function AvailabilityEditor({ event, onClose }: AvailabilityEditorProps) 
             const showDay = isNewDay(slot, i > 0 ? slots[i - 1] : null);
 
             return (
-              <div key={iso}>
+              <div key={iso} className="contents">
                 {showDay && (
-                  <div className="mt-3 mb-1 text-xs font-semibold text-[var(--color-muted-foreground)]">
+                  <div className="w-full mt-3 mb-0.5 text-xs font-semibold text-[var(--color-muted-foreground)]">
                     {formatDayHeader(slot)}
                   </div>
                 )}
                 <div
-                  className={`inline-block w-12 h-7 border border-[var(--color-border)] cursor-pointer text-[10px] leading-7 text-center transition-colors ${
-                    status ? STATUS_COLORS[status] : "bg-[var(--color-background)] hover:bg-[var(--color-muted)]"
+                  className={`w-12 h-7 border cursor-pointer text-[10px] leading-7 text-center transition-colors ${
+                    status
+                      ? `border-[${STATUS_COLORS[status].border}]`
+                      : "border-[var(--color-border)] bg-[var(--color-background)] hover:bg-[var(--color-muted)]"
                   }`}
+                  style={status ? { backgroundColor: STATUS_COLORS[status].bg, borderColor: STATUS_COLORS[status].border } : undefined}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     handleMouseDown(iso);
@@ -231,7 +234,10 @@ export function AvailabilityEditor({ event, onClose }: AvailabilityEditorProps) 
         <div className="mt-4 flex flex-wrap gap-3 text-xs text-[var(--color-muted-foreground)]">
           {(["available", "preferred", "unavailable"] as AvailabilityStatus[]).map((status) => (
             <div key={status} className="flex items-center gap-1">
-              <div className={`h-3 w-3 rounded-sm border ${STATUS_COLORS[status]}`} />
+              <div
+                className="h-3 w-3 rounded-sm border"
+                style={{ backgroundColor: STATUS_COLORS[status].bg, borderColor: STATUS_COLORS[status].border }}
+              />
               {t(STATUS_LABELS[status])}
             </div>
           ))}

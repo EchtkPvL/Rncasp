@@ -293,6 +293,31 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const listSuperAdminEmails = `-- name: ListSuperAdminEmails :many
+SELECT email FROM users
+WHERE role = 'super_admin' AND is_active = true AND email IS NOT NULL
+`
+
+func (q *Queries) ListSuperAdminEmails(ctx context.Context) ([]*string, error) {
+	rows, err := q.db.Query(ctx, listSuperAdminEmails)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []*string{}
+	for rows.Next() {
+		var email *string
+		if err := rows.Scan(&email); err != nil {
+			return nil, err
+		}
+		items = append(items, email)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const searchUsers = `-- name: SearchUsers :many
 SELECT id, username, full_name, display_name, email, password_hash, role, language, account_type, totp_secret, totp_enabled, is_active, time_format, created_at, updated_at FROM users
 WHERE (username ILIKE '%' || $1 || '%' OR full_name ILIKE '%' || $1 || '%' OR email ILIKE '%' || $1 || '%')

@@ -25,6 +25,7 @@
   "print_settings": "Druckeinstellungen",
   "paper_size": "Papierformat",
   "edit_availability": "Verfügbarkeit bearbeiten",
+  "show_availability_users": "Verfügbarkeit anzeigen",
   "not_found": "Veranstaltung nicht gefunden",
   "details": "Details",
   "access_control": "Zugriffskontrolle",
@@ -86,5 +87,6 @@
   "past_events": "Vergangene Veranstaltungen",
   "no_past_events": "Keine vergangenen Veranstaltungen",
   "copy_public_link": "Öffentlichen Link kopieren",
-  "public_link_copied": "Öffentlicher Link in die Zwischenablage kopiert"
+  "public_link_copied": "Öffentlicher Link in die Zwischenablage kopiert",
+  "open_public_link": "Öffentliche Seite öffnen"
 }

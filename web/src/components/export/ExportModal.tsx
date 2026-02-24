@@ -64,11 +64,21 @@ export function ExportModal({
   const availableUsers = useMemo(
     () => groupShiftsByUser(shifts).map((u) => ({
       id: u.id,
+      username: u.username,
       name: u.displayName || u.fullName,
     })),
     [shifts]
   );
   const [selectedUserIds, setSelectedUserIds] = useState<string[] | null>(null);
+  const [userSearch, setUserSearch] = useState("");
+
+  const filteredUsers = useMemo(() => {
+    if (!userSearch.trim()) return availableUsers;
+    const q = userSearch.toLowerCase();
+    return availableUsers.filter(
+      (u) => u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q),
+    );
+  }, [availableUsers, userSearch]);
 
   useEscapeKey(useCallback(() => onClose(), [onClose]));
 
@@ -332,8 +342,15 @@ export function ExportModal({
                       </button>
                     </div>
                   </div>
+                  <input
+                    type="text"
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                    placeholder={t("events:search_user")}
+                    className="mb-2 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1.5 text-sm"
+                  />
                   <div className="max-h-40 overflow-y-auto space-y-1">
-                    {availableUsers.map((user) => {
+                    {filteredUsers.map((user) => {
                       const checked = selectedUserIds === null || selectedUserIds.includes(user.id);
                       return (
                         <label key={user.id} className="flex items-center gap-2 text-sm">
@@ -343,7 +360,12 @@ export function ExportModal({
                             onChange={() => toggleUser(user.id)}
                             className="rounded"
                           />
-                          {user.name}
+                          <span>
+                            {user.name}
+                            {user.username !== user.name && (
+                              <span className="ml-1 text-[var(--color-muted-foreground)]">({user.username})</span>
+                            )}
+                          </span>
                         </label>
                       );
                     })}

@@ -206,6 +206,8 @@ export interface AvailabilityGridEntry {
   status: "available" | "preferred" | "unavailable";
   note: string | null;
   username: string;
+  user_full_name: string;
+  user_display_name: string | null;
 }
 
 export interface AvailabilityEntry {

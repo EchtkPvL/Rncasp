@@ -13,7 +13,7 @@ import (
 )
 
 const listAvailabilityByEvent = `-- name: ListAvailabilityByEvent :many
-SELECT ua.id, ua.event_id, ua.user_id, ua.start_time, ua.end_time, ua.status, ua.note, u.username, u.full_name AS user_full_name
+SELECT ua.id, ua.event_id, ua.user_id, ua.start_time, ua.end_time, ua.status, ua.note, u.username, u.full_name AS user_full_name, u.display_name AS user_display_name
 FROM user_availability ua
 JOIN users u ON ua.user_id = u.id
 WHERE ua.event_id = $1
@@ -21,15 +21,16 @@ ORDER BY ua.user_id, ua.start_time
 `
 
 type ListAvailabilityByEventRow struct {
-	ID           uuid.UUID `json:"id"`
-	EventID      uuid.UUID `json:"event_id"`
-	UserID       uuid.UUID `json:"user_id"`
-	StartTime    time.Time `json:"start_time"`
-	EndTime      time.Time `json:"end_time"`
-	Status       string    `json:"status"`
-	Note         *string   `json:"note"`
-	Username     string    `json:"username"`
-	UserFullName string    `json:"user_full_name"`
+	ID              uuid.UUID `json:"id"`
+	EventID         uuid.UUID `json:"event_id"`
+	UserID          uuid.UUID `json:"user_id"`
+	StartTime       time.Time `json:"start_time"`
+	EndTime         time.Time `json:"end_time"`
+	Status          string    `json:"status"`
+	Note            *string   `json:"note"`
+	Username        string    `json:"username"`
+	UserFullName    string    `json:"user_full_name"`
+	UserDisplayName *string   `json:"user_display_name"`
 }
 
 func (q *Queries) ListAvailabilityByEvent(ctx context.Context, eventID uuid.UUID) ([]ListAvailabilityByEventRow, error) {
@@ -51,6 +52,7 @@ func (q *Queries) ListAvailabilityByEvent(ctx context.Context, eventID uuid.UUID
 			&i.Note,
 			&i.Username,
 			&i.UserFullName,
+			&i.UserDisplayName,
 		); err != nil {
 			return nil, err
 		}

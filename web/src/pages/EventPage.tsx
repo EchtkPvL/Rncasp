@@ -22,7 +22,6 @@ import { ExportMenu } from "@/components/export/ExportMenu";
 import { PrintContainer } from "@/components/export/PrintContainer";
 import { AvailabilityEditor } from "@/components/availability/AvailabilityEditor";
 import { GridSkeleton } from "@/components/common/Skeleton";
-import { useToast } from "@/components/common/Toast";
 import type { Shift, PrintConfig } from "@/api/types";
 
 export function EventPage() {
@@ -37,16 +36,16 @@ export function EventPage() {
   useSSE({ slug, enabled: !!slug });
   const { user } = useAuth();
   const hour12 = useTimeFormat();
-  const { toast } = useToast();
   const updateShift = useUpdateShift();
 
   // View state (synced with URL search params for shareable links)
   const {
     view, setView,
     selectedTeamId, setSelectedTeamId,
-    selectedUserId, setSelectedUserId,
+    selectedUserIds, setSelectedUserIds,
     selectedDay, setSelectedDay,
   } = useViewParams();
+  const [showAvailUsers, setShowAvailUsers] = useState(false);
 
   // Dialog state
   const [createDialogState, setCreateDialogState] = useState<{ time: Date; userId?: string } | null>(null);
@@ -95,14 +94,25 @@ export function EventPage() {
     [visibleEventTeams],
   );
 
-  // Build user list from ALL shifts (not filtered by team visibility)
-  const shiftUsers = useMemo(() => {
+  // Build user list from shifts + availability (for per-user search dropdown)
+  const allUsers = useMemo(() => {
     const shifts = gridData?.shifts || [];
-    return groupShiftsByUser(shifts).map((u) => ({
-      id: u.id,
-      name: u.displayName || u.fullName,
-    }));
-  }, [gridData?.shifts]);
+    const users = new Map<string, { id: string; name: string; username: string }>();
+    for (const u of groupShiftsByUser(shifts)) {
+      users.set(u.id, { id: u.id, name: u.displayName || u.fullName, username: u.username });
+    }
+    // Also include users who only have availability
+    for (const a of gridData?.availability || []) {
+      if (!users.has(a.user_id)) {
+        users.set(a.user_id, {
+          id: a.user_id,
+          name: a.user_display_name || a.user_full_name,
+          username: a.username,
+        });
+      }
+    }
+    return Array.from(users.values()).sort((a, b) => a.username.localeCompare(b.username));
+  }, [gridData?.shifts, gridData?.availability]);
 
   // Filter shifts based on current view (grid — shows ALL teams including hidden)
   const filteredShifts = useMemo(() => {
@@ -112,12 +122,15 @@ export function EventPage() {
         return selectedTeamId ? shifts.filter((s) => s.team_id === selectedTeamId) : shifts;
       case "my_shifts":
         return user ? shifts.filter((s) => s.user_id === user.id) : shifts;
-      case "per_user":
-        return selectedUserId ? shifts.filter((s) => s.user_id === selectedUserId) : shifts;
+      case "per_user": {
+        if (selectedUserIds.length === 0) return shifts;
+        const idSet = new Set(selectedUserIds);
+        return shifts.filter((s) => idSet.has(s.user_id));
+      }
       default:
         return shifts;
     }
-  }, [gridData?.shifts, view, selectedTeamId, selectedUserId, user]);
+  }, [gridData?.shifts, view, selectedTeamId, selectedUserIds, user]);
 
   // Stats shifts — only visible teams (hidden teams excluded from statistics)
   const statsShifts = useMemo(() => {
@@ -231,17 +244,15 @@ export function EventPage() {
             </span>
           )}
           {event.is_public && (
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin}/public/events/${event.slug}`);
-                toast(t("events:public_link_copied"));
-              }}
-              className="rounded-full bg-[var(--color-info-light)] px-2.5 py-1 text-xs text-[var(--color-info-foreground)] hover:bg-[var(--color-info-border)]"
-              title={t("events:copy_public_link")}
+            <a
+              href={`/public/events/${event.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full bg-[var(--color-success-light)] px-2.5 py-1 text-xs text-[var(--color-success)] hover:bg-[var(--color-success-border)]"
+              title={t("events:open_public_link")}
             >
               {t("events:public")}
-            </button>
+            </a>
           )}
           <ExportMenu
             slug={event.slug}
@@ -306,17 +317,29 @@ export function EventPage() {
               teams={teams?.filter((t) => visibleTeamIds.has(t.id))}
               selectedTeamId={selectedTeamId}
               onTeamChange={setSelectedTeamId}
-              users={shiftUsers}
-              selectedUserId={selectedUserId}
-              onUserChange={setSelectedUserId}
+              users={allUsers}
+              selectedUserIds={selectedUserIds}
+              onUserChange={setSelectedUserIds}
             />
+            <button
+              type="button"
+              onClick={() => setShowAvailUsers((v) => !v)}
+              className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                showAvailUsers
+                  ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                  : "border-[var(--color-border)] hover:bg-[var(--color-muted)]"
+              }`}
+              title={t("events:show_availability_users")}
+            >
+              {t("events:show_availability_users")}
+            </button>
             {!isReadOnly && (
               <button
                 type="button"
                 onClick={() => setShowAvailability(true)}
                 className="rounded-md bg-[var(--color-muted)] px-3 py-1.5 text-sm hover:bg-[var(--color-border)]"
               >
-                {t("events:edit_availability", "Edit Availability")}
+                {t("events:edit_availability")}
               </button>
             )}
             {canEdit && (
@@ -334,20 +357,21 @@ export function EventPage() {
         {isGridLoading ? (
           <GridSkeleton />
         ) : gridData ? (
-          view === "per_user" && selectedUserId ? (
+          view === "per_user" && selectedUserIds.length === 1 ? (
             <UserShiftList
               shifts={filteredShifts}
-              userName={shiftUsers.find((u) => u.id === selectedUserId)?.name || ""}
+              userName={allUsers.find((u) => u.id === selectedUserIds[0])?.name || ""}
             />
           ) : (
             <ShiftGrid
               event={event}
               shifts={filteredShifts}
               coverage={gridData.coverage || []}
-              availability={gridData.availability || []}
+              availability={showAvailUsers ? (gridData.availability || []) : []}
               hiddenRanges={hiddenRanges || []}
               eventTeams={allEventTeams}
               dayFilter={selectedDay}
+              showAvailabilityUsers={showAvailUsers}
               onCellClick={handleCellClick}
               onShiftClick={handleShiftClick}
               onShiftMove={canEdit ? handleShiftMove : undefined}

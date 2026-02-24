@@ -19,13 +19,20 @@ function formatDay(d: Date | null): string | null {
   return `${y}-${m}-${day}`;
 }
 
+function parseUserIds(value: string | null): string[] {
+  if (!value) return [];
+  return value.split(",").filter(Boolean);
+}
+
 export function useViewParams() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const rawView = searchParams.get("view");
   const view: ViewParam = rawView && VALID_VIEWS.has(rawView) ? (rawView as ViewParam) : "everything";
   const selectedTeamId = searchParams.get("team") || "";
-  const selectedUserId = searchParams.get("user") || "";
+  const selectedUserIds = parseUserIds(searchParams.get("user"));
+  // Keep single-user compat for reading
+  const selectedUserId = selectedUserIds[0] || "";
   const selectedDay = parseDay(searchParams.get("day"));
 
   const update = useCallback(
@@ -61,6 +68,12 @@ export function useViewParams() {
     [update],
   );
 
+  const setSelectedUserIds = useCallback(
+    (ids: string[]) => update({ user: ids.length > 0 ? ids.join(",") : null }),
+    [update],
+  );
+
+  // Legacy single-user setter (still used by some paths)
   const setSelectedUserId = useCallback(
     (id: string) => update({ user: id || null }),
     [update],
@@ -75,10 +88,12 @@ export function useViewParams() {
     view,
     selectedTeamId,
     selectedUserId,
+    selectedUserIds,
     selectedDay,
     setView,
     setSelectedTeamId,
     setSelectedUserId,
+    setSelectedUserIds,
     setSelectedDay,
   };
 }

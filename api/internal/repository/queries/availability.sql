@@ -1,5 +1,5 @@
 -- name: ListAvailabilityByEvent :many
-SELECT ua.*, u.username, u.full_name AS user_full_name
+SELECT ua.*, u.username, u.full_name AS user_full_name, u.display_name AS user_display_name
 FROM user_availability ua
 JOIN users u ON ua.user_id = u.id
 WHERE ua.event_id = $1

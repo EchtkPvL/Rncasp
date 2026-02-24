@@ -23,6 +23,7 @@ interface ShiftGridProps {
   hiddenRanges?: HiddenRange[];
   eventTeams?: EventTeam[];
   dayFilter?: Date | null;
+  showAvailabilityUsers?: boolean;
   onCellClick?: (userId: string, slotTime: Date) => void;
   onShiftClick?: (shift: Shift) => void;
   onShiftMove?: (shiftId: string, newStartTime: string, newEndTime: string) => void;
@@ -31,7 +32,7 @@ interface ShiftGridProps {
   onGridKeyDown?: (e: React.KeyboardEvent) => void;
 }
 
-const NAME_COL_WIDTH = 140;
+const NAME_COL_WIDTH = 110;
 const SLOT_HEIGHT = 32;
 
 export function ShiftGrid({
@@ -42,6 +43,7 @@ export function ShiftGrid({
   hiddenRanges = [],
   eventTeams = [],
   dayFilter,
+  showAvailabilityUsers = false,
   onCellClick,
   onShiftClick,
   onShiftMove,
@@ -53,7 +55,7 @@ export function ShiftGrid({
 
   // Compute slot width based on granularity
   const granMinutes = granularityToMinutes(event.time_granularity);
-  const slotWidth = granMinutes === 15 ? 20 : granMinutes === 30 ? 30 : 48;
+  const slotWidth = granMinutes === 15 ? 16 : granMinutes === 30 ? 24 : 36;
 
   // Compute effective time range (restricted to selected day if filtered)
   const effectiveRange = useMemo(() => {
@@ -76,8 +78,26 @@ export function ShiftGrid({
     [effectiveRange.start, effectiveRange.end, event.time_granularity, hiddenRanges]
   );
 
-  // Group users from shifts
-  const users = useMemo(() => groupShiftsByUser(shifts), [shifts]);
+  // Group users from shifts, optionally including availability-only users
+  const users = useMemo(() => {
+    const shiftUsers = groupShiftsByUser(shifts);
+    if (!showAvailabilityUsers || availability.length === 0) return shiftUsers;
+
+    const userIds = new Set(shiftUsers.map((u) => u.id));
+    const extraUsers = new Map<string, { id: string; username: string; fullName: string; displayName: string | null }>();
+    for (const a of availability) {
+      if (!userIds.has(a.user_id) && !extraUsers.has(a.user_id)) {
+        extraUsers.set(a.user_id, {
+          id: a.user_id,
+          username: a.username,
+          fullName: a.user_full_name,
+          displayName: a.user_display_name,
+        });
+      }
+    }
+    return [...shiftUsers, ...Array.from(extraUsers.values())]
+      .sort((a, b) => a.username.localeCompare(b.username));
+  }, [shifts, availability, showAvailabilityUsers]);
 
   // Get all teams: start with event teams, supplement with shift data
   const teams = useMemo(() => {

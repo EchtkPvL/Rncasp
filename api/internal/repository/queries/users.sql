@@ -46,6 +46,10 @@ UPDATE users SET totp_secret = $2, totp_enabled = $3, updated_at = NOW() WHERE i
 -- name: DeleteUser :exec
 DELETE FROM users WHERE id = $1;
 
+-- name: ListSuperAdminEmails :many
+SELECT email FROM users
+WHERE role = 'super_admin' AND is_active = true AND email IS NOT NULL;
+
 -- name: SearchUsers :many
 SELECT * FROM users
 WHERE (username ILIKE '%' || $1 || '%' OR full_name ILIKE '%' || $1 || '%' OR email ILIKE '%' || $1 || '%')

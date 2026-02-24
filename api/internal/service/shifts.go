@@ -605,13 +605,15 @@ func (s *ShiftService) DeleteCoverageByTeam(ctx context.Context, slug string, te
 }
 
 type AvailabilityGridResponse struct {
-	ID        string  `json:"id"`
-	UserID    string  `json:"user_id"`
-	StartTime string  `json:"start_time"`
-	EndTime   string  `json:"end_time"`
-	Status    string  `json:"status"`
-	Note      *string `json:"note"`
-	Username  string  `json:"username"`
+	ID              string  `json:"id"`
+	UserID          string  `json:"user_id"`
+	StartTime       string  `json:"start_time"`
+	EndTime         string  `json:"end_time"`
+	Status          string  `json:"status"`
+	Note            *string `json:"note"`
+	Username        string  `json:"username"`
+	UserFullName    string  `json:"user_full_name"`
+	UserDisplayName *string `json:"user_display_name"`
 }
 
 // GridData returns shifts, coverage, and availability data optimized for grid rendering.
@@ -652,13 +654,15 @@ func (s *ShiftService) GridData(ctx context.Context, slug string) (map[string]in
 	availabilityResponses := make([]AvailabilityGridResponse, len(availability))
 	for i, a := range availability {
 		availabilityResponses[i] = AvailabilityGridResponse{
-			ID:        a.ID.String(),
-			UserID:    a.UserID.String(),
-			StartTime: a.StartTime.Format(time.RFC3339),
-			EndTime:   a.EndTime.Format(time.RFC3339),
-			Status:    a.Status,
-			Note:      a.Note,
-			Username:  a.Username,
+			ID:              a.ID.String(),
+			UserID:          a.UserID.String(),
+			StartTime:       a.StartTime.Format(time.RFC3339),
+			EndTime:         a.EndTime.Format(time.RFC3339),
+			Status:          a.Status,
+			Note:            a.Note,
+			Username:        a.Username,
+			UserFullName:    a.UserFullName,
+			UserDisplayName: a.UserDisplayName,
 		}
 	}
 

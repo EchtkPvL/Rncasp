@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"log/slog"
 	"time"
 
@@ -21,10 +22,15 @@ import (
 )
 
 type AuthService struct {
-	queries *repository.Queries
-	rdb     *redis.Client
-	cfg     *config.AuthConfig
-	logger  *slog.Logger
+	queries     *repository.Queries
+	rdb         *redis.Client
+	cfg         *config.AuthConfig
+	logger      *slog.Logger
+	smtpService *SMTPService
+}
+
+func (s *AuthService) SetSMTPService(ss *SMTPService) {
+	s.smtpService = ss
 }
 
 func NewAuthService(
@@ -169,6 +175,11 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput, ip, use
 	}
 
 	s.logger.Info("user registered", "user_id", user.ID, "username", user.Username, "role", role)
+
+	if role != "super_admin" && s.smtpService != nil {
+		go s.notifySuperAdminsOfRegistration(user.Username, user.Email, user.FullName)
+	}
+
 	return userToResponse(user), session, nil
 }
 
@@ -375,6 +386,50 @@ func getAppSettingBool(ctx context.Context, q *repository.Queries, key string, f
 		return fallback
 	}
 	return val
+}
+
+func (s *AuthService) notifySuperAdminsOfRegistration(username string, email *string, fullName string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	emails, err := s.queries.ListSuperAdminEmails(ctx)
+	if err != nil {
+		s.logger.Error("failed to list super-admin emails for registration notification", "error", err)
+		return
+	}
+	if len(emails) == 0 {
+		return
+	}
+
+	appName := getAppSettingString(ctx, s.queries, "app_name", "Rncasp")
+
+	emailStr := "-"
+	if email != nil {
+		emailStr = html.EscapeString(*email)
+	}
+
+	subject := fmt.Sprintf("[%s] New user registered: %s", appName, username)
+	body := fmt.Sprintf(`<h3>New User Registration</h3>
+<p>A new user has registered and needs role assignment:</p>
+<table>
+<tr><td><strong>Username:</strong></td><td>%s</td></tr>
+<tr><td><strong>Full Name:</strong></td><td>%s</td></tr>
+<tr><td><strong>Email:</strong></td><td>%s</td></tr>
+</table>
+<p>The user has been assigned the default <strong>read_only</strong> role. Log in to the admin panel to adjust their role if needed.</p>`,
+		html.EscapeString(username),
+		html.EscapeString(fullName),
+		emailStr,
+	)
+
+	for _, adminEmail := range emails {
+		if adminEmail == nil {
+			continue
+		}
+		if err := s.smtpService.SendEmail(ctx, *adminEmail, subject, body); err != nil {
+			s.logger.Error("failed to send registration notification to admin", "admin_email", *adminEmail, "error", err)
+		}
+	}
 }
 
 func validateRegisterInput(input RegisterInput) error {

@@ -25,6 +25,7 @@
   "print_settings": "Print Settings",
   "paper_size": "Paper Size",
   "edit_availability": "Edit Availability",
+  "show_availability_users": "Show Availability",
   "not_found": "Event not found",
   "details": "Details",
   "access_control": "Access Control",
@@ -86,5 +87,6 @@
   "past_events": "Past Events",
   "no_past_events": "No past events",
   "copy_public_link": "Copy public link",
-  "public_link_copied": "Public link copied to clipboard"
+  "public_link_copied": "Public link copied to clipboard",
+  "open_public_link": "Open public page"
 }

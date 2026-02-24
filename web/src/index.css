@@ -36,9 +36,9 @@
   --color-nav-border: rgba(255, 255, 255, 0.1);
   --color-text-on-dark: #ffffff;
   --color-text-on-color: #ffffff;
-  --color-availability-available: rgba(45, 138, 78, 0.15);
-  --color-availability-preferred: rgba(91, 186, 213, 0.15);
-  --color-availability-unavailable: rgba(178, 1, 1, 0.12);
+  --color-availability-available: rgba(45, 138, 78, 0.35);
+  --color-availability-preferred: rgba(91, 186, 213, 0.35);
+  --color-availability-unavailable: rgba(178, 1, 1, 0.25);
 }
 
 body {
