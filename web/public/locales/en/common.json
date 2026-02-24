@@ -32,7 +32,9 @@
     "menu": "Menu",
     "logout": "Logout",
     "login": "Login",
-    "register": "Register"
+    "register": "Register",
+    "upcoming_shifts": "Your Upcoming Shifts",
+    "no_upcoming_shifts": "No upcoming shifts"
   },
   "notifications": {
     "title": "Notifications",
@@ -68,5 +70,14 @@
     "totp_verify_button": "Verify",
     "totp_recovery_hint": "You can also use a recovery code.",
     "weak_password": "Weak password — consider using at least 8 characters"
+  },
+  "keyboard": {
+    "title": "Keyboard Shortcuts",
+    "global": "Global",
+    "grid": "Shift Grid",
+    "show_help": "Show keyboard shortcuts",
+    "close_dialog": "Close dialog / Clear focus",
+    "navigate_cells": "Navigate grid cells",
+    "create_shift_at_cell": "Create shift at focused cell"
   }
 }

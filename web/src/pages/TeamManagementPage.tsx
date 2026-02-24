@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useTeams, useCreateTeam, useUpdateTeam, useDeleteTeam } from "@/hooks/useTeams";
 import type { Team } from "@/api/types";
 import { ApiError } from "@/api/client";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 
 export function TeamManagementPage() {
   const { t } = useTranslation(["admin", "common"]);
@@ -14,6 +15,7 @@ export function TeamManagementPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Team | null>(null);
   const [error, setError] = useState("");
+  const [deletingTeamId, setDeletingTeamId] = useState<string | null>(null);
 
   // Form state
   const [name, setName] = useState("");
@@ -69,16 +71,22 @@ export function TeamManagementPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm(t("common:confirm") + "?")) return;
+  function handleDelete(id: string) {
+    setDeletingTeamId(id);
+  }
+
+  const doDeleteTeam = useCallback(async () => {
+    if (!deletingTeamId) return;
     try {
-      await deleteTeam.mutateAsync(id);
+      await deleteTeam.mutateAsync(deletingTeamId);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
       }
+    } finally {
+      setDeletingTeamId(null);
     }
-  }
+  }, [deletingTeamId, deleteTeam]);
 
   async function handleToggleActive(team: Team) {
     try {
@@ -254,6 +262,16 @@ export function TeamManagementPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!deletingTeamId}
+        title={t("common:delete")}
+        message={t("admin:teams.delete_confirm")}
+        destructive
+        loading={deleteTeam.isPending}
+        onConfirm={doDeleteTeam}
+        onCancel={() => setDeletingTeamId(null)}
+      />
     </div>
   );
 }

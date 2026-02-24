@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { useState, useCallback, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { oauthApi } from "@/api/oauth";
 import { ApiError } from "@/api/client";
 import type { OAuthProvider, CreateOAuthProviderRequest } from "@/api/types";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 
 const emptyForm: CreateOAuthProviderRequest = {
   name: "",
@@ -22,6 +23,7 @@ export function OAuthProvidersPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
+  const [deletingProvider, setDeletingProvider] = useState<OAuthProvider | null>(null);
 
   const { data: providers, isLoading } = useQuery({
     queryKey: ["oauth-providers-admin"],
@@ -111,6 +113,12 @@ export function OAuthProvidersPage() {
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
+  const doDeleteProvider = useCallback(() => {
+    if (!deletingProvider) return;
+    deleteMutation.mutate(deletingProvider.id);
+    setDeletingProvider(null);
+  }, [deletingProvider, deleteMutation]);
+
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-bold">{t("admin:oauth.title")}</h1>
@@ -154,17 +162,7 @@ export function OAuthProvidersPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (
-                          confirm(
-                            t("admin:oauth.delete_confirm", {
-                              name: provider.name,
-                            })
-                          )
-                        ) {
-                          deleteMutation.mutate(provider.id);
-                        }
-                      }}
+                      onClick={() => setDeletingProvider(provider)}
                       className="text-sm text-[var(--color-destructive)] hover:underline"
                     >
                       {t("delete")}
@@ -327,6 +325,16 @@ export function OAuthProvidersPage() {
           </div>
         </form>
       </div>
+
+      <ConfirmDialog
+        open={!!deletingProvider}
+        title={t("delete")}
+        message={deletingProvider ? t("admin:oauth.delete_confirm", { name: deletingProvider.name }) : ""}
+        destructive
+        loading={deleteMutation.isPending}
+        onConfirm={doDeleteProvider}
+        onCancel={() => setDeletingProvider(null)}
+      />
     </div>
   );
 }

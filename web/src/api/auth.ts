@@ -6,7 +6,7 @@ export const authApi = {
   register: (data: RegisterRequest) => api.post<User>("/auth/register", data),
   logout: () => api.post<{ message: string }>("/auth/logout"),
   me: () => api.get<User>("/auth/me"),
-  updateProfile: (data: { full_name?: string; display_name?: string; email?: string; password?: string }) =>
+  updateProfile: (data: { full_name?: string; display_name?: string; email?: string; password?: string; time_format?: string }) =>
     api.put<User>("/auth/me", data),
 
   // TOTP

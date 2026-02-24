@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { Event, Shift } from "@/api/types";
 import { formatSlotTime, formatDayHeader, groupShiftsByUser } from "@/lib/time";
+import { useTimeFormat } from "@/hooks/useTimeFormat";
 
 interface PrintListPageProps {
   event: Event;
@@ -12,6 +13,7 @@ interface PrintListPageProps {
 
 export function PrintListPage({ event, shifts, selectedDays, showTeamColors }: PrintListPageProps) {
   const { t } = useTranslation(["events"]);
+  const hour12 = useTimeFormat();
 
   // Filter shifts that overlap any selected day
   const filteredShifts = useMemo(() => {
@@ -72,7 +74,7 @@ export function PrintListPage({ event, shifts, selectedDays, showTeamColors }: P
         <span className="print-event-name">{event.name}</span>
         <span>{dateRange}</span>
         <span>
-          {t("events:printed_at")} {formatSlotTime(now)}
+          {t("events:printed_at")} {formatSlotTime(now, hour12)}
         </span>
       </div>
 
@@ -94,7 +96,7 @@ export function PrintListPage({ event, shifts, selectedDays, showTeamColors }: P
                     />
                   )}
                   <span>
-                    {formatSlotTime(new Date(shift.start_time))}–{formatSlotTime(new Date(shift.end_time))}
+                    {formatSlotTime(new Date(shift.start_time), hour12)}–{formatSlotTime(new Date(shift.end_time), hour12)}
                   </span>
                   <span>
                     {shift.team_name} ({shift.team_abbreviation})

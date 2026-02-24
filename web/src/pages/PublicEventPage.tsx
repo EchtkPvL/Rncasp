@@ -12,6 +12,7 @@ import { GridSkeleton } from "@/components/common/Skeleton";
 import { ExportMenu } from "@/components/export/ExportMenu";
 import { PrintContainer } from "@/components/export/PrintContainer";
 import { groupShiftsByUser } from "@/lib/time";
+import { useTimeFormat } from "@/hooks/useTimeFormat";
 import type { EventTeam, PrintConfig } from "@/api/types";
 
 type PublicView = "everything" | "by_team" | "per_user";
@@ -19,6 +20,7 @@ type PublicView = "everything" | "by_team" | "per_user";
 export function PublicEventPage() {
   const { slug } = useParams<{ slug: string }>();
   const { t } = useTranslation(["events", "shifts", "common"]);
+  const hour12 = useTimeFormat();
 
   const { data: event, isLoading: isEventLoading, error: eventError } = useQuery({
     queryKey: ["public-event", slug],
@@ -139,6 +141,7 @@ export function PublicEventPage() {
   const dateFormatter = new Intl.DateTimeFormat(undefined, {
     dateStyle: "full",
     timeStyle: "short",
+    hour12,
   });
 
   return (

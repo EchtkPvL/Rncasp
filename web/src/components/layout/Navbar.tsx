@@ -10,7 +10,7 @@ interface NavbarProps {
 }
 
 export function Navbar({ user, onLogout }: NavbarProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation(["common", "admin"]);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -65,16 +65,10 @@ export function Navbar({ user, onLogout }: NavbarProps) {
                     {t("nav.teams")}
                   </Link>
                   <Link
-                    to="/admin/dashboard"
+                    to="/admin"
                     className="text-sm text-[var(--color-nav-text)]/70 hover:text-[var(--color-nav-text)]"
                   >
                     {t("nav.admin")}
-                  </Link>
-                  <Link
-                    to="/admin/users"
-                    className="text-sm text-[var(--color-nav-text)]/70 hover:text-[var(--color-nav-text)]"
-                  >
-                    {t("nav.users")}
                   </Link>
                 </>
               )}
@@ -155,13 +149,12 @@ export function Navbar({ user, onLogout }: NavbarProps) {
                   <div className="mt-2 mb-1 text-xs font-semibold text-[var(--color-nav-text)]/50 uppercase tracking-wider">
                     {t("nav.admin")}
                   </div>
-                  <MobileLink to="/admin/dashboard">{t("nav.admin")}</MobileLink>
-                  <MobileLink to="/admin/users">{t("nav.users")}</MobileLink>
-                  <MobileLink to="/teams">{t("nav.teams")}</MobileLink>
-                  <MobileLink to="/admin/settings">{t("admin:settings.title", "App Settings")}</MobileLink>
-                  <MobileLink to="/admin/oauth">{t("nav.oauth_providers")}</MobileLink>
-                  <MobileLink to="/admin/smtp">{t("nav.smtp_settings")}</MobileLink>
-                  <MobileLink to="/admin/dummy-accounts">{t("nav.dummy_accounts")}</MobileLink>
+                  <MobileLink to="/admin">{t("admin:dashboard.title")}</MobileLink>
+                  <MobileLink to="/admin/users">{t("admin:users.title")}</MobileLink>
+                  <MobileLink to="/admin/settings">{t("admin:settings.title")}</MobileLink>
+                  <MobileLink to="/admin/oauth">{t("admin:oauth.title")}</MobileLink>
+                  <MobileLink to="/admin/smtp">{t("admin:smtp.title")}</MobileLink>
+                  <MobileLink to="/admin/dummy-accounts">{t("admin:dummy.title")}</MobileLink>
                   <MobileLink to="/admin/audit-log">{t("nav.audit_log")}</MobileLink>
                 </>
               )}

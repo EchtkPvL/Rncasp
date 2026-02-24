@@ -5,8 +5,11 @@ import { useEvent, useEventHiddenRanges, useEventTeams } from "@/hooks/useEvents
 import { useGridData, useUpdateShift } from "@/hooks/useShifts";
 import { useTeams } from "@/hooks/useTeams";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTimeFormat } from "@/hooks/useTimeFormat";
 import { useSSE } from "@/hooks/useSSE";
 import { useViewParams } from "@/hooks/useViewParams";
+import { useGridNavigation } from "@/hooks/useKeyboard";
+import { generateTimeSlots, granularityToMinutes } from "@/lib/time";
 import { ShiftGrid } from "@/components/grid/ShiftGrid";
 import { ShiftStats } from "@/components/grid/ShiftStats";
 import { UserShiftList } from "@/components/grid/UserShiftList";
@@ -32,6 +35,7 @@ export function EventPage() {
   // Connect to SSE for real-time updates on this event
   useSSE({ slug, enabled: !!slug });
   const { user } = useAuth();
+  const hour12 = useTimeFormat();
   const updateShift = useUpdateShift();
 
   // View state (synced with URL search params for shareable links)
@@ -75,10 +79,13 @@ export function EventPage() {
     });
   }, []);
 
-  // Filter event teams to only visible ones
+  // All event teams (unfiltered — for grid display)
+  const allEventTeams = useMemo(() => eventTeams || [], [eventTeams]);
+
+  // Visible event teams only (for stats and view selector)
   const visibleEventTeams = useMemo(
-    () => (eventTeams || []).filter((et) => et.is_visible),
-    [eventTeams],
+    () => allEventTeams.filter((et) => et.is_visible),
+    [allEventTeams],
   );
 
   const visibleTeamIds = useMemo(
@@ -86,18 +93,18 @@ export function EventPage() {
     [visibleEventTeams],
   );
 
-  // Build user list from shifts for per_user view
+  // Build user list from ALL shifts (not filtered by team visibility)
   const shiftUsers = useMemo(() => {
-    const shifts = (gridData?.shifts || []).filter((s) => visibleTeamIds.has(s.team_id));
+    const shifts = gridData?.shifts || [];
     return groupShiftsByUser(shifts).map((u) => ({
       id: u.id,
       name: u.displayName || u.fullName,
     }));
-  }, [gridData?.shifts, visibleTeamIds]);
+  }, [gridData?.shifts]);
 
-  // Filter shifts based on team visibility and current view
+  // Filter shifts based on current view (grid — shows ALL teams including hidden)
   const filteredShifts = useMemo(() => {
-    const shifts = (gridData?.shifts || []).filter((s) => visibleTeamIds.has(s.team_id));
+    const shifts = gridData?.shifts || [];
     switch (view) {
       case "by_team":
         return selectedTeamId ? shifts.filter((s) => s.team_id === selectedTeamId) : shifts;
@@ -108,7 +115,50 @@ export function EventPage() {
       default:
         return shifts;
     }
-  }, [gridData?.shifts, visibleTeamIds, view, selectedTeamId, selectedUserId, user]);
+  }, [gridData?.shifts, view, selectedTeamId, selectedUserId, user]);
+
+  // Stats shifts — only visible teams (hidden teams excluded from statistics)
+  const statsShifts = useMemo(() => {
+    return filteredShifts.filter((s) => visibleTeamIds.has(s.team_id));
+  }, [filteredShifts, visibleTeamIds]);
+
+  // Compute grid slots and users for keyboard navigation (must be before early returns)
+  const gridSlots = useMemo(() => {
+    if (!event) return [];
+    const range = (() => {
+      if (!selectedDay) return { start: event.start_time, end: event.end_time };
+      const dayStart = new Date(selectedDay);
+      const dayEnd = new Date(selectedDay);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+      const eventStart = new Date(event.start_time);
+      const eventEnd = new Date(event.end_time);
+      return {
+        start: (dayStart > eventStart ? dayStart : eventStart).toISOString(),
+        end: (dayEnd < eventEnd ? dayEnd : eventEnd).toISOString(),
+      };
+    })();
+    return generateTimeSlots(range.start, range.end, event.time_granularity, hiddenRanges || []);
+  }, [event, selectedDay, hiddenRanges]);
+
+  const gridUsers = useMemo(() => groupShiftsByUser(filteredShifts), [filteredShifts]);
+
+  const gridNavEnabled = !createDialogState && !selectedShift && !showAvailability && view !== "per_user";
+  const gridNavOnEnter = useCallback((row: number, col: number) => {
+    if (!event) return;
+    const isRo = user?.role === "read_only";
+    if (isRo || event.is_locked) return;
+    const u = gridUsers[row];
+    const slot = gridSlots[col];
+    if (u && slot) {
+      const canManage = user?.role === "super_admin" || event.is_event_admin;
+      setCreateDialogState({ time: slot, userId: canManage ? u.id : undefined });
+    }
+  }, [gridUsers, gridSlots, event, user]);
+  const { focusedCell, handleGridKeyDown } = useGridNavigation(
+    gridUsers.length,
+    gridSlots.length,
+    { onEnter: gridNavOnEnter, enabled: gridNavEnabled },
+  );
 
   if (isLoading) {
     return <p className="text-[var(--color-muted-foreground)]">{t("common:loading")}</p>;
@@ -123,6 +173,7 @@ export function EventPage() {
   const dateFormatter = new Intl.DateTimeFormat(undefined, {
     dateStyle: "full",
     timeStyle: "short",
+    hour12,
   });
 
   const isSuperAdmin = user?.role === "super_admin";
@@ -187,7 +238,7 @@ export function EventPage() {
             event={event}
             shifts={gridData?.shifts || []}
             coverage={gridData?.coverage || []}
-            eventTeams={visibleEventTeams}
+            eventTeams={allEventTeams}
             hiddenRanges={hiddenRanges || []}
             selectedDay={selectedDay}
             onPrint={handlePrint}
@@ -285,12 +336,14 @@ export function EventPage() {
               coverage={gridData.coverage || []}
               availability={gridData.availability || []}
               hiddenRanges={hiddenRanges || []}
-              eventTeams={visibleEventTeams}
+              eventTeams={allEventTeams}
               dayFilter={selectedDay}
               onCellClick={handleCellClick}
               onShiftClick={handleShiftClick}
               onShiftMove={canEdit ? handleShiftMove : undefined}
               onShiftResize={canEdit ? handleShiftResize : undefined}
+              focusedCell={focusedCell}
+              onGridKeyDown={handleGridKeyDown}
             />
           )
         ) : (
@@ -300,10 +353,10 @@ export function EventPage() {
         )}
       </div>
 
-      {/* Stats */}
+      {/* Stats (only visible teams) */}
       {gridData && gridData.shifts.length > 0 && (
         <ShiftStats
-          shifts={filteredShifts}
+          shifts={statsShifts}
           coverage={gridData.coverage || []}
           eventTeams={visibleEventTeams}
           eventStartTime={event.start_time}
@@ -347,7 +400,7 @@ export function EventPage() {
         event={event}
         shifts={gridData?.shifts || []}
         coverage={gridData?.coverage || []}
-        eventTeams={visibleEventTeams}
+        eventTeams={allEventTeams}
         hiddenRanges={hiddenRanges || []}
         config={printConfig}
         onReady={handlePrintReady}

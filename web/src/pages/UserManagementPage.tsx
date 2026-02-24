@@ -115,41 +115,33 @@ export function UserManagementPage() {
                     </span>
                   </td>
                   <td className="px-4 py-2.5">
-                    {user.account_type === "dummy" ? (
-                      <span className="text-xs text-[var(--color-muted-foreground)]">—</span>
-                    ) : (
-                      <select
-                        value={user.role}
-                        onChange={(e) => handleRoleChange(user, e.target.value)}
-                        disabled={updateUser.isPending}
-                        className="rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-2 py-1 text-xs"
-                      >
-                        <option value="super_admin">{t("admin:users.roles.super_admin")}</option>
-                        <option value="user">{t("admin:users.roles.user")}</option>
-                        <option value="read_only">{t("admin:users.roles.read_only")}</option>
-                      </select>
-                    )}
+                    <select
+                      value={user.role}
+                      onChange={(e) => handleRoleChange(user, e.target.value)}
+                      disabled={updateUser.isPending}
+                      className="rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-2 py-1 text-xs"
+                    >
+                      <option value="super_admin">{t("admin:users.roles.super_admin")}</option>
+                      <option value="user">{t("admin:users.roles.user")}</option>
+                      <option value="read_only">{t("admin:users.roles.read_only")}</option>
+                    </select>
                   </td>
                   <td className="px-4 py-2.5">
-                    {user.account_type === "dummy" ? (
-                      <span className="text-xs text-[var(--color-muted-foreground)]">—</span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleToggleActive(user)}
-                        disabled={updateUser.isPending}
-                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${
-                          user.is_active ? "bg-[var(--color-success)]" : "bg-[var(--color-muted)]"
+                    <button
+                      type="button"
+                      onClick={() => handleToggleActive(user)}
+                      disabled={updateUser.isPending}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${
+                        user.is_active ? "bg-[var(--color-success)]" : "bg-[var(--color-muted)]"
+                      }`}
+                      title={user.is_active ? t("admin:users.active") : t("admin:users.deactivated")}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                          user.is_active ? "translate-x-4" : "translate-x-0"
                         }`}
-                        title={user.is_active ? t("admin:users.active") : t("admin:users.deactivated")}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${
-                            user.is_active ? "translate-x-4" : "translate-x-0"
-                          }`}
-                        />
-                      </button>
-                    )}
+                      />
+                    </button>
                   </td>
                   <td className="px-4 py-2.5">
                     <button
@@ -183,21 +175,29 @@ export function UserManagementPage() {
 function EditUserDialog({ user, onClose }: { user: User; onClose: () => void }) {
   const { t } = useTranslation(["admin", "common"]);
   const updateUser = useUpdateUser();
+  const [username, setUsername] = useState(user.username);
   const [fullName, setFullName] = useState(user.full_name);
   const [displayName, setDisplayName] = useState(user.display_name || "");
   const [email, setEmail] = useState(user.email || "");
   const [password, setPassword] = useState("");
+  const [accountType, setAccountType] = useState(user.account_type);
   const [error, setError] = useState("");
+
+  const isConvertingToLocal = accountType === "local" && user.account_type === "dummy";
+  const isConvertingToDummy = accountType === "dummy" && user.account_type !== "dummy";
+  const isOAuth = user.account_type === "oauth";
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
     try {
-      const data: Record<string, string> = {};
+      const data: Record<string, unknown> = {};
+      if (username !== user.username) data.username = username;
       if (fullName !== user.full_name) data.full_name = fullName;
       if (displayName !== (user.display_name || "")) data.display_name = displayName;
       if (email !== (user.email || "")) data.email = email;
       if (password) data.password = password;
+      if (accountType !== user.account_type) data.account_type = accountType;
 
       if (Object.keys(data).length === 0) {
         onClose();
@@ -213,7 +213,7 @@ function EditUserDialog({ user, onClose }: { user: User; onClose: () => void }) 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="w-full max-w-md rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-6 shadow-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold">{t("admin:users.edit_user")} — @{user.username}</h2>
 
         {error && (
@@ -223,6 +223,16 @@ function EditUserDialog({ user, onClose }: { user: User; onClose: () => void }) 
         )}
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+          <div>
+            <label className="block text-sm font-medium">{t("admin:users.username")}</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              className="mt-1 block w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium">{t("admin:users.full_name")}</label>
             <input
@@ -252,6 +262,32 @@ function EditUserDialog({ user, onClose }: { user: User; onClose: () => void }) 
               className="mt-1 block w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
             />
           </div>
+
+          {/* Account type (only for local/dummy, not oauth) */}
+          {!isOAuth && (
+            <div>
+              <label className="block text-sm font-medium">{t("admin:users.account_type")}</label>
+              <select
+                value={accountType}
+                onChange={(e) => setAccountType(e.target.value as "local" | "dummy")}
+                className="mt-1 block w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+              >
+                <option value="local">local</option>
+                <option value="dummy">dummy</option>
+              </select>
+              {isConvertingToLocal && (
+                <p className="mt-1 text-xs text-[var(--color-info)]">
+                  {t("admin:users.convert_to_local")}
+                </p>
+              )}
+              {isConvertingToDummy && (
+                <p className="mt-1 text-xs text-[var(--color-warning-foreground)]">
+                  {t("admin:users.convert_to_dummy")}
+                </p>
+              )}
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium">{t("admin:users.new_password")}</label>
             <input
@@ -260,6 +296,7 @@ function EditUserDialog({ user, onClose }: { user: User; onClose: () => void }) 
               onChange={(e) => setPassword(e.target.value)}
               placeholder={t("admin:users.password_placeholder")}
               autoComplete="new-password"
+              required={isConvertingToLocal}
               className="mt-1 block w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
             />
             {password.length > 0 && password.length < 8 && (

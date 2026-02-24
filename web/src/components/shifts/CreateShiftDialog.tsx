@@ -7,7 +7,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEscapeKey } from "@/hooks/useKeyboard";
 import { ApiError } from "@/api/client";
 import type { Event } from "@/api/types";
-import { granularityToMinutes, granularityToStep, snapToGranularity } from "@/lib/time";
+import { granularityToMinutes, snapToGranularity } from "@/lib/time";
+import { DateTimePicker } from "@/components/common/DateTimePicker";
 
 interface CreateShiftDialogProps {
   event: Event;
@@ -31,7 +32,6 @@ export function CreateShiftDialog({ event, initialTime, targetUserId, canSelectU
   useEscapeKey(useCallback(() => onClose(), [onClose]));
 
   const granMinutes = granularityToMinutes(event.time_granularity);
-  const step = granularityToStep(event.time_granularity);
   const defaultStart = initialTime || new Date(event.start_time);
   const defaultEnd = new Date(defaultStart.getTime() + granMinutes * 60 * 1000);
   const eventMin = toLocalDatetime(new Date(event.start_time));
@@ -100,7 +100,11 @@ export function CreateShiftDialog({ event, initialTime, targetUserId, canSelectU
       }
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.field ? `${err.field}: ${err.message}` : err.message);
+        if (err.code === "conflict") {
+          setError(t("shifts:overbooking_error"));
+        } else {
+          setError(err.field ? `${err.field}: ${err.message}` : err.message);
+        }
       } else {
         setError(t("common:error"));
       }
@@ -190,28 +194,24 @@ export function CreateShiftDialog({ event, initialTime, targetUserId, canSelectU
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium">{t("shifts:start_time")}</label>
-              <input
-                type="datetime-local"
+              <DateTimePicker
                 value={startTime}
                 min={eventMin}
                 max={eventMax}
-                step={step}
-                onChange={(e) => setStartTime(snap(e.target.value))}
+                granularity={event.time_granularity}
+                onChange={(v) => setStartTime(snap(v))}
                 required
-                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
               />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">{t("shifts:end_time")}</label>
-              <input
-                type="datetime-local"
+              <DateTimePicker
                 value={endTime}
                 min={eventMin}
                 max={eventMax}
-                step={step}
-                onChange={(e) => setEndTime(snap(e.target.value))}
+                granularity={event.time_granularity}
+                onChange={(v) => setEndTime(snap(v))}
                 required
-                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
               />
             </div>
           </div>

@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 import { useCreateEvent } from "@/hooks/useEvents";
 import { useEscapeKey } from "@/hooks/useKeyboard";
 import { ApiError } from "@/api/client";
-import { granularityToStep, snapToGranularity } from "@/lib/time";
+import { snapToGranularity } from "@/lib/time";
+import { DateTimePicker } from "@/components/common/DateTimePicker";
 
 interface CreateEventDialogProps {
   onClose: () => void;
@@ -33,7 +34,6 @@ export function CreateEventDialog({ onClose }: CreateEventDialogProps) {
   const [granularity, setGranularity] = useState<"15min" | "30min" | "1hour">("30min");
   const [error, setError] = useState("");
 
-  const step = granularityToStep(granularity);
   const snap = (v: string) => snapToGranularity(v, granularity);
 
   function handleNameChange(value: string) {
@@ -146,24 +146,20 @@ export function CreateEventDialog({ onClose }: CreateEventDialogProps) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium">{t("events:start_time")}</label>
-              <input
-                type="datetime-local"
+              <DateTimePicker
                 value={startTime}
-                step={step}
-                onChange={(e) => setStartTime(snap(e.target.value))}
+                granularity={granularity}
+                onChange={(v) => setStartTime(snap(v))}
                 required
-                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
               />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">{t("events:end_time")}</label>
-              <input
-                type="datetime-local"
+              <DateTimePicker
                 value={endTime}
-                step={step}
-                onChange={(e) => setEndTime(snap(e.target.value))}
+                granularity={granularity}
+                onChange={(v) => setEndTime(snap(v))}
                 required
-                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
               />
             </div>
           </div>

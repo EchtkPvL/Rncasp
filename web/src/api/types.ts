@@ -7,6 +7,7 @@ export interface User {
   role: "super_admin" | "user" | "read_only";
   language: "en" | "de";
   account_type: "local" | "oauth" | "dummy";
+  time_format: "24h" | "12h";
   totp_enabled: boolean;
   is_active: boolean;
   created_at: string;
@@ -126,6 +127,21 @@ export interface Shift {
   username: string;
   user_full_name: string;
   user_display_name: string | null;
+  created_at: string;
+}
+
+export interface UserShift {
+  id: string;
+  event_id: string;
+  team_id: string;
+  user_id: string;
+  start_time: string;
+  end_time: string;
+  team_name: string;
+  team_abbreviation: string;
+  team_color: string;
+  event_name: string;
+  event_slug: string;
   created_at: string;
 }
 

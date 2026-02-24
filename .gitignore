@@ -25,6 +25,10 @@ api/server
 web/dist/
 web/node_modules/
 
+# Database dumps
+*.dump.sql
+*.dump
+
 # General logs
 *.log
 

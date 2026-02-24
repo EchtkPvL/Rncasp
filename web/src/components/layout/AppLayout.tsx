@@ -1,11 +1,17 @@
+import { useState } from "react";
 import { Outlet } from "react-router";
 import { Navbar } from "./Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColorPalette } from "@/hooks/useColorPalette";
+import { useHotkey } from "@/hooks/useKeyboard";
+import { KeyboardShortcutHelp } from "@/components/common/KeyboardShortcutHelp";
 
 export function AppLayout() {
   const { user, logout } = useAuth();
   useColorPalette();
+
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  useHotkey("?", () => setShowKeyboardHelp(true));
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -18,6 +24,7 @@ export function AppLayout() {
           <Outlet />
         </div>
       </main>
+      <KeyboardShortcutHelp open={showKeyboardHelp} onClose={() => setShowKeyboardHelp(false)} />
     </div>
   );
 }

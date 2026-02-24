@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "@/api/client";
@@ -19,7 +19,9 @@ import { useTeams } from "@/hooks/useTeams";
 import { useSearchUsers } from "@/hooks/useUsers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { granularityToStep, snapToGranularity } from "@/lib/time";
+import { snapToGranularity } from "@/lib/time";
+import { DateTimePicker } from "@/components/common/DateTimePicker";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 
 export function EventSettingsPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -49,6 +51,7 @@ export function EventSettingsPage() {
   });
 
   const [error, setError] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Edit form state
   const [editName, setEditName] = useState("");
@@ -79,6 +82,28 @@ export function EventSettingsPage() {
   const [editCovStart, setEditCovStart] = useState("");
   const [editCovEnd, setEditCovEnd] = useState("");
   const [editCovCount, setEditCovCount] = useState(1);
+
+  const doDelete = useCallback(async () => {
+    try {
+      await deleteEvent.mutateAsync(slug!);
+      navigate("/");
+    } catch (err) {
+      if (err instanceof ApiError) setError(err.message);
+    } finally {
+      setShowDeleteConfirm(false);
+    }
+  }, [deleteEvent, slug, navigate]);
+
+  // Close admin dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (adminRef.current && !adminRef.current.contains(e.target as Node)) {
+        setAdminDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   if (isLoading) {
     return <p className="text-[var(--color-muted-foreground)]">{t("common:loading")}</p>;
@@ -128,14 +153,8 @@ export function EventSettingsPage() {
     }
   }
 
-  async function handleDelete() {
-    if (!confirm(t("events:delete_confirm"))) return;
-    try {
-      await deleteEvent.mutateAsync(slug!);
-      navigate("/");
-    } catch (err) {
-      if (err instanceof ApiError) setError(err.message);
-    }
+  function handleDelete() {
+    setShowDeleteConfirm(true);
   }
 
   async function toggleLock() {
@@ -191,17 +210,6 @@ export function EventSettingsPage() {
     }
   }
 
-  // Close admin dropdown on outside click
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (adminRef.current && !adminRef.current.contains(e.target as Node)) {
-        setAdminDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   async function handleRemoveAdmin(userId: string) {
     setError("");
     try {
@@ -256,7 +264,6 @@ export function EventSettingsPage() {
   // Event time bounds for datetime-local min/max
   const eventMinTime = event ? toLocalInput(event.start_time) : "";
   const eventMaxTime = event ? toLocalInput(event.end_time) : "";
-  const covStep = event ? granularityToStep(event.time_granularity) : undefined;
   const covSnap = (v: string) => event ? snapToGranularity(v, event.time_granularity) : v;
 
   async function handleAddCoverage(e: React.FormEvent) {
@@ -612,17 +619,21 @@ export function EventSettingsPage() {
                             </div>
                             <div>
                               <label className="mb-1 block text-xs">{t("events:start")}</label>
-                              <input type="datetime-local" value={editCovStart} step={covStep}
-                                onChange={(e) => setEditCovStart(covSnap(e.target.value))}
+                              <DateTimePicker
+                                value={editCovStart}
+                                granularity={event.time_granularity}
+                                onChange={(v) => setEditCovStart(covSnap(v))}
                                 min={eventMinTime} max={eventMaxTime} required
-                                className="rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-2 py-1.5 text-sm" />
+                              />
                             </div>
                             <div>
                               <label className="mb-1 block text-xs">{t("events:end")}</label>
-                              <input type="datetime-local" value={editCovEnd} step={covStep}
-                                onChange={(e) => setEditCovEnd(covSnap(e.target.value))}
+                              <DateTimePicker
+                                value={editCovEnd}
+                                granularity={event.time_granularity}
+                                onChange={(v) => setEditCovEnd(covSnap(v))}
                                 min={eventMinTime} max={eventMaxTime} required
-                                className="rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-2 py-1.5 text-sm" />
+                              />
                             </div>
                             <div>
                               <label className="mb-1 block text-xs">{t("events:required_count")}</label>
@@ -690,28 +701,24 @@ export function EventSettingsPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs">{t("events:start")}</label>
-                  <input
-                    type="datetime-local"
+                  <DateTimePicker
                     value={covStartTime || eventMinTime}
-                    step={covStep}
-                    onChange={(e) => setCovStartTime(covSnap(e.target.value))}
+                    granularity={event.time_granularity}
+                    onChange={(v) => setCovStartTime(covSnap(v))}
                     min={eventMinTime}
                     max={eventMaxTime}
                     required
-                    className="rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-2 py-1.5 text-sm"
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs">{t("events:end")}</label>
-                  <input
-                    type="datetime-local"
+                  <DateTimePicker
                     value={covEndTime || eventMaxTime}
-                    step={covStep}
-                    onChange={(e) => setCovEndTime(covSnap(e.target.value))}
+                    granularity={event.time_granularity}
+                    onChange={(v) => setCovEndTime(covSnap(v))}
                     min={eventMinTime}
                     max={eventMaxTime}
                     required
-                    className="rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-2 py-1.5 text-sm"
                   />
                 </div>
                 <div>
@@ -758,6 +765,16 @@ export function EventSettingsPage() {
         </button>
       </section>
       )}
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title={t("events:delete_event")}
+        message={t("events:delete_confirm")}
+        destructive
+        loading={deleteEvent.isPending}
+        onConfirm={doDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

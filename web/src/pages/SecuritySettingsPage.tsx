@@ -30,6 +30,7 @@ function ProfileSection() {
   const [displayName, setDisplayName] = useState(user?.display_name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [password, setPassword] = useState("");
+  const [timeFormat, setTimeFormat] = useState(user?.time_format ?? "24h");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -45,6 +46,7 @@ function ProfileSection() {
       if (displayName !== (user?.display_name ?? "")) data.display_name = displayName;
       if (email !== (user?.email ?? "")) data.email = email;
       if (password) data.password = password;
+      if (timeFormat !== (user?.time_format ?? "24h")) data.time_format = timeFormat;
 
       if (Object.keys(data).length === 0) {
         setLoading(false);
@@ -127,6 +129,31 @@ function ProfileSection() {
             autoComplete="new-password"
             className="mt-1 block w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
           />
+        </div>
+        <div>
+          <label className="block text-sm font-medium">{t("admin:profile.time_format")}</label>
+          <div className="mt-1 flex gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="time_format"
+                value="24h"
+                checked={timeFormat === "24h"}
+                onChange={() => setTimeFormat("24h")}
+              />
+              {t("admin:profile.time_format_24h")}
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="time_format"
+                value="12h"
+                checked={timeFormat === "12h"}
+                onChange={() => setTimeFormat("12h")}
+              />
+              {t("admin:profile.time_format_12h")}
+            </label>
+          </div>
         </div>
         <button
           type="submit"

@@ -1,6 +1,7 @@
 import { api } from "./client";
 import type {
   Shift,
+  UserShift,
   ShiftWithWarnings,
   CreateShiftRequest,
   UpdateShiftRequest,
@@ -11,6 +12,10 @@ import type {
 } from "./types";
 
 export const shiftsApi = {
+  // User shifts (all shifts for authenticated user)
+  listMyShifts: () =>
+    api.get<UserShift[]>("/users/me/shifts"),
+
   // Shifts
   listByEvent: (slug: string) =>
     api.get<Shift[]>(`/events/${slug}/shifts`),

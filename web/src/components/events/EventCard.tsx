@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
+import { useTimeFormat } from "@/hooks/useTimeFormat";
 import type { Event } from "@/api/types";
 
 interface EventCardProps {
@@ -8,12 +9,14 @@ interface EventCardProps {
 
 export function EventCard({ event }: EventCardProps) {
   const { t } = useTranslation("events");
+  const hour12 = useTimeFormat();
 
   const startDate = new Date(event.start_time);
   const endDate = new Date(event.end_time);
   const dateFormatter = new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
+    hour12,
   });
 
   return (

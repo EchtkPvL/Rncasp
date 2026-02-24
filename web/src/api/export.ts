@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { ICalToken, CreateICalTokenRequest } from "./types";
+import type { ICalToken, CreateICalTokenRequest, PrintConfig } from "./types";
 
 const API_BASE = "/api";
 
@@ -17,6 +17,26 @@ export const exportApi = {
       credentials: "include",
     });
     if (!res.ok) throw new Error("Failed to download iCal");
+    return res.blob();
+  },
+
+  downloadPDF: async (slug: string, config: PrintConfig): Promise<Blob> => {
+    const params = new URLSearchParams();
+    params.set("layout", config.layout);
+    params.set("paper", config.paperSize);
+    params.set("landscape", String(config.landscape));
+    params.set("coverage", String(config.showCoverage));
+    params.set("colors", String(config.showTeamColors));
+    if (config.selectedDays.length > 0) {
+      params.set("days", config.selectedDays.map((d) => d.toISOString().split("T")[0]).join(","));
+    }
+    if (config.selectedUserIds) {
+      params.set("users", config.selectedUserIds.join(","));
+    }
+    const res = await fetch(`${API_BASE}/events/${slug}/export/pdf?${params}`, {
+      credentials: "include",
+    });
+    if (!res.ok) throw new Error("Failed to download PDF");
     return res.blob();
   },
 

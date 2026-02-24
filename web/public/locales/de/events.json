@@ -79,5 +79,10 @@
   "printed_at": "Gedruckt",
   "print_select_users": "Einzuschließende Benutzer",
   "print_all_users": "Alle",
-  "print_no_users": "Keine"
+  "print_no_users": "Keine",
+  "download_pdf": "PDF herunterladen",
+  "pdf_description": "Schichtplan als PDF-Datei herunterladen.",
+  "active_events": "Kommende Veranstaltungen",
+  "past_events": "Vergangene Veranstaltungen",
+  "no_past_events": "Keine vergangenen Veranstaltungen"
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   DndContext,
@@ -27,6 +27,8 @@ interface ShiftGridProps {
   onShiftClick?: (shift: Shift) => void;
   onShiftMove?: (shiftId: string, newStartTime: string, newEndTime: string) => void;
   onShiftResize?: (shiftId: string, newEndTime: string) => void;
+  focusedCell?: { row: number; col: number } | null;
+  onGridKeyDown?: (e: React.KeyboardEvent) => void;
 }
 
 const NAME_COL_WIDTH = 140;
@@ -44,6 +46,8 @@ export function ShiftGrid({
   onShiftClick,
   onShiftMove,
   onShiftResize,
+  focusedCell,
+  onGridKeyDown,
 }: ShiftGridProps) {
   const { t } = useTranslation(["shifts"]);
 
@@ -155,6 +159,29 @@ export function ShiftGrid({
     [shifts, slotWidth, granMinutes, onShiftResize],
   );
 
+  // Scroll focused cell into view
+  const gridContainerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!focusedCell || !gridContainerRef.current) return;
+    const el = gridContainerRef.current;
+    const x = NAME_COL_WIDTH + focusedCell.col * slotWidth;
+    const y = focusedCell.row * SLOT_HEIGHT;
+    // Only scroll if the cell is outside the visible area
+    const visibleLeft = el.scrollLeft + NAME_COL_WIDTH;
+    const visibleRight = el.scrollLeft + el.clientWidth;
+    const visibleTop = el.scrollTop;
+    const visibleBottom = el.scrollTop + el.clientHeight;
+    let scrollX = el.scrollLeft;
+    let scrollY = el.scrollTop;
+    if (x < visibleLeft) scrollX = x - NAME_COL_WIDTH;
+    if (x + slotWidth > visibleRight) scrollX = x + slotWidth - el.clientWidth;
+    if (y < visibleTop) scrollY = y;
+    if (y + SLOT_HEIGHT > visibleBottom) scrollY = y + SLOT_HEIGHT - el.clientHeight;
+    if (scrollX !== el.scrollLeft || scrollY !== el.scrollTop) {
+      el.scrollTo({ left: scrollX, top: scrollY, behavior: "smooth" });
+    }
+  }, [focusedCell, slotWidth]);
+
   if (slots.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-[var(--color-border)] p-8 text-center text-[var(--color-muted-foreground)]">
@@ -183,7 +210,7 @@ export function ShiftGrid({
           </div>
         </div>
       ) : (
-        users.map((user) => (
+        users.map((user, rowIndex) => (
           <GridRow
             key={user.id}
             userId={user.id}
@@ -199,6 +226,7 @@ export function ShiftGrid({
             onShiftClick={onShiftClick}
             dragEnabled={dragEnabled}
             onResizeDelta={onShiftResize ? handleResizeDelta : undefined}
+            focusedColIndex={focusedCell?.row === rowIndex ? focusedCell.col : null}
           />
         ))
       )}
@@ -225,7 +253,12 @@ export function ShiftGrid({
   );
 
   return (
-    <div className="overflow-auto rounded-lg border border-[var(--color-border)]">
+    <div
+      ref={gridContainerRef}
+      tabIndex={0}
+      onKeyDown={onGridKeyDown}
+      className="overflow-auto rounded-lg border border-[var(--color-border)] outline-none"
+    >
       {dragEnabled ? (
         <DndContext
           sensors={sensors}

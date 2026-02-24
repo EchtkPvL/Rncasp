@@ -15,6 +15,9 @@
     "email": "E-Mail",
     "new_password": "Neues Passwort",
     "password_placeholder": "Leer lassen für aktuelles Passwort",
+    "account_type": "Kontotyp",
+    "convert_to_local": "Beim Konvertieren zu einem lokalen Konto muss ein Passwort gesetzt werden",
+    "convert_to_dummy": "Dieser Benutzer kann sich nicht mehr anmelden",
     "roles": {
       "super_admin": "Super-Admin",
       "user": "Benutzer",
@@ -25,7 +28,8 @@
     "title": "Teamverwaltung",
     "name": "Teamname",
     "abbreviation": "Abkürzung",
-    "color": "Farbe"
+    "color": "Farbe",
+    "delete_confirm": "Möchten Sie dieses Team wirklich löschen?"
   },
   "settings": {
     "title": "App-Einstellungen",
@@ -68,7 +72,8 @@
     "active_events": "Aktive Veranstaltungen",
     "total_shifts": "Schichten gesamt",
     "total_teams": "Teams gesamt",
-    "quick_links": "Schnellzugriff"
+    "quick_links": "Schnellzugriff",
+    "overview": "Übersicht"
   },
   "profile": {
     "title": "Profil",
@@ -76,6 +81,9 @@
     "display_name": "Anzeigename",
     "email": "E-Mail",
     "new_password": "Neues Passwort",
+    "time_format": "Zeitformat",
+    "time_format_24h": "24-Stunden (14:00)",
+    "time_format_12h": "12-Stunden (2:00 PM)",
     "saved": "Profil aktualisiert"
   },
   "security": {

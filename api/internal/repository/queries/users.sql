@@ -30,6 +30,9 @@ UPDATE users SET
     role = COALESCE(sqlc.narg('role'), role),
     language = COALESCE(sqlc.narg('language'), language),
     is_active = COALESCE(sqlc.narg('is_active'), is_active),
+    time_format = COALESCE(sqlc.narg('time_format'), time_format),
+    username = COALESCE(sqlc.narg('username'), username),
+    account_type = COALESCE(sqlc.narg('account_type'), account_type),
     updated_at = NOW()
 WHERE id = $1
 RETURNING *;

@@ -34,6 +34,9 @@ export function useSSE({ slug, enabled = true }: SSEOptions = {}) {
             // Invalidate all event-related queries
             queryClient.invalidateQueries({ queryKey: ["events"] });
           }
+          if (eventType.startsWith("shift.")) {
+            queryClient.invalidateQueries({ queryKey: ["my-shifts"] });
+          }
         }
 
         if (eventType.startsWith("event.")) {

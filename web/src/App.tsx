@@ -21,6 +21,8 @@ import { AuditLogPage } from "@/pages/AuditLogPage";
 import { PublicEventPage } from "@/pages/PublicEventPage";
 import { AppSettingsPage } from "@/pages/AppSettingsPage";
 import { AdminDashboardPage } from "@/pages/AdminDashboardPage";
+import { AdminPage } from "@/pages/AdminPage";
+import { EventsPage } from "@/pages/EventsPage";
 import { UserManagementPage } from "@/pages/UserManagementPage";
 
 const queryClient = new QueryClient({
@@ -130,7 +132,11 @@ function App() {
                 />
                 <Route
                   path="events"
-                  element={<Navigate to="/" replace />}
+                  element={
+                    <ProtectedRoute>
+                      <EventsPage />
+                    </ProtectedRoute>
+                  }
                 />
                 <Route
                   path="events/:slug"
@@ -157,35 +163,11 @@ function App() {
                   }
                 />
                 <Route
-                  path="admin/oauth"
-                  element={
-                    <SuperAdminRoute>
-                      <OAuthProvidersPage />
-                    </SuperAdminRoute>
-                  }
-                />
-                <Route
                   path="settings/notifications"
                   element={
                     <ProtectedRoute>
                       <NotificationPreferencesPage />
                     </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="admin/smtp"
-                  element={
-                    <SuperAdminRoute>
-                      <SMTPSettingsPage />
-                    </SuperAdminRoute>
-                  }
-                />
-                <Route
-                  path="admin/dummy-accounts"
-                  element={
-                    <SuperAdminRoute>
-                      <DummyAccountsPage />
-                    </SuperAdminRoute>
                   }
                 />
                 <Route
@@ -197,36 +179,24 @@ function App() {
                   }
                 />
                 <Route
-                  path="admin/audit-log"
+                  path="admin"
                   element={
                     <SuperAdminRoute>
-                      <AuditLogPage />
+                      <AdminPage />
                     </SuperAdminRoute>
                   }
-                />
-                <Route
-                  path="admin/settings"
-                  element={
-                    <SuperAdminRoute>
-                      <AppSettingsPage />
-                    </SuperAdminRoute>
-                  }
-                />
+                >
+                  <Route index element={<AdminDashboardPage />} />
+                  <Route path="users" element={<UserManagementPage />} />
+                  <Route path="settings" element={<AppSettingsPage />} />
+                  <Route path="oauth" element={<OAuthProvidersPage />} />
+                  <Route path="smtp" element={<SMTPSettingsPage />} />
+                  <Route path="dummy-accounts" element={<DummyAccountsPage />} />
+                  <Route path="audit-log" element={<AuditLogPage />} />
+                </Route>
                 <Route
                   path="admin/dashboard"
-                  element={
-                    <SuperAdminRoute>
-                      <AdminDashboardPage />
-                    </SuperAdminRoute>
-                  }
-                />
-                <Route
-                  path="admin/users"
-                  element={
-                    <SuperAdminRoute>
-                      <UserManagementPage />
-                    </SuperAdminRoute>
-                  }
+                  element={<Navigate to="/admin" replace />}
                 />
                 <Route
                   path="public/events/:slug"

@@ -12,7 +12,7 @@ import (
 )
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, full_name, display_name, email, password_hash, role, language, account_type, totp_secret, totp_enabled, is_active, created_at, updated_at FROM users WHERE id = $1
+SELECT id, username, full_name, display_name, email, password_hash, role, language, account_type, totp_secret, totp_enabled, is_active, time_format, created_at, updated_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -31,6 +31,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.TotpSecret,
 		&i.TotpEnabled,
 		&i.IsActive,
+		&i.TimeFormat,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -38,7 +39,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, full_name, display_name, email, password_hash, role, language, account_type, totp_secret, totp_enabled, is_active, created_at, updated_at FROM users WHERE LOWER(username) = LOWER($1)
+SELECT id, username, full_name, display_name, email, password_hash, role, language, account_type, totp_secret, totp_enabled, is_active, time_format, created_at, updated_at FROM users WHERE LOWER(username) = LOWER($1)
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -57,6 +58,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.TotpSecret,
 		&i.TotpEnabled,
 		&i.IsActive,
+		&i.TimeFormat,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -64,7 +66,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, username, full_name, display_name, email, password_hash, role, language, account_type, totp_secret, totp_enabled, is_active, created_at, updated_at FROM users WHERE email = $1
+SELECT id, username, full_name, display_name, email, password_hash, role, language, account_type, totp_secret, totp_enabled, is_active, time_format, created_at, updated_at FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email *string) (User, error) {
@@ -83,6 +85,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email *string) (User, erro
 		&i.TotpSecret,
 		&i.TotpEnabled,
 		&i.IsActive,
+		&i.TimeFormat,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -90,7 +93,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email *string) (User, erro
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, full_name, display_name, email, password_hash, role, language, account_type, totp_secret, totp_enabled, is_active, created_at, updated_at FROM users
+SELECT id, username, full_name, display_name, email, password_hash, role, language, account_type, totp_secret, totp_enabled, is_active, time_format, created_at, updated_at FROM users
 WHERE ($1::varchar IS NULL OR role = $1)
   AND ($2::varchar IS NULL OR account_type = $2)
 ORDER BY created_at DESC
@@ -126,6 +129,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 			&i.TotpSecret,
 			&i.TotpEnabled,
 			&i.IsActive,
+			&i.TimeFormat,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -153,7 +157,7 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, full_name, display_name, email, password_hash, role, language, account_type)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, username, full_name, display_name, email, password_hash, role, language, account_type, totp_secret, totp_enabled, is_active, created_at, updated_at
+RETURNING id, username, full_name, display_name, email, password_hash, role, language, account_type, totp_secret, totp_enabled, is_active, time_format, created_at, updated_at
 `
 
 type CreateUserParams struct {
@@ -192,6 +196,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.TotpSecret,
 		&i.TotpEnabled,
 		&i.IsActive,
+		&i.TimeFormat,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -206,9 +211,12 @@ UPDATE users SET
     role = COALESCE($5, role),
     language = COALESCE($6, language),
     is_active = COALESCE($7, is_active),
+    time_format = COALESCE($8, time_format),
+    username = COALESCE($9, username),
+    account_type = COALESCE($10, account_type),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, username, full_name, display_name, email, password_hash, role, language, account_type, totp_secret, totp_enabled, is_active, created_at, updated_at
+RETURNING id, username, full_name, display_name, email, password_hash, role, language, account_type, totp_secret, totp_enabled, is_active, time_format, created_at, updated_at
 `
 
 type UpdateUserParams struct {
@@ -219,6 +227,9 @@ type UpdateUserParams struct {
 	Role        *string   `json:"role"`
 	Language    *string   `json:"language"`
 	IsActive    *bool     `json:"is_active"`
+	TimeFormat  *string   `json:"time_format"`
+	Username    *string   `json:"username"`
+	AccountType *string   `json:"account_type"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
@@ -230,6 +241,9 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		arg.Role,
 		arg.Language,
 		arg.IsActive,
+		arg.TimeFormat,
+		arg.Username,
+		arg.AccountType,
 	)
 	var i User
 	err := row.Scan(
@@ -245,6 +259,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.TotpSecret,
 		&i.TotpEnabled,
 		&i.IsActive,
+		&i.TimeFormat,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -279,7 +294,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 }
 
 const searchUsers = `-- name: SearchUsers :many
-SELECT id, username, full_name, display_name, email, password_hash, role, language, account_type, totp_secret, totp_enabled, is_active, created_at, updated_at FROM users
+SELECT id, username, full_name, display_name, email, password_hash, role, language, account_type, totp_secret, totp_enabled, is_active, time_format, created_at, updated_at FROM users
 WHERE (username ILIKE '%' || $1 || '%' OR full_name ILIKE '%' || $1 || '%' OR email ILIKE '%' || $1 || '%')
 ORDER BY username
 LIMIT $2 OFFSET $3
@@ -313,6 +328,7 @@ func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]Use
 			&i.TotpSecret,
 			&i.TotpEnabled,
 			&i.IsActive,
+			&i.TimeFormat,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

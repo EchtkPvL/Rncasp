@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { Event, Shift, CoverageRequirement, EventTeam, HiddenRange } from "@/api/types";
 import { generateTimeSlots, granularityToMinutes, formatSlotTime, formatDayHeader, groupShiftsByUser } from "@/lib/time";
+import { useTimeFormat } from "@/hooks/useTimeFormat";
 
 interface PrintGridPageProps {
   event: Event;
@@ -29,6 +30,7 @@ export function PrintGridPage({
   isFirstPage,
 }: PrintGridPageProps) {
   const { t } = useTranslation(["events"]);
+  const hour12 = useTimeFormat();
 
   // Compute day boundaries clamped to event range
   const dayRange = useMemo(() => {
@@ -141,7 +143,7 @@ export function PrintGridPage({
               <span className="print-event-name">{event.name}</span>
               <span>{formatDayHeader(day)}</span>
               <span>
-                {t("events:printed_at")} {formatSlotTime(now)}
+                {t("events:printed_at")} {formatSlotTime(now, hour12)}
               </span>
             </div>
 
@@ -155,7 +157,7 @@ export function PrintGridPage({
                     const showTime = min === 0;
                     return (
                       <th key={i}>
-                        {showTime ? formatSlotTime(slot) : ""}
+                        {showTime ? formatSlotTime(slot, hour12) : ""}
                       </th>
                     );
                   })}

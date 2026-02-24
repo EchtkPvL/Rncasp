@@ -32,7 +32,9 @@
     "menu": "Menü",
     "logout": "Abmelden",
     "login": "Anmelden",
-    "register": "Registrieren"
+    "register": "Registrieren",
+    "upcoming_shifts": "Deine kommenden Schichten",
+    "no_upcoming_shifts": "Keine kommenden Schichten"
   },
   "notifications": {
     "title": "Benachrichtigungen",
@@ -68,5 +70,14 @@
     "totp_verify_button": "Bestätigen",
     "totp_recovery_hint": "Sie können auch einen Wiederherstellungscode verwenden.",
     "weak_password": "Schwaches Passwort — mindestens 8 Zeichen empfohlen"
+  },
+  "keyboard": {
+    "title": "Tastenkombinationen",
+    "global": "Global",
+    "grid": "Schichtplan",
+    "show_help": "Tastenkombinationen anzeigen",
+    "close_dialog": "Dialog schließen / Fokus aufheben",
+    "navigate_cells": "Rasterzellen navigieren",
+    "create_shift_at_cell": "Schicht an fokussierter Zelle erstellen"
   }
 }

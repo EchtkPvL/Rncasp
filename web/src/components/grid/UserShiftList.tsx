@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { formatDayHeader, formatSlotTime } from "@/lib/time";
+import { useTimeFormat } from "@/hooks/useTimeFormat";
 import type { Shift } from "@/api/types";
 
 interface UserShiftListProps {
@@ -10,6 +11,7 @@ interface UserShiftListProps {
 
 export function UserShiftList({ shifts, userName }: UserShiftListProps) {
   const { t } = useTranslation(["shifts"]);
+  const hour12 = useTimeFormat();
 
   // Group shifts by day
   const shiftsByDay = useMemo(() => {
@@ -57,7 +59,7 @@ export function UserShiftList({ shifts, userName }: UserShiftListProps) {
                     style={{ backgroundColor: shift.team_color }}
                   />
                   <span className="text-sm font-medium">
-                    {formatSlotTime(start)}–{formatSlotTime(end)}
+                    {formatSlotTime(start, hour12)}–{formatSlotTime(end, hour12)}
                     {crossesMidnight && (
                       <span className="ml-1 text-xs font-normal text-[var(--color-muted-foreground)]">
                         ({formatDayHeader(end)})

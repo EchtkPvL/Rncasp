@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/echtkpvl/rncasp/internal/handler"
+	"github.com/echtkpvl/rncasp/internal/pdf"
 	"github.com/echtkpvl/rncasp/internal/repository"
 	"github.com/echtkpvl/rncasp/internal/server/middleware"
 	"github.com/echtkpvl/rncasp/internal/service"
@@ -46,7 +47,8 @@ func (s *Server) setupRoutes() http.Handler {
 	smtpService := service.NewSMTPService(queries, s.logger)
 	availabilityService := service.NewAvailabilityService(queries, s.logger)
 	userService := service.NewUserService(queries, s.logger)
-	exportService := service.NewExportService(queries, s.logger)
+	pdfGen := pdf.NewPDFGenerator(s.logger)
+	exportService := service.NewExportService(queries, s.logger, pdfGen)
 	auditService := service.NewAuditService(queries, s.logger)
 	appSettingsService := service.NewAppSettingsService(queries, s.logger)
 	eventService := service.NewEventService(queries, s.logger, sseBroker)
@@ -168,6 +170,7 @@ func (s *Server) setupRoutes() http.Handler {
 			r.Use(middleware.RequireAuth)
 			r.Get("/", userHandler.List)
 			r.Get("/search", userHandler.Search)
+			r.Get("/me/shifts", shiftHandler.ListByUser)
 			r.Get("/{userId}", userHandler.GetByID)
 
 			// User management: super-admin only
@@ -210,6 +213,7 @@ func (s *Server) setupRoutes() http.Handler {
 			r.Get("/grid", publicHandler.GetGrid)
 			r.Get("/export/csv", publicHandler.ExportCSV)
 			r.Get("/export/ical", publicHandler.ExportICal)
+			r.Get("/export/pdf", publicHandler.ExportPDF)
 		})
 
 		// Events endpoints
@@ -272,6 +276,7 @@ func (s *Server) setupRoutes() http.Handler {
 				// Export: CSV and iCal downloads
 				r.Get("/export/csv", exportHandler.ExportCSV)
 				r.Get("/export/ical", exportHandler.ExportICal)
+				r.Get("/export/pdf", exportHandler.ExportPDF)
 
 				// Webhooks: event admin or super-admin
 				r.Route("/webhooks", func(r chi.Router) {

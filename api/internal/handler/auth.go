@@ -152,6 +152,7 @@ type updateProfileRequest struct {
 	DisplayName *string `json:"display_name"`
 	Email       *string `json:"email"`
 	Password    *string `json:"password"`
+	TimeFormat  *string `json:"time_format"`
 }
 
 func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
@@ -172,6 +173,7 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		DisplayName: req.DisplayName,
 		Email:       req.Email,
 		Password:    req.Password,
+		TimeFormat:  req.TimeFormat,
 	})
 	if err != nil {
 		model.ErrorResponse(w, err)

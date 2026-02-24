@@ -77,6 +77,21 @@ type ShiftWithWarnings struct {
 	Warnings []string      `json:"warnings,omitempty"`
 }
 
+type UserShiftResponse struct {
+	ID               string `json:"id"`
+	EventID          string `json:"event_id"`
+	TeamID           string `json:"team_id"`
+	UserID           string `json:"user_id"`
+	StartTime        string `json:"start_time"`
+	EndTime          string `json:"end_time"`
+	TeamName         string `json:"team_name"`
+	TeamAbbreviation string `json:"team_abbreviation"`
+	TeamColor        string `json:"team_color"`
+	EventName        string `json:"event_name"`
+	EventSlug        string `json:"event_slug"`
+	CreatedAt        string `json:"created_at"`
+}
+
 type CoverageRequirementResponse struct {
 	ID            string `json:"id"`
 	EventID       string `json:"event_id"`
@@ -683,6 +698,33 @@ func (s *ShiftService) IsEventAdmin(ctx context.Context, slug string, userID uui
 		return false, fmt.Errorf("checking admin status: %w", err)
 	}
 	return isAdmin, nil
+}
+
+// ListByUser returns all shifts for a specific user, with event metadata.
+func (s *ShiftService) ListByUser(ctx context.Context, userID uuid.UUID) ([]UserShiftResponse, error) {
+	shifts, err := s.queries.ListShiftsByUser(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("listing user shifts: %w", err)
+	}
+
+	result := make([]UserShiftResponse, len(shifts))
+	for i, sh := range shifts {
+		result[i] = UserShiftResponse{
+			ID:               sh.ID.String(),
+			EventID:          sh.EventID.String(),
+			TeamID:           sh.TeamID.String(),
+			UserID:           sh.UserID.String(),
+			StartTime:        sh.StartTime.Format(time.RFC3339),
+			EndTime:          sh.EndTime.Format(time.RFC3339),
+			TeamName:         sh.TeamName,
+			TeamAbbreviation: sh.TeamAbbreviation,
+			TeamColor:        sh.TeamColor,
+			EventName:        sh.EventName,
+			EventSlug:        sh.EventSlug,
+			CreatedAt:        sh.CreatedAt.Format(time.RFC3339),
+		}
+	}
+	return result, nil
 }
 
 // Response converters

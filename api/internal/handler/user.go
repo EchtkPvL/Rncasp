@@ -39,6 +39,9 @@ type updateUserRequest struct {
 	DisplayName *string `json:"display_name"`
 	Email       *string `json:"email"`
 	Password    *string `json:"password"`
+	TimeFormat  *string `json:"time_format"`
+	Username    *string `json:"username"`
+	AccountType *string `json:"account_type"`
 }
 
 // List returns users with optional filters.
@@ -141,6 +144,9 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		DisplayName: req.DisplayName,
 		Email:       req.Email,
 		Password:    req.Password,
+		TimeFormat:  req.TimeFormat,
+		Username:    req.Username,
+		AccountType: req.AccountType,
 	})
 	if err != nil {
 		model.ErrorResponse(w, err)

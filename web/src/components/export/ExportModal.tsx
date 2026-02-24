@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useEscapeKey } from "@/hooks/useKeyboard";
-import { useDownloadCSV, useDownloadICal } from "@/hooks/useExport";
+import { useDownloadCSV, useDownloadICal, useDownloadPDF } from "@/hooks/useExport";
 import { getEventDays, formatDayHeader, groupShiftsByUser } from "@/lib/time";
 import type { Event, Shift, CoverageRequirement, EventTeam, HiddenRange, PrintConfig } from "@/api/types";
 
@@ -36,6 +36,7 @@ export function ExportModal({
   const { t } = useTranslation(["events", "common"]);
   const downloadCSV = useDownloadCSV();
   const downloadICal = useDownloadICal();
+  const downloadPDF = useDownloadPDF();
 
   const [tab, setTab] = useState<Tab>("print");
   const [layout, setLayout] = useState<Layout>("grid");
@@ -80,6 +81,21 @@ export function ExportModal({
       showTeamColors,
       selectedDays,
       selectedUserIds,
+    });
+  }
+
+  function handlePDF() {
+    downloadPDF.mutate({
+      slug,
+      config: {
+        layout,
+        paperSize,
+        landscape,
+        showCoverage,
+        showTeamColors,
+        selectedDays,
+        selectedUserIds,
+      },
     });
   }
 
@@ -335,7 +351,7 @@ export function ExportModal({
                 </div>
               )}
 
-              {/* Print button */}
+              {/* Print / PDF buttons */}
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -343,6 +359,14 @@ export function ExportModal({
                   className="rounded-md border border-[var(--color-border)] px-4 py-2 text-sm"
                 >
                   {t("common:cancel")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePDF}
+                  disabled={printDisabled || downloadPDF.isPending}
+                  className="rounded-md border border-[var(--color-primary)] px-4 py-2 text-sm text-[var(--color-primary)] disabled:opacity-50"
+                >
+                  {downloadPDF.isPending ? t("common:loading") : t("events:download_pdf")}
                 </button>
                 <button
                   type="button"

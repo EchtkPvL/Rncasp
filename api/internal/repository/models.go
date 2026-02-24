@@ -24,6 +24,7 @@ type User struct {
 	TotpSecret   *string    `json:"totp_secret"`
 	TotpEnabled  bool       `json:"totp_enabled"`
 	IsActive     bool       `json:"is_active"`
+	TimeFormat   string     `json:"time_format"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
 }

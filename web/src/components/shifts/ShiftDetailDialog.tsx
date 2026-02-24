@@ -3,9 +3,11 @@ import { useTranslation } from "react-i18next";
 import { useDeleteShift, useUpdateShift } from "@/hooks/useShifts";
 import { useTeams } from "@/hooks/useTeams";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTimeFormat } from "@/hooks/useTimeFormat";
 import { useEscapeKey } from "@/hooks/useKeyboard";
 import { ApiError } from "@/api/client";
-import { granularityToStep, snapToGranularity } from "@/lib/time";
+import { snapToGranularity } from "@/lib/time";
+import { DateTimePicker } from "@/components/common/DateTimePicker";
 import type { Shift } from "@/api/types";
 
 interface ShiftDetailDialogProps {
@@ -24,12 +26,12 @@ function toLocalDatetime(date: Date): string {
 export function ShiftDetailDialog({ shift, eventSlug, canManageShifts, timeGranularity, onClose }: ShiftDetailDialogProps) {
   const { t } = useTranslation(["shifts", "common"]);
   const { user } = useAuth();
+  const hour12 = useTimeFormat();
   const deleteShift = useDeleteShift();
   const updateShift = useUpdateShift();
   const { data: teams } = useTeams();
   useEscapeKey(useCallback(() => onClose(), [onClose]));
 
-  const step = timeGranularity ? granularityToStep(timeGranularity) : undefined;
   const snap = (v: string) => timeGranularity ? snapToGranularity(v, timeGranularity) : v;
 
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -52,6 +54,7 @@ export function ShiftDetailDialog({ shift, eventSlug, canManageShifts, timeGranu
   const dateFormatter = new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
+    hour12,
   });
 
   async function handleDelete() {
@@ -88,7 +91,11 @@ export function ShiftDetailDialog({ shift, eventSlug, canManageShifts, timeGranu
       onClose();
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        if (err.code === "conflict") {
+          setError(t("shifts:overbooking_error"));
+        } else {
+          setError(err.message);
+        }
       } else {
         setError(t("common:error"));
       }
@@ -136,24 +143,20 @@ export function ShiftDetailDialog({ shift, eventSlug, canManageShifts, timeGranu
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-sm font-medium">{t("shifts:start_time")}</label>
-                <input
-                  type="datetime-local"
+                <DateTimePicker
                   value={editStartTime}
-                  step={step}
-                  onChange={(e) => setEditStartTime(snap(e.target.value))}
+                  granularity={timeGranularity ?? "30min"}
+                  onChange={(v) => setEditStartTime(snap(v))}
                   required
-                  className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
                 />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">{t("shifts:end_time")}</label>
-                <input
-                  type="datetime-local"
+                <DateTimePicker
                   value={editEndTime}
-                  step={step}
-                  onChange={(e) => setEditEndTime(snap(e.target.value))}
+                  granularity={timeGranularity ?? "30min"}
+                  onChange={(v) => setEditEndTime(snap(v))}
                   required
-                  className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
                 />
               </div>
             </div>

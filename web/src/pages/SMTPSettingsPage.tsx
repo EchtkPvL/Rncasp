@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { smtpApi } from "@/api/smtp";
 import type { UpdateSMTPConfigRequest } from "@/api/types";
@@ -95,12 +94,6 @@ export function SMTPSettingsPage() {
 
   return (
     <div>
-      <div className="mb-2">
-        <Link to="/" className="text-sm text-[var(--color-primary)] hover:underline">
-          {t("common:back")}
-        </Link>
-      </div>
-
       <h1 className="mb-6 text-2xl font-bold">{t("smtp.title", "SMTP Settings")}</h1>
 
       {message && (

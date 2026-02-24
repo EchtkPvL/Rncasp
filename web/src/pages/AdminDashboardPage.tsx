@@ -1,4 +1,3 @@
-import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useDashboardStats } from "@/hooks/useAdmin";
 import { StatsSkeleton } from "@/components/common/Skeleton";
@@ -39,16 +38,6 @@ export function AdminDashboardPage() {
         </div>
       ) : null}
 
-      {/* Quick Links */}
-      <h2 className="mt-8 text-lg font-semibold">{t("admin:dashboard.quick_links", "Quick Links")}</h2>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <QuickLink to="/admin/settings" label={t("admin:settings.title")} />
-        <QuickLink to="/teams" label={t("admin:teams.title")} />
-        <QuickLink to="/admin/dummy-accounts" label={t("admin:dummy.title")} />
-        <QuickLink to="/admin/oauth" label={t("admin:oauth.title")} />
-        <QuickLink to="/admin/smtp" label={t("admin:smtp.title")} />
-        <QuickLink to="/admin/audit-log" label={t("admin:audit.title")} />
-      </div>
     </div>
   );
 }
@@ -62,13 +51,3 @@ function StatCard({ label, value }: { label: string; value: number }) {
   );
 }
 
-function QuickLink({ to, label }: { to: string; label: string }) {
-  return (
-    <Link
-      to={to}
-      className="rounded-lg border border-[var(--color-border)] p-3 text-sm font-medium hover:bg-[var(--color-muted)] transition-colors"
-    >
-      {label}
-    </Link>
-  );
-}

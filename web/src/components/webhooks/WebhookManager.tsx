@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { webhooksApi } from "@/api/webhooks";
 import type { CreateWebhookRequest, UpdateWebhookRequest, Webhook } from "@/api/types";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 
 const TRIGGER_OPTIONS = [
   "shift.created",
@@ -57,6 +58,7 @@ export function WebhookManager({ slug }: WebhookManagerProps) {
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingWebhook, setDeletingWebhook] = useState<Webhook | null>(null);
   const [form, setForm] = useState({
     name: "",
     url: "",
@@ -112,10 +114,14 @@ export function WebhookManager({ slug }: WebhookManagerProps) {
   }
 
   function handleDelete(wh: Webhook) {
-    if (confirm(t("webhooks.delete_confirm", 'Delete webhook "{{name}}"?', { name: wh.name }))) {
-      deleteWebhook.mutate(wh.id);
-    }
+    setDeletingWebhook(wh);
   }
+
+  const doDeleteWebhook = useCallback(() => {
+    if (!deletingWebhook) return;
+    deleteWebhook.mutate(deletingWebhook.id);
+    setDeletingWebhook(null);
+  }, [deletingWebhook, deleteWebhook]);
 
   if (isLoading) {
     return <p className="text-sm text-[var(--color-muted-foreground)]">{t("common:loading")}</p>;
@@ -282,6 +288,16 @@ export function WebhookManager({ slug }: WebhookManagerProps) {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deletingWebhook}
+        title={t("common:delete")}
+        message={deletingWebhook ? t("webhooks.delete_confirm", { name: deletingWebhook.name }) : ""}
+        destructive
+        loading={deleteWebhook.isPending}
+        onConfirm={doDeleteWebhook}
+        onCancel={() => setDeletingWebhook(null)}
+      />
     </div>
   );
 }

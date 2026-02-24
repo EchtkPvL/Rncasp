@@ -17,6 +17,7 @@ interface GridRowProps {
   onShiftClick?: (shift: Shift) => void;
   dragEnabled?: boolean;
   onResizeDelta?: (shiftId: string, deltaPixels: number) => void;
+  focusedColIndex?: number | null;
 }
 
 const AVAILABILITY_COLORS: Record<string, string> = {
@@ -39,6 +40,7 @@ export function GridRow({
   onShiftClick,
   dragEnabled,
   onResizeDelta,
+  focusedColIndex,
 }: GridRowProps) {
   // Calculate shift positions
   const shiftPositions = useMemo(() => {
@@ -136,7 +138,9 @@ export function GridRow({
               key={i}
               className={`shrink-0 border-r border-[var(--color-border)] ${
                 dayBorder ? "border-l-2 border-l-[var(--color-foreground)]" : ""
-              } ${!bgColor && slot.getHours() % 2 === 0 ? "bg-[var(--color-muted)]/30" : ""}`}
+              } ${!bgColor && slot.getHours() % 2 === 0 ? "bg-[var(--color-muted)]/30" : ""} ${
+                i === focusedColIndex ? "ring-2 ring-inset ring-[var(--color-primary)]" : ""
+              }`}
               style={{ width: slotWidth, height: slotHeight, backgroundColor: bgColor }}
               onClick={() => onCellClick?.(userId, slot)}
             />

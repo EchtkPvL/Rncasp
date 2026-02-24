@@ -3,8 +3,10 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/echtkpvl/rncasp/internal/model"
+	"github.com/echtkpvl/rncasp/internal/pdf"
 	"github.com/echtkpvl/rncasp/internal/server/middleware"
 	"github.com/echtkpvl/rncasp/internal/service"
 	"github.com/go-chi/chi/v5"
@@ -47,6 +49,43 @@ func (h *ExportHandler) ExportICal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+filename+"\"")
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
+}
+
+// ExportPDF downloads a PDF of the shift plan for an event.
+func (h *ExportHandler) ExportPDF(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	q := r.URL.Query()
+
+	opts := pdf.PDFOptions{
+		Layout:         q.Get("layout"),
+		PaperSize:      q.Get("paper"),
+		Landscape:      q.Get("landscape") != "false",
+		ShowCoverage:   q.Get("coverage") != "false",
+		ShowTeamColors: q.Get("colors") != "false",
+	}
+	if opts.Layout == "" {
+		opts.Layout = "grid"
+	}
+	if opts.PaperSize == "" {
+		opts.PaperSize = "A4"
+	}
+	if d := q.Get("days"); d != "" {
+		opts.Days = strings.Split(d, ",")
+	}
+	if u := q.Get("users"); u != "" {
+		opts.UserIDs = strings.Split(u, ",")
+	}
+
+	data, filename, err := h.exportService.ExportPDF(r.Context(), slug, opts)
+	if err != nil {
+		model.ErrorResponse(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/pdf")
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+filename+"\"")
 	w.WriteHeader(http.StatusOK)
 	w.Write(data)

@@ -2,6 +2,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { shiftsApi } from "@/api/shifts";
 import type { CreateShiftRequest, UpdateShiftRequest, CreateCoverageRequest, GridData } from "@/api/types";
 
+export function useMyShifts() {
+  return useQuery({
+    queryKey: ["my-shifts"],
+    queryFn: async () => {
+      const res = await shiftsApi.listMyShifts();
+      return res.data!;
+    },
+  });
+}
+
 export function useGridData(slug: string) {
   return useQuery({
     queryKey: ["events", slug, "grid"],
@@ -44,6 +54,7 @@ export function useCreateShift() {
       queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "grid"] });
       queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "shifts"] });
       queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "coverage"] });
+      queryClient.invalidateQueries({ queryKey: ["my-shifts"] });
     },
   });
 }
@@ -77,6 +88,7 @@ export function useUpdateShift() {
     onSettled: (_data, _error, vars) => {
       queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "grid"] });
       queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "shifts"] });
+      queryClient.invalidateQueries({ queryKey: ["my-shifts"] });
     },
   });
 }
@@ -90,6 +102,7 @@ export function useDeleteShift() {
       queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "grid"] });
       queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "shifts"] });
       queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "coverage"] });
+      queryClient.invalidateQueries({ queryKey: ["my-shifts"] });
     },
   });
 }

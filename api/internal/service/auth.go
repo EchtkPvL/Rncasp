@@ -70,6 +70,7 @@ type UserResponse struct {
 	Role        string  `json:"role"`
 	Language    string  `json:"language"`
 	AccountType string  `json:"account_type"`
+	TimeFormat  string  `json:"time_format"`
 	TotpEnabled bool    `json:"totp_enabled"`
 	IsActive    bool    `json:"is_active"`
 	CreatedAt   string  `json:"created_at"`
@@ -85,6 +86,7 @@ func userToResponse(u repository.User) UserResponse {
 		Role:        u.Role,
 		Language:    u.Language,
 		AccountType: u.AccountType,
+		TimeFormat:  u.TimeFormat,
 		TotpEnabled: u.TotpEnabled,
 		IsActive:    u.IsActive,
 		CreatedAt:   u.CreatedAt.Format(time.RFC3339),
@@ -275,6 +277,7 @@ type UpdateProfileInput struct {
 	DisplayName *string
 	Email       *string
 	Password    *string
+	TimeFormat  *string
 }
 
 // UpdateProfile lets an authenticated user update their own profile fields.
@@ -296,6 +299,7 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userID uuid.UUID, input
 		FullName:    input.FullName,
 		DisplayName: input.DisplayName,
 		Email:       input.Email,
+		TimeFormat:  input.TimeFormat,
 	})
 	if err != nil {
 		return UserResponse{}, fmt.Errorf("updating profile: %w", err)

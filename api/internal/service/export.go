@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/echtkpvl/rncasp/internal/model"
+	"github.com/echtkpvl/rncasp/internal/pdf"
 	"github.com/echtkpvl/rncasp/internal/repository"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -22,10 +23,11 @@ import (
 type ExportService struct {
 	queries *repository.Queries
 	logger  *slog.Logger
+	pdfGen  *pdf.PDFGenerator
 }
 
-func NewExportService(queries *repository.Queries, logger *slog.Logger) *ExportService {
-	return &ExportService{queries: queries, logger: logger}
+func NewExportService(queries *repository.Queries, logger *slog.Logger, pdfGen *pdf.PDFGenerator) *ExportService {
+	return &ExportService{queries: queries, logger: logger, pdfGen: pdfGen}
 }
 
 // ExportCSV generates a CSV export of shifts for an event.
@@ -90,6 +92,53 @@ func (s *ExportService) ExportICalEvent(ctx context.Context, slug string) ([]byt
 	cal := buildICalFromShifts(event.Name, event.Slug, shifts)
 	filename := fmt.Sprintf("%s-shifts.ics", event.Slug)
 	return []byte(cal), filename, nil
+}
+
+// ExportPDF generates a PDF export of the shift plan for an event.
+func (s *ExportService) ExportPDF(ctx context.Context, slug string, opts pdf.PDFOptions) ([]byte, string, error) {
+	event, err := s.queries.GetEventBySlug(ctx, slug)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, "", model.NewDomainError(model.ErrNotFound, "event not found")
+		}
+		return nil, "", fmt.Errorf("fetching event: %w", err)
+	}
+
+	shifts, err := s.queries.ListShiftsByEvent(ctx, event.ID)
+	if err != nil {
+		return nil, "", fmt.Errorf("listing shifts: %w", err)
+	}
+
+	eventTeams, err := s.queries.ListEventTeams(ctx, event.ID)
+	if err != nil {
+		return nil, "", fmt.Errorf("listing event teams: %w", err)
+	}
+
+	coverage, err := s.queries.ListCoverageRequirements(ctx, event.ID)
+	if err != nil {
+		return nil, "", fmt.Errorf("listing coverage: %w", err)
+	}
+
+	hiddenRanges, err := s.queries.ListEventHiddenRanges(ctx, event.ID)
+	if err != nil {
+		return nil, "", fmt.Errorf("listing hidden ranges: %w", err)
+	}
+
+	data := pdf.PDFData{
+		Event:        event,
+		Shifts:       shifts,
+		EventTeams:   eventTeams,
+		Coverage:     coverage,
+		HiddenRanges: hiddenRanges,
+	}
+
+	pdfBytes, err := s.pdfGen.Generate(ctx, data, opts)
+	if err != nil {
+		return nil, "", fmt.Errorf("generating PDF: %w", err)
+	}
+
+	filename := fmt.Sprintf("%s-shifts.pdf", event.Slug)
+	return pdfBytes, filename, nil
 }
 
 // iCal Token management

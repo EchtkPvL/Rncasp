@@ -59,9 +59,9 @@ export function isNewDay(slot: Date, prevSlot: Date | null): boolean {
   return slot.toDateString() !== prevSlot.toDateString();
 }
 
-/** Format a time slot for display (e.g., "14:00") */
-export function formatSlotTime(date: Date): string {
-  return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
+/** Format a time slot for display (e.g., "14:00" or "2:00 PM") */
+export function formatSlotTime(date: Date, hour12 = false): string {
+  return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12 });
 }
 
 /** Format a date header (e.g., "Mon 15 Jan") */

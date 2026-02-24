@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { exportApi } from "@/api/export";
-import type { CreateICalTokenRequest } from "@/api/types";
+import type { CreateICalTokenRequest, PrintConfig } from "@/api/types";
 
 export function useICalTokens() {
   return useQuery({
@@ -51,6 +51,20 @@ export function useDownloadICal() {
       const a = document.createElement("a");
       a.href = url;
       a.download = `${slug}-shifts.ics`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+  });
+}
+
+export function useDownloadPDF() {
+  return useMutation({
+    mutationFn: async ({ slug, config }: { slug: string; config: PrintConfig }) => {
+      const blob = await exportApi.downloadPDF(slug, config);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${slug}-shifts.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     },

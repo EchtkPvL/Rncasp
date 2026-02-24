@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useMyAvailability, useSetMyAvailability } from "@/hooks/useAvailability";
 import { useEscapeKey } from "@/hooks/useKeyboard";
 import { generateTimeSlots, granularityToMinutes, formatSlotTime, formatDayHeader, isNewDay } from "@/lib/time";
+import { useTimeFormat } from "@/hooks/useTimeFormat";
 import type { Event, AvailabilityEntry } from "@/api/types";
 
 type AvailabilityStatus = "available" | "preferred" | "unavailable";
@@ -26,6 +27,7 @@ const STATUS_LABELS: Record<AvailabilityStatus, string> = {
 
 export function AvailabilityEditor({ event, onClose }: AvailabilityEditorProps) {
   const { t } = useTranslation(["admin", "common"]);
+  const hour12 = useTimeFormat();
   const { data: myAvailability } = useMyAvailability(event.slug);
   const setAvailability = useSetMyAvailability();
   useEscapeKey(useCallback(() => onClose(), [onClose]));
@@ -216,9 +218,9 @@ export function AvailabilityEditor({ event, onClose }: AvailabilityEditorProps) 
                     handleMouseDown(iso);
                   }}
                   onMouseEnter={() => handleMouseEnter(iso)}
-                  title={`${formatSlotTime(slot)} - ${status || "unset"}`}
+                  title={`${formatSlotTime(slot, hour12)} - ${status || "unset"}`}
                 >
-                  {formatSlotTime(slot)}
+                  {formatSlotTime(slot, hour12)}
                 </div>
               </div>
             );

@@ -79,5 +79,10 @@
   "printed_at": "Printed",
   "print_select_users": "Users to include",
   "print_all_users": "All",
-  "print_no_users": "None"
+  "print_no_users": "None",
+  "download_pdf": "Download PDF",
+  "pdf_description": "Download the shift plan as a PDF file.",
+  "active_events": "Upcoming Events",
+  "past_events": "Past Events",
+  "no_past_events": "No past events"
 }

@@ -1,0 +1,4133 @@
+openapi: 3.1.0
+info:
+  title: Rncasp API
+  description: >
+    REST API for the Rncasp (Really No Clue About Shift Planning) application.
+    A shift planning web application for LAN party events that replaces Excel-based
+    workflows where team members sign up for shifts across multi-day events.
+
+
+    All responses (except health and binary downloads) are wrapped in a standard
+    envelope: `{"data": ..., "error": ..., "meta": ...}`.
+
+
+    Authentication is cookie-based using session cookies set on login/register.
+  version: 1.0.0
+  contact:
+    name: Rncasp
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+
+tags:
+  - name: Health
+    description: Service health checks
+  - name: Auth
+    description: Authentication, registration, profile management, and TOTP 2FA
+  - name: OAuth Providers
+    description: OAuth2 provider management (super-admin) and OAuth2 flow
+  - name: Teams
+    description: Global team definitions
+  - name: Events
+    description: Event lifecycle, teams, admins, hidden ranges, and lock/public toggles
+  - name: Shifts
+    description: Shift CRUD and grid data
+  - name: Coverage
+    description: Coverage requirements per team per time range
+  - name: Availability
+    description: User availability declarations for events
+  - name: Notifications
+    description: In-app notifications and notification preferences
+  - name: Webhooks
+    description: Event-scoped webhook management
+  - name: Export
+    description: CSV and iCal exports for events
+  - name: Users
+    description: User listing, search, and management (including dummy accounts)
+  - name: Admin
+    description: Application settings and dashboard stats (super-admin)
+  - name: Public
+    description: Unauthenticated access to public events
+  - name: iCal
+    description: iCal subscription feeds and token management
+  - name: SSE
+    description: Server-Sent Events for real-time updates
+  - name: SMTP
+    description: SMTP email configuration (super-admin)
+  - name: Audit
+    description: Audit log (super-admin)
+
+security:
+  - cookieAuth: []
+
+paths:
+  # ---------------------------------------------------------------------------
+  # Health
+  # ---------------------------------------------------------------------------
+  /api/health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Health check
+      description: >
+        Returns the health status of the API and its backing services.
+        This endpoint does NOT use the standard response envelope.
+      security: []
+      responses:
+        "200":
+          description: All services healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: One or more services unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  # ---------------------------------------------------------------------------
+  # Public App Settings
+  # ---------------------------------------------------------------------------
+  /api/settings/public:
+    get:
+      tags: [Admin]
+      operationId: getPublicSettings
+      summary: Get public application settings
+      description: >
+        Returns all application settings. No authentication required.
+        Used by the frontend login page for theming and feature flags.
+      security: []
+      responses:
+        "200":
+          description: List of settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettingListResponse"
+
+  # ---------------------------------------------------------------------------
+  # Auth
+  # ---------------------------------------------------------------------------
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      operationId: register
+      summary: Register a new user account
+      description: >
+        Creates a new local user account and logs the user in immediately
+        by setting a session cookie. Rate limited (20/min per IP).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User created and logged in
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Log in with username and password
+      description: >
+        Authenticates a user and sets a session cookie. If the user has
+        TOTP enabled, returns a pending token instead of a session.
+        Rate limited (20/min per IP).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: >
+            Login successful (User object) or TOTP required (TOTPChallenge).
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/UserResponse"
+                  - $ref: "#/components/schemas/TOTPChallengeResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: Log out
+      description: Destroys the current session and clears the session cookie.
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      operationId: getCurrentUser
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      tags: [Auth]
+      operationId: updateProfile
+      summary: Update own profile
+      description: >
+        Update the authenticated user's profile fields. All fields are
+        optional; only provided fields are updated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/totp/verify:
+    post:
+      tags: [Auth]
+      operationId: verifyTOTP
+      summary: Verify TOTP code during login
+      description: >
+        Second step of TOTP login. Provide the pending_token from the
+        login response and a valid TOTP code or recovery code.
+        Rate limited (20/min per IP).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TOTPVerifyRequest"
+      responses:
+        "200":
+          description: TOTP verified, session created
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /api/auth/totp/setup:
+    post:
+      tags: [Auth]
+      operationId: setupTOTP
+      summary: Initiate TOTP setup
+      description: >
+        Generates a TOTP secret and provisioning URI. The user must then
+        confirm setup by calling the enable endpoint with a valid code.
+      responses:
+        "200":
+          description: TOTP setup data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TOTPSetupResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/totp/enable:
+    post:
+      tags: [Auth]
+      operationId: enableTOTP
+      summary: Enable TOTP after setup
+      description: Verifies a TOTP code against the pending secret and enables 2FA.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TOTPCodeRequest"
+      responses:
+        "200":
+          description: TOTP enabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/totp/disable:
+    post:
+      tags: [Auth]
+      operationId: disableTOTP
+      summary: Disable TOTP
+      description: Verifies a TOTP code and disables 2FA for the user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TOTPCodeRequest"
+      responses:
+        "200":
+          description: TOTP disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/totp/recovery-codes:
+    get:
+      tags: [Auth]
+      operationId: getRecoveryCodeCount
+      summary: Get remaining recovery code count
+      responses:
+        "200":
+          description: Recovery code count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      remaining:
+                        type: integer
+                    required: [remaining]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Auth]
+      operationId: regenerateRecoveryCodes
+      summary: Regenerate recovery codes
+      description: >
+        Regenerates all recovery codes after verifying a TOTP code.
+        Previous codes are invalidated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TOTPCodeRequest"
+      responses:
+        "200":
+          description: New recovery codes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      recovery_codes:
+                        type: array
+                        items:
+                          type: string
+                    required: [recovery_codes]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ---------------------------------------------------------------------------
+  # Auth - OAuth Flow
+  # ---------------------------------------------------------------------------
+  /api/auth/oauth/providers:
+    get:
+      tags: [Auth]
+      operationId: listEnabledOAuthProviders
+      summary: List enabled OAuth providers
+      description: Returns minimal info (id, name) for enabled OAuth providers. No auth required.
+      security: []
+      responses:
+        "200":
+          description: List of enabled providers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PublicOAuthProvider"
+
+  /api/auth/oauth/{provider}/authorize:
+    get:
+      tags: [Auth]
+      operationId: oauthAuthorize
+      summary: Initiate OAuth authorization
+      description: >
+        Redirects the user to the OAuth provider's authorization page.
+        If the user is already logged in, the flow links the account.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/OAuthProviderName"
+      responses:
+        "307":
+          description: Redirect to OAuth provider
+
+  /api/auth/oauth/{provider}/callback:
+    get:
+      tags: [Auth]
+      operationId: oauthCallback
+      summary: Handle OAuth callback
+      description: >
+        Handles the redirect from the OAuth provider. On success, creates
+        a session and redirects to the frontend. On error, redirects with
+        an error query parameter.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/OAuthProviderName"
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        "307":
+          description: Redirect to frontend
+
+  /api/auth/oauth/connections:
+    get:
+      tags: [Auth]
+      operationId: listOAuthConnections
+      summary: List own OAuth connections
+      responses:
+        "200":
+          description: List of connections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OAuthConnection"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/oauth/connections/{connectionId}:
+    delete:
+      tags: [Auth]
+      operationId: unlinkOAuthConnection
+      summary: Unlink an OAuth connection
+      parameters:
+        - name: connectionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Connection removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------------
+  # OAuth Provider Management (super-admin)
+  # ---------------------------------------------------------------------------
+  /api/oauth/providers:
+    get:
+      tags: [OAuth Providers]
+      operationId: listAllOAuthProviders
+      summary: List all OAuth providers
+      description: Returns full provider details including secrets. Super-admin only.
+      responses:
+        "200":
+          description: List of all providers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OAuthProvider"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [OAuth Providers]
+      operationId: createOAuthProvider
+      summary: Create an OAuth provider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOAuthProviderRequest"
+      responses:
+        "201":
+          description: Provider created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthProviderResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/oauth/providers/{providerId}:
+    get:
+      tags: [OAuth Providers]
+      operationId: getOAuthProvider
+      summary: Get an OAuth provider
+      parameters:
+        - $ref: "#/components/parameters/ProviderId"
+      responses:
+        "200":
+          description: Provider details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthProviderResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [OAuth Providers]
+      operationId: updateOAuthProvider
+      summary: Update an OAuth provider
+      parameters:
+        - $ref: "#/components/parameters/ProviderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOAuthProviderRequest"
+      responses:
+        "200":
+          description: Provider updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthProviderResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [OAuth Providers]
+      operationId: deleteOAuthProvider
+      summary: Delete an OAuth provider
+      parameters:
+        - $ref: "#/components/parameters/ProviderId"
+      responses:
+        "200":
+          description: Provider deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------------
+  # Teams
+  # ---------------------------------------------------------------------------
+  /api/teams:
+    get:
+      tags: [Teams]
+      operationId: listTeams
+      summary: List all teams
+      description: >
+        Returns all teams. Non-admin users only see active teams.
+      responses:
+        "200":
+          description: List of teams
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Team"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Teams]
+      operationId: createTeam
+      summary: Create a team
+      description: Super-admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTeamRequest"
+      responses:
+        "201":
+          description: Team created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/teams/{id}:
+    get:
+      tags: [Teams]
+      operationId: getTeam
+      summary: Get a team by ID
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+      responses:
+        "200":
+          description: Team details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Teams]
+      operationId: updateTeam
+      summary: Update a team
+      description: Super-admin only. All fields are optional.
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTeamRequest"
+      responses:
+        "200":
+          description: Team updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Teams]
+      operationId: deleteTeam
+      summary: Delete a team
+      description: Super-admin only.
+      parameters:
+        - $ref: "#/components/parameters/TeamId"
+      responses:
+        "200":
+          description: Team deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------------
+  # Notifications
+  # ---------------------------------------------------------------------------
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      operationId: listNotifications
+      summary: List notifications
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Notification"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/notifications/unread-count:
+    get:
+      tags: [Notifications]
+      operationId: getUnreadCount
+      summary: Get unread notification count
+      responses:
+        "200":
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      unread_count:
+                        type: integer
+                        format: int64
+                    required: [unread_count]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/notifications/{notificationId}/read:
+    post:
+      tags: [Notifications]
+      operationId: markNotificationRead
+      summary: Mark a notification as read
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/notifications/read-all:
+    post:
+      tags: [Notifications]
+      operationId: markAllNotificationsRead
+      summary: Mark all notifications as read
+      responses:
+        "200":
+          description: All notifications marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/notifications/preferences:
+    get:
+      tags: [Notifications]
+      operationId: getNotificationPreferences
+      summary: Get notification preferences
+      responses:
+        "200":
+          description: List of preferences
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/NotificationPreference"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      tags: [Notifications]
+      operationId: updateNotificationPreference
+      summary: Update a notification preference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePreferenceRequest"
+      responses:
+        "200":
+          description: Preference updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ---------------------------------------------------------------------------
+  # SMTP
+  # ---------------------------------------------------------------------------
+  /api/smtp:
+    get:
+      tags: [SMTP]
+      operationId: getSMTPConfig
+      summary: Get SMTP configuration
+      description: Super-admin only. Returns null data if not configured.
+      responses:
+        "200":
+          description: SMTP configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    oneOf:
+                      - $ref: "#/components/schemas/SMTPConfig"
+                      - type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    put:
+      tags: [SMTP]
+      operationId: updateSMTPConfig
+      summary: Update SMTP configuration
+      description: Super-admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSMTPConfigRequest"
+      responses:
+        "200":
+          description: SMTP configuration updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SMTPConfigResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/smtp/test:
+    post:
+      tags: [SMTP]
+      operationId: testSMTPConnection
+      summary: Send a test email
+      description: Super-admin only. Sends a test email to the specified address.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to]
+              properties:
+                to:
+                  type: string
+                  format: email
+                  description: Recipient email address
+      responses:
+        "200":
+          description: Test email sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ---------------------------------------------------------------------------
+  # Users
+  # ---------------------------------------------------------------------------
+  /api/users:
+    get:
+      tags: [Users]
+      operationId: listUsers
+      summary: List users
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [super_admin, user, read_only]
+        - name: account_type
+          in: query
+          schema:
+            type: string
+            enum: [local, oauth, dummy]
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/users/search:
+    get:
+      tags: [Users]
+      operationId: searchUsers
+      summary: Search users by query string
+      parameters:
+        - name: q
+          in: query
+          description: Search query (matches username, full_name, display_name)
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/users/{userId}:
+    get:
+      tags: [Users]
+      operationId: getUser
+      summary: Get a user by ID
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Users]
+      operationId: updateUser
+      summary: Update a user
+      description: >
+        Super-admin only. Can change role, active status, account type,
+        name, email, password, and time format.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/users/dummy:
+    post:
+      tags: [Users]
+      operationId: createDummy
+      summary: Create a dummy account
+      description: >
+        Super-admin only. Dummy accounts are placeholder users that
+        cannot log in but can be assigned to shifts by admins.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDummyRequest"
+      responses:
+        "201":
+          description: Dummy account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/users/dummy/{userId}:
+    put:
+      tags: [Users]
+      operationId: updateDummy
+      summary: Update a dummy account
+      description: Super-admin only.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDummyRequest"
+      responses:
+        "200":
+          description: Dummy account updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Users]
+      operationId: deleteDummy
+      summary: Delete a dummy account
+      description: Super-admin only.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Dummy account deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------------
+  # iCal Tokens
+  # ---------------------------------------------------------------------------
+  /api/ical-tokens:
+    get:
+      tags: [iCal]
+      operationId: listICalTokens
+      summary: List own iCal subscription tokens
+      responses:
+        "200":
+          description: List of tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ICalToken"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [iCal]
+      operationId: createICalToken
+      summary: Create an iCal subscription token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateICalTokenRequest"
+      responses:
+        "201":
+          description: Token created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ICalTokenResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/ical-tokens/{tokenId}:
+    delete:
+      tags: [iCal]
+      operationId: revokeICalToken
+      summary: Revoke an iCal subscription token
+      parameters:
+        - name: tokenId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Token revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------------
+  # Audit Log
+  # ---------------------------------------------------------------------------
+  /api/audit-log:
+    get:
+      tags: [Audit]
+      operationId: listAuditLog
+      summary: List audit log entries
+      description: Super-admin only. Supports filtering by event, user, action, and entity type.
+      parameters:
+        - name: event_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: user_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: entity_type
+          in: query
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: List of audit log entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditLogEntry"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ---------------------------------------------------------------------------
+  # Admin Settings & Stats
+  # ---------------------------------------------------------------------------
+  /api/admin/settings:
+    get:
+      tags: [Admin]
+      operationId: listAdminSettings
+      summary: List all application settings
+      description: Super-admin only.
+      responses:
+        "200":
+          description: List of settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettingListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/settings/{key}:
+    get:
+      tags: [Admin]
+      operationId: getAdminSetting
+      summary: Get a setting by key
+      description: Super-admin only.
+      parameters:
+        - $ref: "#/components/parameters/SettingKey"
+      responses:
+        "200":
+          description: Setting value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettingResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Admin]
+      operationId: setAdminSetting
+      summary: Create or update a setting
+      description: Super-admin only. Upserts the setting value.
+      parameters:
+        - $ref: "#/components/parameters/SettingKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value:
+                  description: Any valid JSON value
+      responses:
+        "200":
+          description: Setting saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettingResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    delete:
+      tags: [Admin]
+      operationId: deleteAdminSetting
+      summary: Delete a setting
+      description: Super-admin only.
+      parameters:
+        - $ref: "#/components/parameters/SettingKey"
+      responses:
+        "204":
+          description: Setting deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/admin/stats:
+    get:
+      tags: [Admin]
+      operationId: getDashboardStats
+      summary: Get admin dashboard stats
+      description: Super-admin only. Returns aggregated counts.
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DashboardStats"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ---------------------------------------------------------------------------
+  # SSE
+  # ---------------------------------------------------------------------------
+  /api/sse:
+    get:
+      tags: [SSE]
+      operationId: subscribeSSE
+      summary: Subscribe to global SSE stream
+      description: >
+        Opens a Server-Sent Events connection for real-time updates.
+        Sends an initial `connected` event, then relays shift/event
+        change notifications.
+      responses:
+        "200":
+          description: SSE event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ---------------------------------------------------------------------------
+  # Public Events (no auth)
+  # ---------------------------------------------------------------------------
+  /api/public/events/{slug}:
+    get:
+      tags: [Public]
+      operationId: getPublicEvent
+      summary: Get a public event
+      description: Returns the event only if is_public is true. No authentication required.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: Public event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/public/events/{slug}/grid:
+    get:
+      tags: [Public]
+      operationId: getPublicGrid
+      summary: Get public event grid data
+      description: Returns grid data (shifts, coverage, availability, teams) for a public event.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: Grid data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GridDataResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/public/events/{slug}/export/csv:
+    get:
+      tags: [Public]
+      operationId: exportPublicCSV
+      summary: Download CSV for a public event
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: CSV file download
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/public/events/{slug}/export/ical:
+    get:
+      tags: [Public]
+      operationId: exportPublicICal
+      summary: Download iCal for a public event
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: iCal file download
+          content:
+            text/calendar:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/public/events/{slug}/export/pdf:
+    get:
+      tags: [Public]
+      operationId: exportPublicPDF
+      summary: Download PDF for a public event
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+        - name: layout
+          in: query
+          schema:
+            type: string
+            enum: [grid, list]
+            default: grid
+        - name: paper
+          in: query
+          schema:
+            type: string
+            enum: [A4, A3]
+            default: A4
+        - name: landscape
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+            default: "true"
+        - name: coverage
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+            default: "true"
+        - name: colors
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+            default: "true"
+        - name: days
+          in: query
+          description: Comma-separated ISO dates (YYYY-MM-DD). Empty = all days.
+          schema:
+            type: string
+        - name: users
+          in: query
+          description: Comma-separated user UUIDs. Empty = all users.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: PDF file download
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------------
+  # Events
+  # ---------------------------------------------------------------------------
+  /api/events:
+    get:
+      tags: [Events]
+      operationId: listEvents
+      summary: List all events
+      responses:
+        "200":
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Event"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Events]
+      operationId: createEvent
+      summary: Create an event
+      description: Super-admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEventRequest"
+      responses:
+        "201":
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/events/{slug}:
+    get:
+      tags: [Events]
+      operationId: getEvent
+      summary: Get an event by slug
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: Event details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Events]
+      operationId: updateEvent
+      summary: Update an event
+      description: Event admin or super-admin. All fields are optional.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEventRequest"
+      responses:
+        "200":
+          description: Event updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Events]
+      operationId: deleteEvent
+      summary: Delete an event
+      description: Super-admin only.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: Event deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{slug}/sse:
+    get:
+      tags: [SSE]
+      operationId: subscribeEventSSE
+      summary: Subscribe to event-scoped SSE stream
+      description: Opens an SSE connection scoped to a specific event.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: SSE event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/events/{slug}/lock:
+    put:
+      tags: [Events]
+      operationId: setEventLocked
+      summary: Lock or unlock an event
+      description: Super-admin only. Locked events prevent shift modifications.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_locked]
+              properties:
+                is_locked:
+                  type: boolean
+      responses:
+        "200":
+          description: Lock state updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      is_locked:
+                        type: boolean
+                    required: [is_locked]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{slug}/public:
+    put:
+      tags: [Events]
+      operationId: setEventPublic
+      summary: Set event public visibility
+      description: Super-admin only.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_public]
+              properties:
+                is_public:
+                  type: boolean
+      responses:
+        "200":
+          description: Public state updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      is_public:
+                        type: boolean
+                    required: [is_public]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{slug}/teams:
+    get:
+      tags: [Events]
+      operationId: listEventTeams
+      summary: List teams assigned to an event
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: List of event teams with visibility
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EventTeam"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [Events]
+      operationId: setEventTeam
+      summary: Add or update a team in an event
+      description: Event admin or super-admin. Sets team visibility.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [team_id, is_visible]
+              properties:
+                team_id:
+                  type: string
+                  format: uuid
+                is_visible:
+                  type: boolean
+      responses:
+        "200":
+          description: Team visibility updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{slug}/teams/{teamId}:
+    delete:
+      tags: [Events]
+      operationId: removeEventTeam
+      summary: Remove a team from an event
+      description: Event admin or super-admin.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Team removed from event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{slug}/admins:
+    get:
+      tags: [Events]
+      operationId: listEventAdmins
+      summary: List event admins
+      description: Super-admin only.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: List of event admins
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EventAdmin"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [Events]
+      operationId: addEventAdmin
+      summary: Add an event admin
+      description: Super-admin only.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: Admin added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{slug}/admins/{userId}:
+    delete:
+      tags: [Events]
+      operationId: removeEventAdmin
+      summary: Remove an event admin
+      description: Super-admin only.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Admin removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{slug}/hidden-ranges:
+    get:
+      tags: [Events]
+      operationId: listHiddenRanges
+      summary: List hidden hour ranges for an event
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: List of hidden ranges
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/HiddenRange"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Events]
+      operationId: setHiddenRanges
+      summary: Replace hidden hour ranges for an event
+      description: Event admin or super-admin. Replaces all existing ranges.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ranges]
+              properties:
+                ranges:
+                  type: array
+                  items:
+                    type: object
+                    required: [hide_start_hour, hide_end_hour]
+                    properties:
+                      hide_start_hour:
+                        type: integer
+                        minimum: 0
+                        maximum: 23
+                      hide_end_hour:
+                        type: integer
+                        minimum: 0
+                        maximum: 23
+      responses:
+        "200":
+          description: Hidden ranges updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/HiddenRange"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------------
+  # Shifts
+  # ---------------------------------------------------------------------------
+  /api/events/{slug}/shifts:
+    get:
+      tags: [Shifts]
+      operationId: listShifts
+      summary: List shifts for an event
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+        - name: team_id
+          in: query
+          description: Filter by team ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: List of shifts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Shift"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [Shifts]
+      operationId: createShift
+      summary: Create a shift
+      description: >
+        Creates a shift for a user in an event. Regular users can only
+        create shifts for themselves. Admins can create shifts for any user.
+        Enforces overlap detection and overbooking prevention.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateShiftRequest"
+      responses:
+        "201":
+          description: Shift created (may include warnings)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShiftWithWarningsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/events/{slug}/shifts/{shiftId}:
+    get:
+      tags: [Shifts]
+      operationId: getShift
+      summary: Get a shift by ID
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+        - $ref: "#/components/parameters/ShiftId"
+      responses:
+        "200":
+          description: Shift details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShiftResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Shifts]
+      operationId: updateShift
+      summary: Update a shift
+      description: >
+        Update shift timing or team. Regular users can only update their
+        own shifts. All fields are optional.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+        - $ref: "#/components/parameters/ShiftId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateShiftRequest"
+      responses:
+        "200":
+          description: Shift updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShiftResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Shifts]
+      operationId: deleteShift
+      summary: Delete a shift
+      description: Regular users can only delete their own shifts.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+        - $ref: "#/components/parameters/ShiftId"
+      responses:
+        "200":
+          description: Shift deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{slug}/grid:
+    get:
+      tags: [Shifts]
+      operationId: getGridData
+      summary: Get grid data for an event
+      description: >
+        Optimized endpoint returning shifts, coverage requirements,
+        availability, and event details in a single response for grid rendering.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: Grid data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GridDataResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------------
+  # Coverage
+  # ---------------------------------------------------------------------------
+  /api/events/{slug}/coverage:
+    get:
+      tags: [Coverage]
+      operationId: listCoverage
+      summary: List coverage requirements for an event
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: List of coverage requirements
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CoverageRequirement"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [Coverage]
+      operationId: createCoverage
+      summary: Create a coverage requirement
+      description: Event admin or super-admin.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCoverageRequest"
+      responses:
+        "201":
+          description: Coverage requirement created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoverageRequirementResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{slug}/coverage/{coverageId}:
+    put:
+      tags: [Coverage]
+      operationId: updateCoverage
+      summary: Update a coverage requirement
+      description: Event admin or super-admin.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+        - $ref: "#/components/parameters/CoverageId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCoverageRequest"
+      responses:
+        "200":
+          description: Coverage requirement updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoverageRequirementResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Coverage]
+      operationId: deleteCoverage
+      summary: Delete a coverage requirement
+      description: Event admin or super-admin.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+        - $ref: "#/components/parameters/CoverageId"
+      responses:
+        "200":
+          description: Coverage requirement deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{slug}/coverage/team/{teamId}:
+    delete:
+      tags: [Coverage]
+      operationId: deleteCoverageByTeam
+      summary: Delete all coverage requirements for a team in an event
+      description: Event admin or super-admin.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Coverage requirements deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------------
+  # Availability
+  # ---------------------------------------------------------------------------
+  /api/events/{slug}/availability:
+    get:
+      tags: [Availability]
+      operationId: listAvailability
+      summary: List all user availability for an event
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: List of availability entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Availability"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{slug}/availability/mine:
+    get:
+      tags: [Availability]
+      operationId: getMyAvailability
+      summary: Get own availability for an event
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: List of own availability entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Availability"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Availability]
+      operationId: setMyAvailability
+      summary: Set own availability for an event
+      description: Replaces all existing availability entries for the current user.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetAvailabilityRequest"
+      responses:
+        "200":
+          description: Availability entries saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Availability"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{slug}/availability/{userId}:
+    put:
+      tags: [Availability]
+      operationId: setUserAvailability
+      summary: Set availability for a specific user
+      description: Event admin or super-admin.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetAvailabilityRequest"
+      responses:
+        "200":
+          description: Availability entries saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Availability"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------------
+  # Export
+  # ---------------------------------------------------------------------------
+  /api/events/{slug}/export/csv:
+    get:
+      tags: [Export]
+      operationId: exportCSV
+      summary: Export event shifts as CSV
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: CSV file download
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{slug}/export/ical:
+    get:
+      tags: [Export]
+      operationId: exportICal
+      summary: Export event shifts as iCal
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: iCal file download
+          content:
+            text/calendar:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{slug}/export/pdf:
+    get:
+      tags: [Export]
+      operationId: exportPDF
+      summary: Export event shifts as PDF
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+        - name: layout
+          in: query
+          schema:
+            type: string
+            enum: [grid, list]
+            default: grid
+        - name: paper
+          in: query
+          schema:
+            type: string
+            enum: [A4, A3]
+            default: A4
+        - name: landscape
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+            default: "true"
+        - name: coverage
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+            default: "true"
+        - name: colors
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+            default: "true"
+        - name: days
+          in: query
+          description: Comma-separated ISO dates (YYYY-MM-DD). Empty = all days.
+          schema:
+            type: string
+        - name: users
+          in: query
+          description: Comma-separated user UUIDs. Empty = all users.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: PDF file download
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------------
+  # Webhooks
+  # ---------------------------------------------------------------------------
+  /api/events/{slug}/webhooks:
+    get:
+      tags: [Webhooks]
+      operationId: listWebhooks
+      summary: List webhooks for an event
+      description: Event admin or super-admin.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      responses:
+        "200":
+          description: List of webhooks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Webhook"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [Webhooks]
+      operationId: createWebhook
+      summary: Create a webhook
+      description: Event admin or super-admin.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWebhookRequest"
+      responses:
+        "201":
+          description: Webhook created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{slug}/webhooks/{webhookId}:
+    put:
+      tags: [Webhooks]
+      operationId: updateWebhook
+      summary: Update a webhook
+      description: Event admin or super-admin.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+        - $ref: "#/components/parameters/WebhookId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWebhookRequest"
+      responses:
+        "200":
+          description: Webhook updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Webhooks]
+      operationId: deleteWebhook
+      summary: Delete a webhook
+      description: Event admin or super-admin.
+      parameters:
+        - $ref: "#/components/parameters/EventSlug"
+        - $ref: "#/components/parameters/WebhookId"
+      responses:
+        "200":
+          description: Webhook deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------------
+  # iCal Feeds (public, token-based auth)
+  # ---------------------------------------------------------------------------
+  /ical/{tokenId}/{token}:
+    get:
+      tags: [iCal]
+      operationId: serveICalFeed
+      summary: Serve iCal subscription feed (legacy)
+      description: Public endpoint authenticated by token in the URL path.
+      security: []
+      parameters:
+        - name: tokenId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: iCal feed
+          content:
+            text/calendar:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /ical/user/{uuid}/{token}:
+    get:
+      tags: [iCal]
+      operationId: serveUserICalFeed
+      summary: Serve user-scoped iCal feed
+      description: Returns all shifts for a user. Authenticated by token.
+      security: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: iCal feed
+          content:
+            text/calendar:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /ical/event/{slug}/all/{token}:
+    get:
+      tags: [iCal]
+      operationId: serveEventICalFeed
+      summary: Serve event-scoped iCal feed (all teams)
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: iCal feed
+          content:
+            text/calendar:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /ical/event/{slug}/{teamAbbr}/{token}:
+    get:
+      tags: [iCal]
+      operationId: serveTeamICalFeed
+      summary: Serve team-scoped iCal feed for an event
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: teamAbbr
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Team abbreviation (e.g. "N", "S", "T")
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: iCal feed
+          content:
+            text/calendar:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+# =============================================================================
+# Components
+# =============================================================================
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: session
+      description: >
+        Session cookie set by the login or register endpoints.
+        The cookie name is configurable; `session` is the default.
+
+  # ---------------------------------------------------------------------------
+  # Parameters
+  # ---------------------------------------------------------------------------
+  parameters:
+    EventSlug:
+      name: slug
+      in: path
+      required: true
+      description: URL-friendly event identifier
+      schema:
+        type: string
+        pattern: "^[a-zA-Z0-9_-]+$"
+
+    TeamId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    ProviderId:
+      name: providerId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    ShiftId:
+      name: shiftId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    CoverageId:
+      name: coverageId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    WebhookId:
+      name: webhookId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    OAuthProviderName:
+      name: provider
+      in: path
+      required: true
+      description: OAuth provider name (as configured)
+      schema:
+        type: string
+
+    SettingKey:
+      name: key
+      in: path
+      required: true
+      description: Application setting key
+      schema:
+        type: string
+
+    Limit:
+      name: limit
+      in: query
+      description: Maximum number of results to return
+      schema:
+        type: integer
+        default: 50
+        minimum: 1
+
+    Offset:
+      name: offset
+      in: query
+      description: Number of results to skip
+      schema:
+        type: integer
+        default: 0
+        minimum: 0
+
+  # ---------------------------------------------------------------------------
+  # Responses
+  # ---------------------------------------------------------------------------
+  responses:
+    BadRequest:
+      description: Invalid input
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: invalid_input
+              message: "invalid request body"
+
+    Unauthorized:
+      description: Not authenticated or invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: unauthorized
+              message: "not authenticated"
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: forbidden
+              message: "insufficient permissions"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: not_found
+              message: "resource not found"
+
+    Conflict:
+      description: Resource already exists or conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: already_exists
+              message: "resource already exists"
+
+    TooManyRequests:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: too_many_requests
+              message: "rate limit exceeded"
+
+  # ---------------------------------------------------------------------------
+  # Schemas
+  # ---------------------------------------------------------------------------
+  schemas:
+    # --- Envelope schemas ---
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          $ref: "#/components/schemas/APIError"
+
+    APIError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+          enum:
+            - not_found
+            - already_exists
+            - conflict
+            - unauthorized
+            - forbidden
+            - invalid_input
+            - event_locked
+            - overbooking_not_allowed
+            - account_inactive
+            - dummy_account_cannot_login
+            - invalid_totp_code
+            - totp_required
+            - too_many_requests
+        message:
+          type: string
+          description: Human-readable error message
+        field:
+          type: string
+          description: Field name for validation errors
+
+    PaginationMeta:
+      type: object
+      required: [total, limit, offset]
+      properties:
+        total:
+          type: integer
+          format: int64
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    MessageResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            message:
+              type: string
+          required: [message]
+
+    # --- Health ---
+    HealthResponse:
+      type: object
+      description: >
+        Health check response. NOT wrapped in the standard envelope.
+      required: [status, services]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        services:
+          type: object
+          properties:
+            postgres:
+              type: string
+              description: "\"healthy\" or \"unhealthy: <error>\""
+            redis:
+              type: string
+              description: "\"healthy\" or \"unhealthy: <error>\""
+          required: [postgres, redis]
+
+    # --- User ---
+    User:
+      type: object
+      required:
+        - id
+        - username
+        - full_name
+        - role
+        - language
+        - account_type
+        - time_format
+        - totp_enabled
+        - is_active
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        full_name:
+          type: string
+        display_name:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+        role:
+          type: string
+          enum: [super_admin, user, read_only]
+        language:
+          type: string
+          enum: [en, de]
+        account_type:
+          type: string
+          enum: [local, oauth, dummy]
+        time_format:
+          type: string
+          enum: ["24h", "12h"]
+        totp_enabled:
+          type: boolean
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    UserResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/User"
+
+    # --- Auth requests ---
+    RegisterRequest:
+      type: object
+      required: [username, password, full_name]
+      properties:
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+        full_name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+        language:
+          type: string
+          enum: [en, de]
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+        display_name:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+        password:
+          type: string
+        time_format:
+          type: string
+          enum: ["24h", "12h"]
+
+    # --- TOTP ---
+    TOTPChallengeResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          required: [totp_required, pending_token]
+          properties:
+            totp_required:
+              type: boolean
+              const: true
+            pending_token:
+              type: string
+
+    TOTPVerifyRequest:
+      type: object
+      required: [pending_token, code]
+      properties:
+        pending_token:
+          type: string
+        code:
+          type: string
+          description: 6-digit TOTP code or recovery code
+
+    TOTPCodeRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          description: 6-digit TOTP code
+
+    TOTPSetupResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          required: [secret, provision_uri, recovery_codes]
+          properties:
+            secret:
+              type: string
+            provision_uri:
+              type: string
+              format: uri
+            recovery_codes:
+              type: array
+              items:
+                type: string
+
+    # --- OAuth ---
+    PublicOAuthProvider:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+
+    OAuthProvider:
+      type: object
+      required:
+        - id
+        - name
+        - client_id
+        - authorize_url
+        - token_url
+        - userinfo_url
+        - scopes
+        - is_enabled
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        client_id:
+          type: string
+        authorize_url:
+          type: string
+          format: uri
+        token_url:
+          type: string
+          format: uri
+        userinfo_url:
+          type: string
+          format: uri
+        scopes:
+          type: string
+        is_enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    OAuthProviderResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/OAuthProvider"
+
+    CreateOAuthProviderRequest:
+      type: object
+      required: [name, client_id, client_secret, authorize_url, token_url, userinfo_url, scopes]
+      properties:
+        name:
+          type: string
+        client_id:
+          type: string
+        client_secret:
+          type: string
+        authorize_url:
+          type: string
+          format: uri
+        token_url:
+          type: string
+          format: uri
+        userinfo_url:
+          type: string
+          format: uri
+        scopes:
+          type: string
+
+    UpdateOAuthProviderRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        client_id:
+          type: string
+        client_secret:
+          type: string
+        authorize_url:
+          type: string
+          format: uri
+        token_url:
+          type: string
+          format: uri
+        userinfo_url:
+          type: string
+          format: uri
+        scopes:
+          type: string
+        is_enabled:
+          type: boolean
+
+    OAuthConnection:
+      type: object
+      required: [id, provider_id, provider_name, external_id, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        provider_id:
+          type: string
+          format: uuid
+        provider_name:
+          type: string
+        external_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    # --- Team ---
+    Team:
+      type: object
+      required: [id, name, abbreviation, color, sort_order, is_active, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        abbreviation:
+          type: string
+          description: Single-character team code displayed in the grid
+        color:
+          type: string
+          description: Hex color code (e.g. "#FF5733")
+        sort_order:
+          type: integer
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    TeamResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Team"
+
+    CreateTeamRequest:
+      type: object
+      required: [name, abbreviation, color]
+      properties:
+        name:
+          type: string
+        abbreviation:
+          type: string
+        color:
+          type: string
+          description: Hex color code
+        sort_order:
+          type: integer
+          default: 0
+
+    UpdateTeamRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        abbreviation:
+          type: string
+        color:
+          type: string
+        sort_order:
+          type: integer
+        is_active:
+          type: boolean
+
+    # --- Event ---
+    Event:
+      type: object
+      required:
+        - id
+        - name
+        - slug
+        - start_time
+        - end_time
+        - time_granularity
+        - is_locked
+        - is_public
+        - is_event_admin
+        - created_by
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        participant_count:
+          type: integer
+          nullable: true
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        time_granularity:
+          type: string
+          enum: ["15min", "30min", "1hour"]
+        is_locked:
+          type: boolean
+        is_public:
+          type: boolean
+        is_event_admin:
+          type: boolean
+          description: Whether the requesting user is an admin for this event
+        created_by:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+
+    EventResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Event"
+
+    CreateEventRequest:
+      type: object
+      required: [name, slug, start_time, end_time, time_granularity]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+          pattern: "^[a-zA-Z0-9_-]+$"
+        description:
+          type: string
+        location:
+          type: string
+        participant_count:
+          type: integer
+        start_time:
+          type: string
+          format: date-time
+          description: RFC 3339 datetime
+        end_time:
+          type: string
+          format: date-time
+          description: RFC 3339 datetime
+        time_granularity:
+          type: string
+          enum: ["15min", "30min", "1hour"]
+
+    UpdateEventRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        location:
+          type: string
+        participant_count:
+          type: integer
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        time_granularity:
+          type: string
+          enum: ["15min", "30min", "1hour"]
+
+    EventTeam:
+      type: object
+      required: [event_id, team_id, team_name, team_abbreviation, team_color, is_visible]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+        team_id:
+          type: string
+          format: uuid
+        team_name:
+          type: string
+        team_abbreviation:
+          type: string
+        team_color:
+          type: string
+        is_visible:
+          type: boolean
+          description: >
+            Whether the team is visible in statistics. Hidden teams
+            still appear in the shift grid.
+
+    EventAdmin:
+      type: object
+      required: [user_id, username, full_name]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        full_name:
+          type: string
+
+    HiddenRange:
+      type: object
+      required: [id, event_id, hide_start_hour, hide_end_hour]
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        hide_start_hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        hide_end_hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+
+    # --- Shift ---
+    Shift:
+      type: object
+      required:
+        - id
+        - event_id
+        - team_id
+        - user_id
+        - start_time
+        - end_time
+        - team_name
+        - team_abbreviation
+        - team_color
+        - username
+        - user_full_name
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        team_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        team_name:
+          type: string
+        team_abbreviation:
+          type: string
+        team_color:
+          type: string
+        username:
+          type: string
+        user_full_name:
+          type: string
+        user_display_name:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    ShiftResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Shift"
+
+    ShiftWithWarnings:
+      type: object
+      required: [shift]
+      properties:
+        shift:
+          $ref: "#/components/schemas/Shift"
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Optional warnings (e.g. coverage already met)
+
+    ShiftWithWarningsResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ShiftWithWarnings"
+
+    CreateShiftRequest:
+      type: object
+      required: [team_id, user_id, start_time, end_time]
+      properties:
+        team_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+
+    UpdateShiftRequest:
+      type: object
+      properties:
+        team_id:
+          type: string
+          format: uuid
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+
+    # --- Coverage ---
+    CoverageRequirement:
+      type: object
+      required: [id, event_id, team_id, start_time, end_time, required_count]
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        team_id:
+          type: string
+          format: uuid
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        required_count:
+          type: integer
+
+    CoverageRequirementResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CoverageRequirement"
+
+    CreateCoverageRequest:
+      type: object
+      required: [team_id, start_time, end_time, required_count]
+      properties:
+        team_id:
+          type: string
+          format: uuid
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        required_count:
+          type: integer
+          minimum: 0
+
+    UpdateCoverageRequest:
+      type: object
+      required: [team_id, start_time, end_time, required_count]
+      properties:
+        team_id:
+          type: string
+          format: uuid
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        required_count:
+          type: integer
+          minimum: 0
+
+    # --- Availability ---
+    Availability:
+      type: object
+      required: [id, event_id, user_id, start_time, end_time, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [available, preferred, unavailable]
+        note:
+          type: string
+          nullable: true
+
+    AvailabilityGridEntry:
+      type: object
+      required: [id, user_id, start_time, end_time, status, username]
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [available, preferred, unavailable]
+        note:
+          type: string
+          nullable: true
+        username:
+          type: string
+
+    AvailabilityEntry:
+      type: object
+      required: [start_time, end_time, status]
+      properties:
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [available, preferred, unavailable]
+        note:
+          type: string
+
+    SetAvailabilityRequest:
+      type: object
+      required: [entries]
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/AvailabilityEntry"
+
+    # --- Grid Data ---
+    GridData:
+      type: object
+      required: [event, shifts, coverage, availability]
+      properties:
+        event:
+          $ref: "#/components/schemas/Event"
+        shifts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Shift"
+        coverage:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoverageRequirement"
+        availability:
+          type: array
+          items:
+            $ref: "#/components/schemas/AvailabilityGridEntry"
+        event_teams:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventTeam"
+
+    GridDataResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/GridData"
+
+    # --- Notification ---
+    Notification:
+      type: object
+      required: [id, title, trigger_type, is_read, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+        body:
+          type: string
+          nullable: true
+        trigger_type:
+          type: string
+        is_read:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    NotificationPreference:
+      type: object
+      required: [trigger_type, channel, is_enabled]
+      properties:
+        trigger_type:
+          type: string
+        channel:
+          type: string
+        is_enabled:
+          type: boolean
+
+    UpdatePreferenceRequest:
+      type: object
+      required: [trigger_type, channel, is_enabled]
+      properties:
+        trigger_type:
+          type: string
+        channel:
+          type: string
+        is_enabled:
+          type: boolean
+
+    # --- Webhook ---
+    Webhook:
+      type: object
+      required: [id, event_id, name, url, trigger_types, is_enabled, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        trigger_types:
+          type: array
+          items:
+            type: string
+        is_enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    WebhookResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Webhook"
+
+    CreateWebhookRequest:
+      type: object
+      required: [name, url, secret, trigger_types]
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        secret:
+          type: string
+          description: Shared secret for webhook signature verification
+        trigger_types:
+          type: array
+          items:
+            type: string
+
+    UpdateWebhookRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        secret:
+          type: string
+        trigger_types:
+          type: array
+          items:
+            type: string
+        is_enabled:
+          type: boolean
+
+    # --- SMTP ---
+    SMTPConfig:
+      type: object
+      required: [host, port, from_address, use_tls, updated_at]
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+          nullable: true
+        from_address:
+          type: string
+          format: email
+        from_name:
+          type: string
+          nullable: true
+        use_tls:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+
+    SMTPConfigResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SMTPConfig"
+
+    UpdateSMTPConfigRequest:
+      type: object
+      required: [host, port, from_address, use_tls]
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+        password:
+          type: string
+          description: SMTP password (write-only, not returned in responses)
+        from_address:
+          type: string
+          format: email
+        from_name:
+          type: string
+        use_tls:
+          type: boolean
+
+    # --- iCal Token ---
+    ICalToken:
+      type: object
+      required: [id, label, scope, created_at, url]
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        scope:
+          type: string
+          enum: [user, event, team]
+        event_id:
+          type: string
+          format: uuid
+          nullable: true
+        team_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+        url:
+          type: string
+          format: uri
+          description: Full subscription URL for calendar clients
+
+    ICalTokenResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ICalToken"
+
+    CreateICalTokenRequest:
+      type: object
+      required: [label, scope]
+      properties:
+        label:
+          type: string
+          description: Human-readable label for the token
+        scope:
+          type: string
+          enum: [user, event, team]
+        event_id:
+          type: string
+          format: uuid
+          description: Required when scope is "event" or "team"
+        team_id:
+          type: string
+          format: uuid
+          description: Required when scope is "team"
+
+    # --- Audit Log ---
+    AuditLogEntry:
+      type: object
+      required: [id, action, entity_type, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+          nullable: true
+        username:
+          type: string
+          nullable: true
+        event_id:
+          type: string
+          format: uuid
+          nullable: true
+        action:
+          type: string
+        entity_type:
+          type: string
+        entity_id:
+          type: string
+          format: uuid
+          nullable: true
+        old_value:
+          description: Previous state as JSON (null for create operations)
+          nullable: true
+        new_value:
+          description: New state as JSON (null for delete operations)
+          nullable: true
+        ip_address:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    # --- Admin ---
+    AppSetting:
+      type: object
+      required: [key, value, updated_at]
+      properties:
+        key:
+          type: string
+        value:
+          description: Any valid JSON value
+        updated_at:
+          type: string
+          format: date-time
+
+    AppSettingResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AppSetting"
+
+    AppSettingListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppSetting"
+
+    DashboardStats:
+      type: object
+      required: [total_users, total_events, active_events, total_shifts, total_teams]
+      properties:
+        total_users:
+          type: integer
+          format: int64
+        total_events:
+          type: integer
+          format: int64
+        active_events:
+          type: integer
+          format: int64
+        total_shifts:
+          type: integer
+          format: int64
+        total_teams:
+          type: integer
+          format: int64
+
+    # --- Users ---
+    UpdateUserRequest:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [super_admin, user, read_only]
+        is_active:
+          type: boolean
+        full_name:
+          type: string
+        display_name:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+        password:
+          type: string
+        time_format:
+          type: string
+          enum: ["24h", "12h"]
+        username:
+          type: string
+        account_type:
+          type: string
+          enum: [local, oauth, dummy]
+
+    CreateDummyRequest:
+      type: object
+      required: [username, full_name]
+      properties:
+        username:
+          type: string
+        full_name:
+          type: string
+        display_name:
+          type: string
+
+    UpdateDummyRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+        display_name:
+          type: string
+          nullable: true

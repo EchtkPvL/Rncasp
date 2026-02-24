@@ -226,6 +226,22 @@ func (h *ShiftHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	model.JSON(w, http.StatusOK, map[string]string{"message": "shift deleted"})
 }
 
+// ListByUser returns all shifts for the authenticated user.
+func (h *ShiftHandler) ListByUser(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+	if userID == nil {
+		model.ErrorResponse(w, model.NewDomainError(model.ErrUnauthorized, "not authenticated"))
+		return
+	}
+
+	shifts, err := h.shiftService.ListByUser(r.Context(), *userID)
+	if err != nil {
+		model.ErrorResponse(w, err)
+		return
+	}
+	model.JSON(w, http.StatusOK, shifts)
+}
+
 // Grid data endpoint
 
 func (h *ShiftHandler) GridData(w http.ResponseWriter, r *http.Request) {

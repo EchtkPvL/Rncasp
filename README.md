@@ -28,7 +28,7 @@ A full-stack shift planning web application for LAN party events and multi-day g
 | **Cache/Sessions** | Redis 7 |
 | **Migrations** | Auto-run on startup (embedded SQL) |
 | **Frontend** | React 19, TypeScript, Vite |
-| **UI** | shadcn/ui, Tailwind CSS v4 |
+| **UI** | Tailwind CSS v4 with CSS custom properties |
 | **State** | TanStack Query v5 |
 | **Drag & Drop** | dnd-kit |
 | **i18n** | react-i18next |
@@ -200,9 +200,8 @@ rncasp/
         events/                     # EventCard, CreateEventDialog
         notifications/              # NotificationBell, NotificationList
         export/                     # ExportMenu, ExportModal, PrintContainer, PrintGridPage, PrintListPage
-        common/                     # Toast, ErrorBoundary, LanguageSwitcher
-        ui/                         # shadcn/ui base components
-      pages/                        # Route-level page components (16 files)
+        common/                     # Toast, ErrorBoundary, LanguageSwitcher, DateTimePicker
+      pages/                        # Route-level page components
       contexts/                     # AuthContext
       i18n/                         # i18next configuration
       lib/                          # Utilities (time helpers, permissions)
@@ -310,48 +309,22 @@ All IDs are UUIDs. All timestamps are TIMESTAMPTZ (UTC). Shifts are stored as ti
 
 Write SQL in `api/internal/repository/queries/*.sql`, run `make sqlc`, **never edit generated files** (`db.go`, `models.go`, `*.sql.go`).
 
-## Known Deferred Items
-
-- **Integration tests**: Go tests with testcontainers-go (requires external dependency)
-- **API endpoint tests**: httptest-based handler tests (services require DB connection)
-- **Frontend tests**: Vitest + Testing Library component tests (requires Vitest setup)
-- **E2E tests**: Playwright end-to-end tests (requires Playwright setup)
-- **Server-side PDF**: chromedp-based PDF generation (requires headless browser; dedicated print layouts are sufficient)
-- **Public page export modal**: PublicEventPage still uses a simple print dialog; can be unified with the full ExportModal in a follow-up
-
-## Build History
-
-This project was built autonomously by [Ralph](https://github.com/frankbria/ralph-claude-code), an AI development loop orchestrator using Claude Code. The entire application -- backend, frontend, database schema, Docker infrastructure, and all 12 implementation phases -- was completed in a single day across approximately 20 execution loops.
-
-### Build Overview
-
-The implementation progressed through 12 phases in roughly this order:
-
-1. **Foundation** - Go scaffolding, Docker infrastructure, database schema (18 tables), sqlc codegen
-2. **Authentication** - Backend auth (register, login, sessions, middleware) + React frontend (AuthContext, protected routes)
-3. **Core Data** - Teams and Events CRUD (backend + frontend), permission enforcement
-4. **Shift Grid** - Grid data endpoint, ShiftGrid with TimeRuler/GridRow/ShiftBlock/CoverageBar, views and filters
-5. **Drag & Drop** - dnd-kit integration with snap-to-grid, drag-to-move, drag-to-resize, optimistic updates
-6. **OAuth2 + 2FA** - Generic OAuth2 flow, TOTP two-step login, recovery codes, frontend security settings
-7. **Real-time + Notifications** - SSE broker with Redis Pub/Sub, in-app/email/webhook notifications
-8. **Availability + Dummy Accounts** - User availability marking, placeholder account management
-9. **Export + iCal** - CSV export, iCal subscriptions with token scoping, print styles
-10. **Audit Log + Public Access** - Mutation logging with JSONB diffs, public read-only event views
-11. **Admin + Polish** - App settings, dashboard stats, mobile responsive, skeleton loaders, toast system
-12. **Security + Tests** - Rate limiting, CSP headers, 17 backend unit tests passing
-
-### Issues Encountered During Build
-
-1. **Permission denials** - Initial Ralph tool permissions were too restrictive, blocking shell commands needed for Go dependency resolution and git operations. **Fix**: Adjusted the tool permission configuration in `.ralphrc`.
-
-2. **Execution timeouts** - Three sessions exceeded the default 15-minute timeout while performing large multi-file implementations. **Fix**: Increased the timeout to 60 minutes.
-
-3. **Circuit breaker** - Ralph's circuit breaker opened after a timeout, halting execution. **Fix**: Manual reset via `ralph reset`.
-
-4. **API rate limiting** - Two sessions hit the Claude API usage limit and produced no work. **Fix**: Waited for the rate limit reset window.
-
-5. **Interrupted sessions** - Three sessions were cut short mid-work, but no data was lost since file writes had already been persisted to disk. Subsequent loops resumed where the previous ones left off.
-
 ## License
 
 [GNU AGPL v3](LICENSE)
+
+---
+
+## Disclaimer
+
+This project was built by [Claude](https://claude.ai) and [ralph](https://github.com/frankbria/ralph-claude-code). No guarantee that everything works perfectly -- something might be broken, or future updates could break something. To quote a relevant tweet:
+
+> Claude 4 just refactored my entire codebase in one call.
+>
+> 25 tool invocations. 3,000+ new lines. 12 brand new files.
+>
+> It modularized everything. Broke up monoliths. Cleaned up spaghetti.
+>
+> None of it worked.
+>
+> But boy was it beautiful.

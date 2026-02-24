@@ -1,4 +1,5 @@
 import { formatSlotTime, formatDayHeader, isNewDay } from "@/lib/time";
+import { useTimeFormat } from "@/hooks/useTimeFormat";
 
 interface TimeRulerProps {
   slots: Date[];
@@ -7,6 +8,7 @@ interface TimeRulerProps {
 }
 
 export function TimeRuler({ slots, slotWidth, nameColumnWidth }: TimeRulerProps) {
+  const hour12 = useTimeFormat();
   // Group slots by day for day headers
   const dayGroups: { date: Date; startIndex: number; count: number }[] = [];
   let currentGroup: { date: Date; startIndex: number; count: number } | null = null;
@@ -59,7 +61,7 @@ export function TimeRuler({ slots, slotWidth, nameColumnWidth }: TimeRulerProps)
                 }`}
                 style={{ width: slotWidth }}
               >
-                {slot.getMinutes() === 0 ? formatSlotTime(slot) : ""}
+                {slot.getMinutes() === 0 ? formatSlotTime(slot, hour12) : ""}
               </div>
             );
           })}

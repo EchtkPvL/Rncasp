@@ -103,11 +103,14 @@ type UpdateUserInput struct {
 	DisplayName *string
 	Email       *string
 	Password    *string
+	TimeFormat  *string
+	Username    *string
+	AccountType *string
 }
 
 // UpdateUser updates a user's profile (super-admin only).
 func (s *UserService) UpdateUser(ctx context.Context, id uuid.UUID, input UpdateUserInput) (UserResponse, error) {
-	_, err := s.queries.GetUserByID(ctx, id)
+	existing, err := s.queries.GetUserByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return UserResponse{}, model.NewDomainError(model.ErrNotFound, "user not found")
@@ -122,6 +125,34 @@ func (s *UserService) UpdateUser(ctx context.Context, id uuid.UUID, input Update
 		}
 	}
 
+	// Validate account_type conversion
+	if input.AccountType != nil {
+		validTypes := map[string]bool{"local": true, "dummy": true}
+		if !validTypes[*input.AccountType] {
+			return UserResponse{}, model.NewFieldError(model.ErrInvalidInput, "account_type", "can only convert between local and dummy")
+		}
+		// Converting dummy -> local requires a password
+		if *input.AccountType == "local" && existing.AccountType == "dummy" {
+			if input.Password == nil || *input.Password == "" {
+				return UserResponse{}, model.NewFieldError(model.ErrInvalidInput, "password", "password is required when converting to a local account")
+			}
+		}
+	}
+
+	// Validate username uniqueness if changed
+	if input.Username != nil && *input.Username != existing.Username {
+		if *input.Username == "" {
+			return UserResponse{}, model.NewFieldError(model.ErrInvalidInput, "username", "username is required")
+		}
+		other, err := s.queries.GetUserByUsername(ctx, *input.Username)
+		if err == nil && other.ID != id {
+			return UserResponse{}, model.NewFieldError(model.ErrInvalidInput, "username", "username already taken")
+		}
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return UserResponse{}, fmt.Errorf("checking username: %w", err)
+		}
+	}
+
 	// Hash password if provided
 	if input.Password != nil && *input.Password != "" {
 		hash, err := bcrypt.GenerateFromPassword([]byte(*input.Password), 12)
@@ -133,6 +164,13 @@ func (s *UserService) UpdateUser(ctx context.Context, id uuid.UUID, input Update
 		}
 	}
 
+	// If converting local -> dummy, clear password
+	if input.AccountType != nil && *input.AccountType == "dummy" && existing.AccountType != "dummy" {
+		if err := s.queries.UpdateUserPassword(ctx, id, nil); err != nil {
+			return UserResponse{}, fmt.Errorf("clearing password: %w", err)
+		}
+	}
+
 	updated, err := s.queries.UpdateUser(ctx, repository.UpdateUserParams{
 		ID:          id,
 		Role:        input.Role,
@@ -140,6 +178,9 @@ func (s *UserService) UpdateUser(ctx context.Context, id uuid.UUID, input Update
 		FullName:    input.FullName,
 		DisplayName: input.DisplayName,
 		Email:       input.Email,
+		TimeFormat:  input.TimeFormat,
+		Username:    input.Username,
+		AccountType: input.AccountType,
 	})
 	if err != nil {
 		return UserResponse{}, fmt.Errorf("updating user: %w", err)
