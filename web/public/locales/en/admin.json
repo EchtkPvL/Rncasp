@@ -141,6 +141,10 @@
     "channel_in_app": "In-App",
     "channel_email": "Email"
   },
+  "global_webhooks": {
+    "title": "Webhooks",
+    "description": "Global webhooks for system events like user registration, permission changes, and settings updates."
+  },
   "webhooks": {
     "title": "Webhooks",
     "add": "Add Webhook",
@@ -148,9 +152,15 @@
     "name": "Name",
     "url": "URL",
     "secret": "Secret",
+    "format": "Format",
+    "format_default": "Default (JSON + HMAC)",
+    "format_discord": "Discord",
+    "discord_hint": "Paste the full Discord webhook URL. No secret needed.",
     "triggers": "Trigger Types",
     "empty": "No webhooks configured.",
-    "delete_confirm": "Delete webhook \"{{name}}\"?"
+    "delete_confirm": "Delete webhook \"{{name}}\"?",
+    "test": "Test",
+    "test_sent": "Test webhook sent"
   },
   "smtp": {
     "title": "SMTP Settings",
@@ -198,6 +208,10 @@
     "action_public": "Public toggle",
     "entity_event": "Event",
     "entity_shift": "Shift",
+    "entity_user": "User",
+    "entity_team": "Team",
+    "entity_event_admin": "Event Admin",
+    "entity_setting": "Setting",
     "system": "System",
     "show_details": "Show details",
     "old_value": "Before",

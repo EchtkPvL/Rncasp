@@ -1,40 +1,61 @@
 import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { webhooksApi } from "@/api/webhooks";
+import { webhooksApi, adminWebhooksApi } from "@/api/webhooks";
 import type { CreateWebhookRequest, UpdateWebhookRequest, Webhook } from "@/api/types";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 
-const TRIGGER_OPTIONS = [
+const EVENT_TRIGGER_OPTIONS = [
   "shift.created",
   "shift.updated",
   "shift.deleted",
   "event.locked",
   "event.unlocked",
+  "event.updated",
+  "event.admin_added",
+  "event.admin_removed",
   "coverage.updated",
 ];
 
+const GLOBAL_TRIGGER_OPTIONS = [
+  "user.registered",
+  "user.updated",
+  "event.created",
+  "event.deleted",
+  "settings.changed",
+];
+
 interface WebhookManagerProps {
-  slug: string;
+  slug?: string;
+  global?: boolean;
 }
 
-export function WebhookManager({ slug }: WebhookManagerProps) {
+export function WebhookManager({ slug, global }: WebhookManagerProps) {
   const { t } = useTranslation(["admin", "common"]);
   const queryClient = useQueryClient();
 
+  const isGlobal = !!global;
+  const queryKey = isGlobal ? ["admin", "webhooks"] : ["events", slug, "webhooks"];
+  const triggerOptions = isGlobal ? GLOBAL_TRIGGER_OPTIONS : EVENT_TRIGGER_OPTIONS;
+
   const { data: webhooks = [], isLoading } = useQuery({
-    queryKey: ["events", slug, "webhooks"],
+    queryKey,
     queryFn: async () => {
-      const res = await webhooksApi.list(slug);
+      if (isGlobal) {
+        const res = await adminWebhooksApi.list();
+        return res.data!;
+      }
+      const res = await webhooksApi.list(slug!);
       return res.data!;
     },
-    enabled: !!slug,
+    enabled: isGlobal || !!slug,
   });
 
   const createWebhook = useMutation({
-    mutationFn: (data: CreateWebhookRequest) => webhooksApi.create(slug, data),
+    mutationFn: (data: CreateWebhookRequest) =>
+      isGlobal ? adminWebhooksApi.create(data) : webhooksApi.create(slug!, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["events", slug, "webhooks"] });
+      queryClient.invalidateQueries({ queryKey });
       setShowForm(false);
       resetForm();
     },
@@ -42,18 +63,24 @@ export function WebhookManager({ slug }: WebhookManagerProps) {
 
   const updateWebhook = useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateWebhookRequest }) =>
-      webhooksApi.update(slug, id, data),
+      isGlobal ? adminWebhooksApi.update(id, data) : webhooksApi.update(slug!, id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["events", slug, "webhooks"] });
+      queryClient.invalidateQueries({ queryKey });
       setEditingId(null);
     },
   });
 
   const deleteWebhook = useMutation({
-    mutationFn: (id: string) => webhooksApi.delete(slug, id),
+    mutationFn: (id: string) =>
+      isGlobal ? adminWebhooksApi.delete(id) : webhooksApi.delete(slug!, id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["events", slug, "webhooks"] });
+      queryClient.invalidateQueries({ queryKey });
     },
+  });
+
+  const testWebhook = useMutation({
+    mutationFn: (id: string) =>
+      isGlobal ? adminWebhooksApi.test(id) : webhooksApi.test(slug!, id),
   });
 
   const [showForm, setShowForm] = useState(false);
@@ -63,11 +90,12 @@ export function WebhookManager({ slug }: WebhookManagerProps) {
     name: "",
     url: "",
     secret: "",
+    format: "default" as string,
     trigger_types: [] as string[],
   });
 
   function resetForm() {
-    setForm({ name: "", url: "", secret: "", trigger_types: [] });
+    setForm({ name: "", url: "", secret: "", format: "default", trigger_types: [] });
   }
 
   function startEdit(wh: Webhook) {
@@ -76,13 +104,21 @@ export function WebhookManager({ slug }: WebhookManagerProps) {
       name: wh.name,
       url: wh.url,
       secret: "",
+      format: wh.format || "default",
       trigger_types: wh.trigger_types,
     });
   }
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    createWebhook.mutate(form);
+    const data: CreateWebhookRequest = {
+      name: form.name,
+      url: form.url,
+      secret: form.secret,
+      format: form.format,
+      trigger_types: form.trigger_types,
+    };
+    createWebhook.mutate(data);
   }
 
   function handleUpdate(e: React.FormEvent) {
@@ -91,6 +127,7 @@ export function WebhookManager({ slug }: WebhookManagerProps) {
     const data: UpdateWebhookRequest = {
       name: form.name,
       url: form.url,
+      format: form.format,
       trigger_types: form.trigger_types,
     };
     if (form.secret) data.secret = form.secret;
@@ -122,6 +159,8 @@ export function WebhookManager({ slug }: WebhookManagerProps) {
     deleteWebhook.mutate(deletingWebhook.id);
     setDeletingWebhook(null);
   }, [deletingWebhook, deleteWebhook]);
+
+  const isDiscord = form.format === "discord";
 
   if (isLoading) {
     return <p className="text-sm text-[var(--color-muted-foreground)]">{t("common:loading")}</p>;
@@ -171,26 +210,58 @@ export function WebhookManager({ slug }: WebhookManagerProps) {
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-xs font-medium">
-                {t("webhooks.secret", "Secret")}
-                {editingId && (
-                  <span className="ml-1 font-normal text-[var(--color-muted-foreground)]">
-                    ({t("admin:oauth.leave_blank")})
-                  </span>
-                )}
-              </label>
-              <input
-                type="password"
-                value={form.secret}
-                onChange={(e) => setForm({ ...form, secret: e.target.value })}
-                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
-                required={!editingId}
-              />
+              <label className="mb-1 block text-xs font-medium">{t("webhooks.format", "Format")}</label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-1.5 text-sm">
+                  <input
+                    type="radio"
+                    name="format"
+                    value="default"
+                    checked={form.format === "default"}
+                    onChange={() => setForm({ ...form, format: "default" })}
+                  />
+                  {t("webhooks.format_default", "Default (JSON + HMAC)")}
+                </label>
+                <label className="flex items-center gap-1.5 text-sm">
+                  <input
+                    type="radio"
+                    name="format"
+                    value="discord"
+                    checked={form.format === "discord"}
+                    onChange={() => setForm({ ...form, format: "discord", secret: "" })}
+                  />
+                  {t("webhooks.format_discord", "Discord")}
+                </label>
+              </div>
+              {isDiscord && (
+                <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">
+                  {t("webhooks.discord_hint", "Paste the full Discord webhook URL. No secret needed.")}
+                </p>
+              )}
             </div>
+            {!isDiscord && (
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-xs font-medium">
+                  {t("webhooks.secret", "Secret")}
+                  {editingId && (
+                    <span className="ml-1 font-normal text-[var(--color-muted-foreground)]">
+                      ({t("admin:oauth.leave_blank")})
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="password"
+                  value={form.secret}
+                  onChange={(e) => setForm({ ...form, secret: e.target.value })}
+                  className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+                  required={!editingId}
+                />
+              </div>
+            )}
             <div className="sm:col-span-2">
               <label className="mb-1 block text-xs font-medium">{t("webhooks.triggers", "Trigger Types")}</label>
               <div className="flex flex-wrap gap-2">
-                {TRIGGER_OPTIONS.map((trigger) => (
+                {triggerOptions.map((trigger) => (
                   <label key={trigger} className="flex items-center gap-1.5 text-xs">
                     <input
                       type="checkbox"
@@ -237,6 +308,11 @@ export function WebhookManager({ slug }: WebhookManagerProps) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-sm">{wh.name}</span>
+                  {wh.format === "discord" && (
+                    <span className="rounded-full bg-[var(--color-info-light,#e0f2fe)] px-2 py-0.5 text-[10px] text-[var(--color-info,#0284c7)]">
+                      Discord
+                    </span>
+                  )}
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] ${
                       wh.is_enabled
@@ -262,6 +338,14 @@ export function WebhookManager({ slug }: WebhookManagerProps) {
                 </div>
               </div>
               <div className="ml-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => testWebhook.mutate(wh.id)}
+                  disabled={testWebhook.isPending}
+                  className="text-xs text-[var(--color-info,#0284c7)] hover:underline disabled:opacity-50"
+                >
+                  {t("webhooks.test", "Test")}
+                </button>
                 <button
                   type="button"
                   onClick={() => handleToggleEnabled(wh)}

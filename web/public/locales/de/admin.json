@@ -141,6 +141,10 @@
     "channel_in_app": "In-App",
     "channel_email": "E-Mail"
   },
+  "global_webhooks": {
+    "title": "Webhooks",
+    "description": "Globale Webhooks für Systemereignisse wie Benutzerregistrierung, Berechtigungsänderungen und Einstellungsaktualisierungen."
+  },
   "webhooks": {
     "title": "Webhooks",
     "add": "Webhook hinzufügen",
@@ -148,9 +152,15 @@
     "name": "Name",
     "url": "URL",
     "secret": "Geheimnis",
+    "format": "Format",
+    "format_default": "Standard (JSON + HMAC)",
+    "format_discord": "Discord",
+    "discord_hint": "Vollständige Discord-Webhook-URL einfügen. Kein Geheimnis erforderlich.",
     "triggers": "Auslösertypen",
     "empty": "Keine Webhooks konfiguriert.",
-    "delete_confirm": "Webhook \"{{name}}\" löschen?"
+    "delete_confirm": "Webhook \"{{name}}\" löschen?",
+    "test": "Testen",
+    "test_sent": "Test-Webhook gesendet"
   },
   "smtp": {
     "title": "SMTP-Einstellungen",
@@ -198,6 +208,10 @@
     "action_public": "Öffentlich umschalten",
     "entity_event": "Veranstaltung",
     "entity_shift": "Schicht",
+    "entity_user": "Benutzer",
+    "entity_team": "Team",
+    "entity_event_admin": "Event-Admin",
+    "entity_setting": "Einstellung",
     "system": "System",
     "show_details": "Details anzeigen",
     "old_value": "Vorher",

@@ -178,14 +178,15 @@ type NotificationPreference struct {
 }
 
 type WebhookConfig struct {
-	ID           uuid.UUID `json:"id"`
-	EventID      uuid.UUID `json:"event_id"`
-	Name         string    `json:"name"`
-	Url          string    `json:"url"`
-	Secret       string    `json:"secret"`
-	TriggerTypes []string  `json:"trigger_types"`
-	IsEnabled    bool      `json:"is_enabled"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID           uuid.UUID  `json:"id"`
+	EventID      *uuid.UUID `json:"event_id"`
+	Name         string     `json:"name"`
+	Url          string     `json:"url"`
+	Secret       string     `json:"secret"`
+	Format       string     `json:"format"`
+	TriggerTypes []string   `json:"trigger_types"`
+	IsEnabled    bool       `json:"is_enabled"`
+	CreatedAt    time.Time  `json:"created_at"`
 }
 
 type AuditLog struct {

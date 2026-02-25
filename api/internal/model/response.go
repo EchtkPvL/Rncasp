@@ -62,10 +62,17 @@ func ErrorResponse(w http.ResponseWriter, err error) {
 	status := domainErrorToStatus(err)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
+
+	// Do not expose internal error details on 5xx responses
+	msg := err.Error()
+	if status >= 500 {
+		msg = "internal server error"
+	}
+
 	json.NewEncoder(w).Encode(APIResponse{
 		Error: &APIError{
-			Code:    err.Error(),
-			Message: err.Error(),
+			Code:    "internal_error",
+			Message: msg,
 		},
 	})
 }

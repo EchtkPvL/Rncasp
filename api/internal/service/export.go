@@ -134,6 +134,7 @@ func (s *ExportService) ExportPDF(ctx context.Context, slug string, opts pdf.PDF
 
 	pdfBytes, err := s.pdfGen.Generate(ctx, data, opts)
 	if err != nil {
+		s.logger.Error("PDF generation failed", "slug", slug, "error", err)
 		return nil, "", fmt.Errorf("generating PDF: %w", err)
 	}
 

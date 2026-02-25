@@ -117,6 +117,10 @@ const ACTION_LABELS: Record<string, string> = {
 const ENTITY_LABELS: Record<string, string> = {
   event: "audit.entity_event",
   shift: "audit.entity_shift",
+  user: "audit.entity_user",
+  team: "audit.entity_team",
+  event_admin: "audit.entity_event_admin",
+  setting: "audit.entity_setting",
 };
 
 function actionColor(action: string): string {
@@ -146,6 +150,24 @@ function describeEntity(entry: AuditLogEntry, hour12: boolean): string | null {
       );
     }
     return parts.join(" · ") || null;
+  }
+
+  if (entry.entity_type === "user") {
+    const parts: string[] = [];
+    if (typeof val.username === "string") parts.push(`@${val.username}`);
+    if (typeof val.role === "string") parts.push(val.role as string);
+    return parts.join(" · ") || null;
+  }
+
+  if (entry.entity_type === "event_admin") {
+    const parts: string[] = [];
+    if (typeof val.user_id === "string") parts.push(val.user_id as string);
+    if (typeof val.event_slug === "string") parts.push(val.event_slug as string);
+    return parts.join(" · ") || null;
+  }
+
+  if (entry.entity_type === "setting") {
+    return (val.key as string) || null;
   }
 
   for (const key of ["name", "slug", "title", "username"]) {
@@ -307,6 +329,10 @@ export function AuditLogPage() {
           <option value="">{t("admin:audit.all_entities")}</option>
           <option value="event">{t("admin:audit.entity_event")}</option>
           <option value="shift">{t("admin:audit.entity_shift")}</option>
+          <option value="user">{t("admin:audit.entity_user")}</option>
+          <option value="team">{t("admin:audit.entity_team")}</option>
+          <option value="event_admin">{t("admin:audit.entity_event_admin")}</option>
+          <option value="setting">{t("admin:audit.entity_setting")}</option>
         </select>
       </div>
 

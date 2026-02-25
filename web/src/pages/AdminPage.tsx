@@ -8,6 +8,7 @@ const SECTIONS = [
   { path: "/admin/oauth", labelKey: "admin:oauth.title" },
   { path: "/admin/smtp", labelKey: "admin:smtp.title" },
   { path: "/admin/dummy-accounts", labelKey: "admin:dummy.title" },
+  { path: "/admin/webhooks", labelKey: "admin:global_webhooks.title" },
   { path: "/admin/audit-log", labelKey: "common:nav.audit_log" },
 ];
 

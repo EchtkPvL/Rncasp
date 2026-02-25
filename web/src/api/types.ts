@@ -329,9 +329,10 @@ export interface UpdatePreferenceRequest {
 // Webhooks
 export interface Webhook {
   id: string;
-  event_id: string;
+  event_id: string | null;
   name: string;
   url: string;
+  format: string;
   trigger_types: string[];
   is_enabled: boolean;
   created_at: string;
@@ -341,6 +342,7 @@ export interface CreateWebhookRequest {
   name: string;
   url: string;
   secret: string;
+  format?: string;
   trigger_types: string[];
 }
 
@@ -348,6 +350,7 @@ export interface UpdateWebhookRequest {
   name?: string;
   url?: string;
   secret?: string;
+  format?: string;
   trigger_types?: string[];
   is_enabled?: boolean;
 }

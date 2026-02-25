@@ -2,6 +2,7 @@
 // versions:
 //   sqlc v1.28.0
 // source: webhooks.sql
+// NOTE: format column and global webhook queries added manually to match updated SQL.
 
 package repository
 
@@ -12,7 +13,7 @@ import (
 )
 
 const listWebhooksByEvent = `-- name: ListWebhooksByEvent :many
-SELECT id, event_id, name, url, secret, trigger_types, is_enabled, created_at FROM webhook_configs WHERE event_id = $1 ORDER BY name
+SELECT id, event_id, name, url, secret, format, trigger_types, is_enabled, created_at FROM webhook_configs WHERE event_id = $1 ORDER BY name
 `
 
 func (q *Queries) ListWebhooksByEvent(ctx context.Context, eventID uuid.UUID) ([]WebhookConfig, error) {
@@ -30,6 +31,7 @@ func (q *Queries) ListWebhooksByEvent(ctx context.Context, eventID uuid.UUID) ([
 			&i.Name,
 			&i.Url,
 			&i.Secret,
+			&i.Format,
 			&i.TriggerTypes,
 			&i.IsEnabled,
 			&i.CreatedAt,
@@ -45,7 +47,7 @@ func (q *Queries) ListWebhooksByEvent(ctx context.Context, eventID uuid.UUID) ([
 }
 
 const getWebhookByID = `-- name: GetWebhookByID :one
-SELECT id, event_id, name, url, secret, trigger_types, is_enabled, created_at FROM webhook_configs WHERE id = $1
+SELECT id, event_id, name, url, secret, format, trigger_types, is_enabled, created_at FROM webhook_configs WHERE id = $1
 `
 
 func (q *Queries) GetWebhookByID(ctx context.Context, id uuid.UUID) (WebhookConfig, error) {
@@ -57,6 +59,7 @@ func (q *Queries) GetWebhookByID(ctx context.Context, id uuid.UUID) (WebhookConf
 		&i.Name,
 		&i.Url,
 		&i.Secret,
+		&i.Format,
 		&i.TriggerTypes,
 		&i.IsEnabled,
 		&i.CreatedAt,
@@ -65,17 +68,18 @@ func (q *Queries) GetWebhookByID(ctx context.Context, id uuid.UUID) (WebhookConf
 }
 
 const createWebhook = `-- name: CreateWebhook :one
-INSERT INTO webhook_configs (event_id, name, url, secret, trigger_types)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, event_id, name, url, secret, trigger_types, is_enabled, created_at
+INSERT INTO webhook_configs (event_id, name, url, secret, trigger_types, format)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, event_id, name, url, secret, format, trigger_types, is_enabled, created_at
 `
 
 type CreateWebhookParams struct {
-	EventID      uuid.UUID `json:"event_id"`
-	Name         string    `json:"name"`
-	Url          string    `json:"url"`
-	Secret       string    `json:"secret"`
-	TriggerTypes []string  `json:"trigger_types"`
+	EventID      *uuid.UUID `json:"event_id"`
+	Name         string     `json:"name"`
+	Url          string     `json:"url"`
+	Secret       string     `json:"secret"`
+	TriggerTypes []string   `json:"trigger_types"`
+	Format       string     `json:"format"`
 }
 
 func (q *Queries) CreateWebhook(ctx context.Context, arg CreateWebhookParams) (WebhookConfig, error) {
@@ -85,6 +89,7 @@ func (q *Queries) CreateWebhook(ctx context.Context, arg CreateWebhookParams) (W
 		arg.Url,
 		arg.Secret,
 		arg.TriggerTypes,
+		arg.Format,
 	)
 	var i WebhookConfig
 	err := row.Scan(
@@ -93,6 +98,7 @@ func (q *Queries) CreateWebhook(ctx context.Context, arg CreateWebhookParams) (W
 		&i.Name,
 		&i.Url,
 		&i.Secret,
+		&i.Format,
 		&i.TriggerTypes,
 		&i.IsEnabled,
 		&i.CreatedAt,
@@ -106,9 +112,10 @@ UPDATE webhook_configs SET
     url = COALESCE($3, url),
     secret = COALESCE($4, secret),
     trigger_types = COALESCE($5, trigger_types),
-    is_enabled = COALESCE($6, is_enabled)
+    is_enabled = COALESCE($6, is_enabled),
+    format = COALESCE($7, format)
 WHERE id = $1
-RETURNING id, event_id, name, url, secret, trigger_types, is_enabled, created_at
+RETURNING id, event_id, name, url, secret, format, trigger_types, is_enabled, created_at
 `
 
 type UpdateWebhookParams struct {
@@ -118,6 +125,7 @@ type UpdateWebhookParams struct {
 	Secret       *string   `json:"secret"`
 	TriggerTypes *[]string `json:"trigger_types"`
 	IsEnabled    *bool     `json:"is_enabled"`
+	Format       *string   `json:"format"`
 }
 
 func (q *Queries) UpdateWebhook(ctx context.Context, arg UpdateWebhookParams) (WebhookConfig, error) {
@@ -128,6 +136,7 @@ func (q *Queries) UpdateWebhook(ctx context.Context, arg UpdateWebhookParams) (W
 		arg.Secret,
 		arg.TriggerTypes,
 		arg.IsEnabled,
+		arg.Format,
 	)
 	var i WebhookConfig
 	err := row.Scan(
@@ -136,6 +145,7 @@ func (q *Queries) UpdateWebhook(ctx context.Context, arg UpdateWebhookParams) (W
 		&i.Name,
 		&i.Url,
 		&i.Secret,
+		&i.Format,
 		&i.TriggerTypes,
 		&i.IsEnabled,
 		&i.CreatedAt,
@@ -153,7 +163,7 @@ func (q *Queries) DeleteWebhook(ctx context.Context, id uuid.UUID) error {
 }
 
 const listActiveWebhooksForTrigger = `-- name: ListActiveWebhooksForTrigger :many
-SELECT id, event_id, name, url, secret, trigger_types, is_enabled, created_at FROM webhook_configs
+SELECT id, event_id, name, url, secret, format, trigger_types, is_enabled, created_at FROM webhook_configs
 WHERE event_id = $1 AND is_enabled = true AND $2 = ANY(trigger_types)
 `
 
@@ -177,6 +187,113 @@ func (q *Queries) ListActiveWebhooksForTrigger(ctx context.Context, arg ListActi
 			&i.Name,
 			&i.Url,
 			&i.Secret,
+			&i.Format,
+			&i.TriggerTypes,
+			&i.IsEnabled,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listGlobalWebhooks = `-- name: ListGlobalWebhooks :many
+SELECT id, event_id, name, url, secret, format, trigger_types, is_enabled, created_at FROM webhook_configs WHERE event_id IS NULL ORDER BY name
+`
+
+func (q *Queries) ListGlobalWebhooks(ctx context.Context) ([]WebhookConfig, error) {
+	rows, err := q.db.Query(ctx, listGlobalWebhooks)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []WebhookConfig{}
+	for rows.Next() {
+		var i WebhookConfig
+		if err := rows.Scan(
+			&i.ID,
+			&i.EventID,
+			&i.Name,
+			&i.Url,
+			&i.Secret,
+			&i.Format,
+			&i.TriggerTypes,
+			&i.IsEnabled,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const createGlobalWebhook = `-- name: CreateGlobalWebhook :one
+INSERT INTO webhook_configs (name, url, secret, trigger_types, format)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, event_id, name, url, secret, format, trigger_types, is_enabled, created_at
+`
+
+type CreateGlobalWebhookParams struct {
+	Name         string   `json:"name"`
+	Url          string   `json:"url"`
+	Secret       string   `json:"secret"`
+	TriggerTypes []string `json:"trigger_types"`
+	Format       string   `json:"format"`
+}
+
+func (q *Queries) CreateGlobalWebhook(ctx context.Context, arg CreateGlobalWebhookParams) (WebhookConfig, error) {
+	row := q.db.QueryRow(ctx, createGlobalWebhook,
+		arg.Name,
+		arg.Url,
+		arg.Secret,
+		arg.TriggerTypes,
+		arg.Format,
+	)
+	var i WebhookConfig
+	err := row.Scan(
+		&i.ID,
+		&i.EventID,
+		&i.Name,
+		&i.Url,
+		&i.Secret,
+		&i.Format,
+		&i.TriggerTypes,
+		&i.IsEnabled,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const listActiveGlobalWebhooksForTrigger = `-- name: ListActiveGlobalWebhooksForTrigger :many
+SELECT id, event_id, name, url, secret, format, trigger_types, is_enabled, created_at FROM webhook_configs
+WHERE event_id IS NULL AND is_enabled = true AND $1 = ANY(trigger_types)
+`
+
+func (q *Queries) ListActiveGlobalWebhooksForTrigger(ctx context.Context, triggerType string) ([]WebhookConfig, error) {
+	rows, err := q.db.Query(ctx, listActiveGlobalWebhooksForTrigger, triggerType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []WebhookConfig{}
+	for rows.Next() {
+		var i WebhookConfig
+		if err := rows.Scan(
+			&i.ID,
+			&i.EventID,
+			&i.Name,
+			&i.Url,
+			&i.Secret,
+			&i.Format,
 			&i.TriggerTypes,
 			&i.IsEnabled,
 			&i.CreatedAt,

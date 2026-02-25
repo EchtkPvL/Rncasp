@@ -22,6 +22,7 @@ import { PublicEventPage } from "@/pages/PublicEventPage";
 import { AppSettingsPage } from "@/pages/AppSettingsPage";
 import { AdminDashboardPage } from "@/pages/AdminDashboardPage";
 import { AdminPage } from "@/pages/AdminPage";
+import { AdminWebhooksPage } from "@/pages/AdminWebhooksPage";
 import { EventsPage } from "@/pages/EventsPage";
 import { UserManagementPage } from "@/pages/UserManagementPage";
 
@@ -192,6 +193,7 @@ function App() {
                   <Route path="oauth" element={<OAuthProvidersPage />} />
                   <Route path="smtp" element={<SMTPSettingsPage />} />
                   <Route path="dummy-accounts" element={<DummyAccountsPage />} />
+                  <Route path="webhooks" element={<AdminWebhooksPage />} />
                   <Route path="audit-log" element={<AuditLogPage />} />
                 </Route>
                 <Route

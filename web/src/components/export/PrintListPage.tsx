@@ -87,22 +87,28 @@ export function PrintListPage({ event, shifts, selectedDays, showTeamColors }: P
           {days.map(({ date, shifts: dayShifts }) => (
             <div key={date.toISOString()}>
               <div className="print-list-day-header">{formatDayHeader(date)}</div>
-              {dayShifts.map((shift) => (
-                <div key={shift.id} className="print-list-shift">
-                  {showTeamColors && (
-                    <span
-                      className="print-team-dot"
-                      style={{ backgroundColor: shift.team_color }}
-                    />
-                  )}
-                  <span>
-                    {formatSlotTime(new Date(shift.start_time), hour12)}–{formatSlotTime(new Date(shift.end_time), hour12)}
-                  </span>
-                  <span>
-                    {shift.team_name} ({shift.team_abbreviation})
-                  </span>
-                </div>
-              ))}
+              {dayShifts.map((shift) => {
+                const start = new Date(shift.start_time);
+                const end = new Date(shift.end_time);
+                const crossesMidnight = start.toDateString() !== end.toDateString();
+                return (
+                  <div key={shift.id} className="print-list-shift">
+                    {showTeamColors && (
+                      <span
+                        className="print-team-dot"
+                        style={{ backgroundColor: shift.team_color }}
+                      />
+                    )}
+                    <span>
+                      {formatSlotTime(start, hour12)}–{formatSlotTime(end, hour12)}
+                      {crossesMidnight && ` (${formatDayHeader(end)})`}
+                    </span>
+                    <span>
+                      {shift.team_name} ({shift.team_abbreviation})
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>

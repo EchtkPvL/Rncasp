@@ -294,8 +294,9 @@ func (s *ShiftService) Create(ctx context.Context, input CreateShiftInput, calle
 	go func() {
 		bgCtx := context.Background()
 		if s.notificationService != nil {
-			body := fmt.Sprintf("%s signed up for %s", resp.Username, resp.TeamName)
-			s.notificationService.NotifyEventUsers(bgCtx, event.ID, callerID, TriggerShiftCreated, "New shift created", &body)
+			title := fmt.Sprintf("%s: New shift", event.Name)
+			body := fmt.Sprintf("%s signed up for %s (%s)", resp.Username, resp.TeamName, formatTimeRange(input.StartTime, input.EndTime))
+			s.notificationService.NotifyEventUsers(bgCtx, event.ID, callerID, TriggerShiftCreated, title, &body)
 		}
 		if s.webhookService != nil {
 			s.webhookService.Dispatch(bgCtx, event.ID, TriggerShiftCreated, resp)
@@ -386,8 +387,9 @@ func (s *ShiftService) Update(ctx context.Context, shiftID uuid.UUID, input Upda
 	go func() {
 		bgCtx := context.Background()
 		if s.notificationService != nil {
-			body := fmt.Sprintf("%s's shift was updated", resp.Username)
-			s.notificationService.NotifyEventUsers(bgCtx, existing.EventID, callerID, TriggerShiftUpdated, "Shift updated", &body)
+			title := fmt.Sprintf("%s: Shift updated", event.Name)
+			body := fmt.Sprintf("%s's %s shift was updated (%s)", resp.Username, resp.TeamName, formatTimeRange(shift.StartTime, shift.EndTime))
+			s.notificationService.NotifyEventUsers(bgCtx, existing.EventID, callerID, TriggerShiftUpdated, title, &body)
 		}
 		if s.webhookService != nil {
 			s.webhookService.Dispatch(bgCtx, existing.EventID, TriggerShiftUpdated, resp)
@@ -449,8 +451,9 @@ func (s *ShiftService) Delete(ctx context.Context, shiftID uuid.UUID, callerID u
 	go func() {
 		bgCtx := context.Background()
 		if s.notificationService != nil {
-			body := fmt.Sprintf("A shift was deleted from %s", existing.TeamName)
-			s.notificationService.NotifyEventUsers(bgCtx, existing.EventID, callerID, TriggerShiftDeleted, "Shift deleted", &body)
+			title := fmt.Sprintf("%s: Shift deleted", event.Name)
+			body := fmt.Sprintf("%s's %s shift was removed (%s)", existing.Username, existing.TeamName, formatTimeRange(existing.StartTime, existing.EndTime))
+			s.notificationService.NotifyEventUsers(bgCtx, existing.EventID, callerID, TriggerShiftDeleted, title, &body)
 		}
 		if s.webhookService != nil {
 			s.webhookService.Dispatch(bgCtx, existing.EventID, TriggerShiftDeleted, map[string]string{"id": shiftID.String()})

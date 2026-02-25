@@ -10,42 +10,16 @@ import (
 	"github.com/google/uuid"
 )
 
-type WebhookHandler struct {
+type AdminWebhookHandler struct {
 	webhookService *service.WebhookService
-	eventService   *service.EventService
 }
 
-func NewWebhookHandler(webhookService *service.WebhookService, eventService *service.EventService) *WebhookHandler {
-	return &WebhookHandler{webhookService: webhookService, eventService: eventService}
+func NewAdminWebhookHandler(webhookService *service.WebhookService) *AdminWebhookHandler {
+	return &AdminWebhookHandler{webhookService: webhookService}
 }
 
-type createWebhookRequest struct {
-	Name         string   `json:"name"`
-	URL          string   `json:"url"`
-	Secret       string   `json:"secret"`
-	Format       string   `json:"format"`
-	TriggerTypes []string `json:"trigger_types"`
-}
-
-type updateWebhookRequest struct {
-	Name         *string   `json:"name"`
-	URL          *string   `json:"url"`
-	Secret       *string   `json:"secret"`
-	Format       *string   `json:"format"`
-	TriggerTypes *[]string `json:"trigger_types"`
-	IsEnabled    *bool     `json:"is_enabled"`
-}
-
-func (h *WebhookHandler) List(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "slug")
-	event, err := h.eventService.GetBySlug(r.Context(), slug)
-	if err != nil {
-		model.ErrorResponse(w, err)
-		return
-	}
-
-	eventID, _ := uuid.Parse(event.ID)
-	webhooks, err := h.webhookService.ListByEvent(r.Context(), eventID)
+func (h *AdminWebhookHandler) List(w http.ResponseWriter, r *http.Request) {
+	webhooks, err := h.webhookService.ListGlobal(r.Context())
 	if err != nil {
 		model.ErrorResponse(w, err)
 		return
@@ -53,23 +27,14 @@ func (h *WebhookHandler) List(w http.ResponseWriter, r *http.Request) {
 	model.JSON(w, http.StatusOK, webhooks)
 }
 
-func (h *WebhookHandler) Create(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "slug")
-	event, err := h.eventService.GetBySlug(r.Context(), slug)
-	if err != nil {
-		model.ErrorResponse(w, err)
-		return
-	}
-
+func (h *AdminWebhookHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createWebhookRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		model.ErrorResponse(w, model.NewDomainError(model.ErrInvalidInput, "invalid request body"))
 		return
 	}
 
-	eventID, _ := uuid.Parse(event.ID)
-	webhook, err := h.webhookService.Create(r.Context(), service.CreateWebhookInput{
-		EventID:      &eventID,
+	webhook, err := h.webhookService.CreateGlobal(r.Context(), service.CreateWebhookInput{
 		Name:         req.Name,
 		URL:          req.URL,
 		Secret:       req.Secret,
@@ -83,7 +48,7 @@ func (h *WebhookHandler) Create(w http.ResponseWriter, r *http.Request) {
 	model.JSON(w, http.StatusCreated, webhook)
 }
 
-func (h *WebhookHandler) Update(w http.ResponseWriter, r *http.Request) {
+func (h *AdminWebhookHandler) Update(w http.ResponseWriter, r *http.Request) {
 	webhookID, err := uuid.Parse(chi.URLParam(r, "webhookId"))
 	if err != nil {
 		model.ErrorResponse(w, model.NewDomainError(model.ErrInvalidInput, "invalid webhook ID"))
@@ -111,7 +76,7 @@ func (h *WebhookHandler) Update(w http.ResponseWriter, r *http.Request) {
 	model.JSON(w, http.StatusOK, webhook)
 }
 
-func (h *WebhookHandler) Test(w http.ResponseWriter, r *http.Request) {
+func (h *AdminWebhookHandler) Test(w http.ResponseWriter, r *http.Request) {
 	webhookID, err := uuid.Parse(chi.URLParam(r, "webhookId"))
 	if err != nil {
 		model.ErrorResponse(w, model.NewDomainError(model.ErrInvalidInput, "invalid webhook ID"))
@@ -125,7 +90,7 @@ func (h *WebhookHandler) Test(w http.ResponseWriter, r *http.Request) {
 	model.JSON(w, http.StatusOK, map[string]string{"message": "test webhook sent"})
 }
 
-func (h *WebhookHandler) Delete(w http.ResponseWriter, r *http.Request) {
+func (h *AdminWebhookHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	webhookID, err := uuid.Parse(chi.URLParam(r, "webhookId"))
 	if err != nil {
 		model.ErrorResponse(w, model.NewDomainError(model.ErrInvalidInput, "invalid webhook ID"))

@@ -80,7 +80,7 @@ export function NotificationList({ onClose }: NotificationListProps) {
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium">{notification.title}</div>
                   {notification.body && (
-                    <div className="mt-0.5 truncate text-xs text-[var(--color-muted-foreground)]">
+                    <div className="mt-0.5 text-xs leading-relaxed text-[var(--color-muted-foreground)]">
                       {notification.body}
                     </div>
                   )}

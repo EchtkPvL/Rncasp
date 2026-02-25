@@ -165,6 +165,22 @@ func (s *NotificationService) UpdatePreference(ctx context.Context, userID uuid.
 	return nil
 }
 
+// formatTimeRange formats a time range for notification display.
+// Same day: "Jan 15, 14:00 – 18:00", cross-day: "Jan 15, 14:00 – Jan 16, 02:00".
+func formatTimeRange(start, end time.Time) string {
+	if start.Year() == end.Year() && start.YearDay() == end.YearDay() {
+		return fmt.Sprintf("%s, %s – %s",
+			start.Format("Jan 2"),
+			start.Format("15:04"),
+			end.Format("15:04"))
+	}
+	return fmt.Sprintf("%s, %s – %s, %s",
+		start.Format("Jan 2"),
+		start.Format("15:04"),
+		end.Format("Jan 2"),
+		end.Format("15:04"))
+}
+
 // Notify creates an in-app notification for a user. It checks the user's
 // preference for the given trigger and in_app channel before creating it.
 func (s *NotificationService) Notify(ctx context.Context, userID uuid.UUID, eventID *uuid.UUID, triggerType, title string, body *string) error {

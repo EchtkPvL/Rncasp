@@ -15,12 +15,17 @@ import (
 )
 
 type TeamService struct {
-	queries *repository.Queries
-	logger  *slog.Logger
+	queries      *repository.Queries
+	logger       *slog.Logger
+	auditService *AuditService
 }
 
 func NewTeamService(queries *repository.Queries, logger *slog.Logger) *TeamService {
 	return &TeamService{queries: queries, logger: logger}
+}
+
+func (s *TeamService) SetAuditService(as *AuditService) {
+	s.auditService = as
 }
 
 type CreateTeamInput struct {
@@ -120,6 +125,11 @@ func (s *TeamService) Create(ctx context.Context, input CreateTeamInput) (TeamRe
 	}
 
 	s.logger.Info("team created", "team_id", team.ID, "name", team.Name)
+
+	if s.auditService != nil {
+		go s.auditService.Log(context.Background(), nil, nil, "create", "team", &team.ID, nil, teamToResponse(team), nil)
+	}
+
 	return teamToResponse(team), nil
 }
 
@@ -178,11 +188,16 @@ func (s *TeamService) Update(ctx context.Context, id uuid.UUID, input UpdateTeam
 	}
 
 	s.logger.Info("team updated", "team_id", team.ID, "name", team.Name)
+
+	if s.auditService != nil {
+		go s.auditService.Log(context.Background(), nil, nil, "update", "team", &id, teamToResponse(existing), teamToResponse(team), nil)
+	}
+
 	return teamToResponse(team), nil
 }
 
 func (s *TeamService) Delete(ctx context.Context, id uuid.UUID) error {
-	_, err := s.queries.GetTeamByID(ctx, id)
+	existing, err := s.queries.GetTeamByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.NewDomainError(model.ErrNotFound, "team not found")
@@ -195,6 +210,11 @@ func (s *TeamService) Delete(ctx context.Context, id uuid.UUID) error {
 	}
 
 	s.logger.Info("team deleted", "team_id", id)
+
+	if s.auditService != nil {
+		go s.auditService.Log(context.Background(), nil, nil, "delete", "team", &id, teamToResponse(existing), nil, nil)
+	}
+
 	return nil
 }
 

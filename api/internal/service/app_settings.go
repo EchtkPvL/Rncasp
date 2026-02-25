@@ -11,12 +11,22 @@ import (
 )
 
 type AppSettingsService struct {
-	queries *repository.Queries
-	logger  *slog.Logger
+	queries        *repository.Queries
+	logger         *slog.Logger
+	webhookService *WebhookService
+	auditService   *AuditService
 }
 
 func NewAppSettingsService(queries *repository.Queries, logger *slog.Logger) *AppSettingsService {
 	return &AppSettingsService{queries: queries, logger: logger}
+}
+
+func (s *AppSettingsService) SetWebhookService(ws *WebhookService) {
+	s.webhookService = ws
+}
+
+func (s *AppSettingsService) SetAuditService(as *AuditService) {
+	s.auditService = as
 }
 
 // AppSettingResponse is the API-facing representation of an app setting.
@@ -70,6 +80,17 @@ func (s *AppSettingsService) Set(ctx context.Context, key string, value json.Raw
 		s.logger.Error("failed to upsert app setting", "key", key, "error", err)
 		return nil, err
 	}
+
+	if s.webhookService != nil {
+		go s.webhookService.DispatchGlobal(context.Background(), "settings.changed", map[string]string{
+			"key": key,
+		})
+	}
+
+	if s.auditService != nil {
+		go s.auditService.Log(context.Background(), nil, nil, "update", "setting", nil, nil, map[string]string{"key": key}, nil)
+	}
+
 	resp := appSettingToResponse(setting)
 	return &resp, nil
 }

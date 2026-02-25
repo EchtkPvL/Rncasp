@@ -202,6 +202,14 @@ func (s *EventService) Create(ctx context.Context, input CreateEventInput) (Even
 		go s.auditService.Log(context.Background(), &input.CreatedBy, &event.ID, "create", "event", &event.ID, nil, eventToResponse(event), nil)
 	}
 
+	if s.webhookService != nil {
+		go s.webhookService.DispatchGlobal(context.Background(), "event.created", map[string]string{
+			"event_id": event.ID.String(),
+			"name":     event.Name,
+			"slug":     event.Slug,
+		})
+	}
+
 	return eventToResponse(event), nil
 }
 
@@ -252,6 +260,14 @@ func (s *EventService) Update(ctx context.Context, slug string, input UpdateEven
 		go s.auditService.Log(context.Background(), nil, &updated.ID, "update", "event", &updated.ID, eventToResponse(event), eventToResponse(updated), nil)
 	}
 
+	if s.webhookService != nil {
+		go s.webhookService.Dispatch(context.Background(), updated.ID, "event.updated", map[string]string{
+			"event_id": updated.ID.String(),
+			"name":     updated.Name,
+			"slug":     updated.Slug,
+		})
+	}
+
 	return eventToResponse(updated), nil
 }
 
@@ -272,6 +288,14 @@ func (s *EventService) Delete(ctx context.Context, slug string) error {
 
 	if s.auditService != nil {
 		go s.auditService.Log(context.Background(), nil, &event.ID, "delete", "event", &event.ID, eventToResponse(event), nil, nil)
+	}
+
+	if s.webhookService != nil {
+		go s.webhookService.DispatchGlobal(context.Background(), "event.deleted", map[string]string{
+			"event_id": event.ID.String(),
+			"name":     event.Name,
+			"slug":     slug,
+		})
 	}
 
 	return nil
@@ -307,12 +331,12 @@ func (s *EventService) SetLocked(ctx context.Context, slug string, locked bool) 
 	go func() {
 		bgCtx := context.Background()
 		triggerType := TriggerEventLocked
-		title := "Event locked"
-		body := fmt.Sprintf("Event \"%s\" has been locked", event.Name)
+		title := fmt.Sprintf("%s: Locked", event.Name)
+		body := fmt.Sprintf("Event \"%s\" has been locked — shifts can no longer be edited", event.Name)
 		if !locked {
 			triggerType = TriggerEventUnlocked
-			title = "Event unlocked"
-			body = fmt.Sprintf("Event \"%s\" has been unlocked", event.Name)
+			title = fmt.Sprintf("%s: Unlocked", event.Name)
+			body = fmt.Sprintf("Event \"%s\" has been unlocked — shifts can be edited again", event.Name)
 		}
 		if s.notificationService != nil {
 			s.notificationService.NotifyEventUsers(bgCtx, event.ID, uuid.Nil, triggerType, title, &body)
@@ -474,6 +498,19 @@ func (s *EventService) AddAdmin(ctx context.Context, slug string, userID uuid.UU
 	}
 
 	s.logger.Info("event admin added", "event_id", event.ID, "user_id", userID)
+
+	if s.auditService != nil {
+		go s.auditService.Log(context.Background(), nil, &event.ID, "create", "event_admin", nil, nil, map[string]string{"user_id": userID.String(), "event_slug": slug}, nil)
+	}
+
+	if s.webhookService != nil {
+		go s.webhookService.Dispatch(context.Background(), event.ID, "event.admin_added", map[string]string{
+			"event_id": event.ID.String(),
+			"slug":     slug,
+			"user_id":  userID.String(),
+		})
+	}
+
 	return nil
 }
 
@@ -491,6 +528,19 @@ func (s *EventService) RemoveAdmin(ctx context.Context, slug string, userID uuid
 	}
 
 	s.logger.Info("event admin removed", "event_id", event.ID, "user_id", userID)
+
+	if s.auditService != nil {
+		go s.auditService.Log(context.Background(), nil, &event.ID, "delete", "event_admin", nil, map[string]string{"user_id": userID.String(), "event_slug": slug}, nil, nil)
+	}
+
+	if s.webhookService != nil {
+		go s.webhookService.Dispatch(context.Background(), event.ID, "event.admin_removed", map[string]string{
+			"event_id": event.ID.String(),
+			"slug":     slug,
+			"user_id":  userID.String(),
+		})
+	}
+
 	return nil
 }
 

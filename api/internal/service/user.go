@@ -14,12 +14,22 @@ import (
 )
 
 type UserService struct {
-	queries *repository.Queries
-	logger  *slog.Logger
+	queries        *repository.Queries
+	logger         *slog.Logger
+	webhookService *WebhookService
+	auditService   *AuditService
 }
 
 func NewUserService(queries *repository.Queries, logger *slog.Logger) *UserService {
 	return &UserService{queries: queries, logger: logger}
+}
+
+func (s *UserService) SetWebhookService(ws *WebhookService) {
+	s.webhookService = ws
+}
+
+func (s *UserService) SetAuditService(as *AuditService) {
+	s.auditService = as
 }
 
 type CreateDummyAccountInput struct {
@@ -187,6 +197,30 @@ func (s *UserService) UpdateUser(ctx context.Context, id uuid.UUID, input Update
 	}
 
 	s.logger.Info("user updated", "user_id", id)
+
+	if s.auditService != nil {
+		go s.auditService.Log(context.Background(), nil, nil, "update", "user", &id, userToResponse(existing), userToResponse(updated), nil)
+	}
+
+	if s.webhookService != nil {
+		data := map[string]string{
+			"user_id":  id.String(),
+			"username": updated.Username,
+		}
+		if input.Role != nil {
+			data["old_role"] = existing.Role
+			data["new_role"] = updated.Role
+		}
+		if input.IsActive != nil {
+			data["is_active"] = fmt.Sprintf("%v", updated.IsActive)
+		}
+		if input.AccountType != nil {
+			data["old_account_type"] = existing.AccountType
+			data["new_account_type"] = updated.AccountType
+		}
+		go s.webhookService.DispatchGlobal(context.Background(), "user.updated", data)
+	}
+
 	return userToResponse(updated), nil
 }
 
@@ -223,6 +257,11 @@ func (s *UserService) CreateDummyAccount(ctx context.Context, input CreateDummyA
 	}
 
 	s.logger.Info("dummy account created", "user_id", user.ID, "username", user.Username)
+
+	if s.auditService != nil {
+		go s.auditService.Log(context.Background(), nil, nil, "create", "user", &user.ID, nil, userToResponse(user), nil)
+	}
+
 	return userToResponse(user), nil
 }
 
@@ -272,5 +311,10 @@ func (s *UserService) DeleteDummyAccount(ctx context.Context, id uuid.UUID) erro
 	}
 
 	s.logger.Info("dummy account deleted", "user_id", id)
+
+	if s.auditService != nil {
+		go s.auditService.Log(context.Background(), nil, nil, "delete", "user", &id, userToResponse(existing), nil, nil)
+	}
+
 	return nil
 }

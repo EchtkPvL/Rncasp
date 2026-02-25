@@ -384,11 +384,11 @@ export function ExportModal({
                 </button>
                 <button
                   type="button"
-                  onClick={handlePDF}
-                  disabled={printDisabled || downloadPDF.isPending}
-                  className="rounded-md border border-[var(--color-primary)] px-4 py-2 text-sm text-[var(--color-primary)] disabled:opacity-50"
+                  disabled
+                  title="ToDo"
+                  className="rounded-md border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-muted-foreground)] opacity-50 cursor-not-allowed"
                 >
-                  {downloadPDF.isPending ? t("common:loading") : t("events:download_pdf")}
+                  {t("events:download_pdf")}
                 </button>
                 <button
                   type="button"

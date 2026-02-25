@@ -22,15 +22,20 @@ import (
 )
 
 type AuthService struct {
-	queries     *repository.Queries
-	rdb         *redis.Client
-	cfg         *config.AuthConfig
-	logger      *slog.Logger
-	smtpService *SMTPService
+	queries        *repository.Queries
+	rdb            *redis.Client
+	cfg            *config.AuthConfig
+	logger         *slog.Logger
+	smtpService    *SMTPService
+	webhookService *WebhookService
 }
 
 func (s *AuthService) SetSMTPService(ss *SMTPService) {
 	s.smtpService = ss
+}
+
+func (s *AuthService) SetWebhookService(ws *WebhookService) {
+	s.webhookService = ws
 }
 
 func NewAuthService(
@@ -178,6 +183,14 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput, ip, use
 
 	if role != "super_admin" && s.smtpService != nil {
 		go s.notifySuperAdminsOfRegistration(user.Username, user.Email, user.FullName)
+	}
+
+	if s.webhookService != nil {
+		go s.webhookService.DispatchGlobal(context.Background(), "user.registered", map[string]string{
+			"username":  user.Username,
+			"full_name": user.FullName,
+			"role":      role,
+		})
 	}
 
 	return userToResponse(user), session, nil

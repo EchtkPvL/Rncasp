@@ -37,7 +37,7 @@ func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
 			next.ServeHTTP(rw, r)
 			duration := time.Since(start)
 
-			logger.Info("request",
+			attrs := []any{
 				"method", r.Method,
 				"path", r.URL.Path,
 				"status", rw.status,
@@ -45,7 +45,16 @@ func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
 				"size", rw.size,
 				"remote", r.RemoteAddr,
 				"request_id", GetRequestID(r.Context()),
-			)
+			}
+
+			switch {
+			case rw.status >= 500:
+				logger.Error("request", attrs...)
+			case rw.status >= 400:
+				logger.Warn("request", attrs...)
+			default:
+				logger.Info("request", attrs...)
+			}
 		})
 	}
 }

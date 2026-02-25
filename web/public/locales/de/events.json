@@ -88,5 +88,8 @@
   "no_past_events": "Keine vergangenen Veranstaltungen",
   "copy_public_link": "Öffentlichen Link kopieren",
   "public_link_copied": "Öffentlicher Link in die Zwischenablage kopiert",
-  "open_public_link": "Öffentliche Seite öffnen"
+  "open_public_link": "Öffentliche Seite öffnen",
+  "pdf_error": "PDF-Erstellung fehlgeschlagen. Stellen Sie sicher, dass Chrome/Chromium auf dem Server installiert ist.",
+  "csv_error": "CSV-Download fehlgeschlagen.",
+  "ical_error": "iCal-Download fehlgeschlagen."
 }

@@ -2,9 +2,7 @@
 .ralph/
 .ralphrc
 .claude/
-
-# Plan files
-PLAN-followup.md
+.ralph_backup_*
 
 # Persistent data (bind-mounted by Docker)
 data/postgres/*
@@ -29,6 +27,7 @@ web/node_modules/
 *.dump.sql
 *.dump
 test_data.sql
+scripts/generate_test_data.py
 
 # General logs
 *.log
@@ -56,6 +55,3 @@ target/
 .idea/
 *.swp
 *.swo
-
-# Ralph backup directories (created by migration)
-.ralph_backup_*

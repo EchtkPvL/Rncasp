@@ -54,8 +54,18 @@ func (s *Server) setupRoutes() http.Handler {
 	eventService := service.NewEventService(queries, s.logger, sseBroker)
 	shiftService := service.NewShiftService(queries, s.logger, sseBroker)
 
-	// Wire SMTP into auth service for registration notifications
+	// Wire SMTP and webhooks into auth service for registration notifications
 	authService.SetSMTPService(smtpService)
+	authService.SetWebhookService(webhookService)
+
+	// Wire webhooks and audit into app settings service
+	appSettingsService.SetWebhookService(webhookService)
+	appSettingsService.SetAuditService(auditService)
+
+	// Wire webhooks and audit into user and team services
+	userService.SetWebhookService(webhookService)
+	userService.SetAuditService(auditService)
+	teamService.SetAuditService(auditService)
 
 	// Wire notification, webhook, and audit triggers into event/shift services
 	eventService.SetNotificationService(notificationService)
@@ -81,6 +91,7 @@ func (s *Server) setupRoutes() http.Handler {
 	exportHandler := handler.NewExportHandler(exportService, s.cfg.App.BaseURL)
 	auditHandler := handler.NewAuditHandler(auditService)
 	adminHandler := handler.NewAdminHandler(appSettingsService)
+	adminWebhookHandler := handler.NewAdminWebhookHandler(webhookService)
 	publicHandler := handler.NewPublicHandler(eventService, shiftService, exportService)
 
 	// Authentication middleware (extracts user from cookie, does not reject)
@@ -196,7 +207,7 @@ func (s *Server) setupRoutes() http.Handler {
 		// Audit log (super-admin only)
 		r.With(middleware.RequireAuth, middleware.RequireSuperAdmin).Get("/audit-log", auditHandler.List)
 
-		// Admin: app settings + dashboard (super-admin only)
+		// Admin: app settings + dashboard + global webhooks (super-admin only)
 		r.Route("/admin", func(r chi.Router) {
 			r.Use(middleware.RequireAuth)
 			r.Use(middleware.RequireSuperAdmin)
@@ -205,6 +216,13 @@ func (s *Server) setupRoutes() http.Handler {
 			r.Put("/settings/{key}", adminHandler.SetSetting)
 			r.Delete("/settings/{key}", adminHandler.DeleteSetting)
 			r.Get("/stats", adminHandler.DashboardStats)
+			r.Route("/webhooks", func(r chi.Router) {
+				r.Get("/", adminWebhookHandler.List)
+				r.Post("/", adminWebhookHandler.Create)
+				r.Put("/{webhookId}", adminWebhookHandler.Update)
+				r.Delete("/{webhookId}", adminWebhookHandler.Delete)
+				r.Post("/{webhookId}/test", adminWebhookHandler.Test)
+			})
 		})
 
 		// Public app settings (no auth - needed for login page, color palette, etc.)
@@ -288,6 +306,7 @@ func (s *Server) setupRoutes() http.Handler {
 					r.Post("/", webhookHandler.Create)
 					r.Put("/{webhookId}", webhookHandler.Update)
 					r.Delete("/{webhookId}", webhookHandler.Delete)
+					r.Post("/{webhookId}/test", webhookHandler.Test)
 				})
 			})
 		})
