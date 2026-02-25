@@ -9,6 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"io"
+	"log"
+
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 	"github.com/echtkpvl/rncasp/internal/repository"
@@ -66,7 +69,9 @@ func (g *PDFGenerator) Generate(ctx context.Context, data PDFData, opts PDFOptio
 	)
 	defer allocCancel()
 
-	chromeCtx, chromeCancel := chromedp.NewContext(allocCtx)
+	chromeCtx, chromeCancel := chromedp.NewContext(allocCtx,
+		chromedp.WithErrorf(log.New(io.Discard, "", 0).Printf),
+	)
 	defer chromeCancel()
 
 	var pdfBuf []byte

@@ -373,6 +373,13 @@ export function ExportModal({
                 </div>
               )}
 
+              {/* Error message */}
+              {downloadPDF.isError && (
+                <div className="rounded-md border border-[var(--color-error)] bg-[var(--color-error)]/10 px-3 py-2 text-sm text-[var(--color-error)]">
+                  {t("events:pdf_error")}
+                </div>
+              )}
+
               {/* Print / PDF buttons */}
               <div className="flex justify-end gap-2 pt-2">
                 <button
@@ -384,11 +391,11 @@ export function ExportModal({
                 </button>
                 <button
                   type="button"
-                  disabled
-                  title="ToDo"
-                  className="rounded-md border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-muted-foreground)] opacity-50 cursor-not-allowed"
+                  onClick={handlePDF}
+                  disabled={printDisabled || downloadPDF.isPending}
+                  className="rounded-md border border-[var(--color-primary)] px-4 py-2 text-sm text-[var(--color-primary)] disabled:opacity-50"
                 >
-                  {t("events:download_pdf")}
+                  {downloadPDF.isPending ? t("common:loading") : t("events:download_pdf")}
                 </button>
                 <button
                   type="button"

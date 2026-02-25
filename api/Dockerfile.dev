@@ -1,7 +1,7 @@
 # Development image with Air hot-reload
 FROM golang:1.23-alpine
 
-RUN apk add --no-cache git ca-certificates
+RUN apk add --no-cache git ca-certificates chromium font-noto
 
 # Install Air for hot-reload
 RUN go install github.com/air-verse/air@v1.61.7
