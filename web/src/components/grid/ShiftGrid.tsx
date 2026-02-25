@@ -18,6 +18,7 @@ import { CoverageBar } from "./CoverageBar";
 interface ShiftGridProps {
   event: Event;
   shifts: Shift[];
+  allShifts?: Shift[];
   coverage: CoverageRequirement[];
   availability?: AvailabilityGridEntry[];
   hiddenRanges?: HiddenRange[];
@@ -38,6 +39,7 @@ const SLOT_HEIGHT = 32;
 export function ShiftGrid({
   event,
   shifts,
+  allShifts,
   coverage,
   availability = [],
   hiddenRanges = [],
@@ -261,7 +263,7 @@ export function ShiftGrid({
               teamName={team.name}
               teamColor={team.color}
               coverage={coverage}
-              shifts={shifts}
+              shifts={allShifts || shifts}
               slots={slots}
               slotWidth={slotWidth}
               nameColumnWidth={NAME_COL_WIDTH}

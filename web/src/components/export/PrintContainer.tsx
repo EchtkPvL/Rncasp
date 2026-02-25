@@ -38,10 +38,10 @@ export function PrintContainer({
     };
   }, []);
 
-  // Filter shifts that overlap any selected day, then by selected users
-  const filteredShifts = useMemo(() => {
+  // Filter shifts that overlap any selected day (for coverage: all users)
+  const dayFilteredShifts = useMemo(() => {
     if (!config) return [];
-    let result = shifts.filter((s) => {
+    return shifts.filter((s) => {
       const sStart = new Date(s.start_time).getTime();
       const sEnd = new Date(s.end_time).getTime();
       return config.selectedDays.some((d) => {
@@ -50,12 +50,14 @@ export function PrintContainer({
         return sStart < dayEnd && sEnd > dayStart;
       });
     });
-    if (config.selectedUserIds !== null) {
-      const userSet = new Set(config.selectedUserIds);
-      result = result.filter((s) => userSet.has(s.user_id));
-    }
-    return result;
   }, [shifts, config]);
+
+  // Further filter by selected users (for grid rows display)
+  const filteredShifts = useMemo(() => {
+    if (!config || config.selectedUserIds === null) return dayFilteredShifts;
+    const userSet = new Set(config.selectedUserIds);
+    return dayFilteredShifts.filter((s) => userSet.has(s.user_id));
+  }, [dayFilteredShifts, config]);
 
   // Notify parent when content has rendered
   useEffect(() => {
@@ -74,6 +76,7 @@ export function PrintContainer({
             key={day.toISOString()}
             event={event}
             shifts={filteredShifts}
+            allShifts={dayFilteredShifts}
             coverage={coverage}
             eventTeams={eventTeams}
             hiddenRanges={hiddenRanges}

@@ -230,6 +230,7 @@ export function PublicEventPage() {
             <ShiftGrid
               event={event}
               shifts={filteredShifts}
+              allShifts={gridData.shifts || []}
               coverage={gridData.coverage || []}
               availability={[]}
               hiddenRanges={[]}

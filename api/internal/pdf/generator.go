@@ -50,11 +50,13 @@ func (g *PDFGenerator) Generate(ctx context.Context, data PDFData, opts PDFOptio
 	if len(opts.Days) > 0 {
 		shifts = filterShiftsByDays(shifts, opts.Days)
 	}
+	// Keep day-filtered (but not user-filtered) shifts for coverage totals
+	allShifts := shifts
 	if len(opts.UserIDs) > 0 {
 		shifts = filterShiftsByUsers(shifts, opts.UserIDs)
 	}
 
-	htmlContent := renderHTML(data.Event, shifts, data.EventTeams, data.Coverage, data.HiddenRanges, opts)
+	htmlContent := renderHTML(data.Event, shifts, allShifts, data.EventTeams, data.Coverage, data.HiddenRanges, opts)
 
 	// Paper dimensions in inches
 	width, height := paperDimensions(opts.PaperSize, opts.Landscape)
@@ -258,7 +260,7 @@ func getEventDays(start, end time.Time) []time.Time {
 
 // --- HTML rendering ---
 
-func renderHTML(event repository.Event, shifts []repository.ListShiftsByEventRow, eventTeams []repository.ListEventTeamsRow, coverage []repository.CoverageRequirement, hiddenRanges []repository.EventHiddenRange, opts PDFOptions) string {
+func renderHTML(event repository.Event, shifts []repository.ListShiftsByEventRow, allShifts []repository.ListShiftsByEventRow, eventTeams []repository.ListEventTeamsRow, coverage []repository.CoverageRequirement, hiddenRanges []repository.EventHiddenRange, opts PDFOptions) string {
 	var b strings.Builder
 	b.WriteString(`<!DOCTYPE html>
 <html>
@@ -342,14 +344,14 @@ body { font-family: 'Noto Sans', Arial, sans-serif; font-size: 9pt; color: #000;
 	if opts.Layout == "list" {
 		renderListLayout(&b, event, shifts, opts)
 	} else {
-		renderGridLayout(&b, event, shifts, eventTeams, coverage, hiddenRanges, opts)
+		renderGridLayout(&b, event, shifts, allShifts, eventTeams, coverage, hiddenRanges, opts)
 	}
 
 	b.WriteString("</body>\n</html>")
 	return b.String()
 }
 
-func renderGridLayout(b *strings.Builder, event repository.Event, shifts []repository.ListShiftsByEventRow, eventTeams []repository.ListEventTeamsRow, coverage []repository.CoverageRequirement, hiddenRanges []repository.EventHiddenRange, opts PDFOptions) {
+func renderGridLayout(b *strings.Builder, event repository.Event, shifts []repository.ListShiftsByEventRow, allShifts []repository.ListShiftsByEventRow, eventTeams []repository.ListEventTeamsRow, coverage []repository.CoverageRequirement, hiddenRanges []repository.EventHiddenRange, opts PDFOptions) {
 	days := getEventDays(event.StartTime, event.EndTime)
 	granMinutes := granularityToMinutes(event.TimeGranularity)
 	now := time.Now()
@@ -388,6 +390,13 @@ func renderGridLayout(b *strings.Builder, event repository.Event, shifts []repos
 		for _, s := range shifts {
 			if s.StartTime.Before(dayEndMs) && s.EndTime.After(dayStartMs) {
 				dayShifts = append(dayShifts, s)
+			}
+		}
+		// All shifts for this day (not user-filtered) for coverage totals
+		var allDayShifts []repository.ListShiftsByEventRow
+		for _, s := range allShifts {
+			if s.StartTime.Before(dayEndMs) && s.EndTime.After(dayStartMs) {
+				allDayShifts = append(allDayShifts, s)
 			}
 		}
 
@@ -433,9 +442,9 @@ func renderGridLayout(b *strings.Builder, event repository.Event, shifts []repos
 			b.WriteString("</tr>")
 		}
 
-		// Coverage rows
+		// Coverage rows (use allDayShifts to always show total counts)
 		if opts.ShowCoverage {
-			renderCoverageRows(b, teamMap, slots, granMinutes, dayShifts, coverage)
+			renderCoverageRows(b, teamMap, slots, granMinutes, allDayShifts, coverage)
 		}
 
 		b.WriteString("</tbody></table></div>")

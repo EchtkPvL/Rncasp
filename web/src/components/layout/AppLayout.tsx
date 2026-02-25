@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Outlet } from "react-router";
 import { Navbar } from "./Navbar";
+import { Footer } from "./Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColorPalette } from "@/hooks/useColorPalette";
 import { useAppName } from "@/hooks/useAppName";
@@ -30,6 +31,7 @@ export function AppLayout() {
           <Outlet />
         </div>
       </main>
+      <Footer />
       <KeyboardShortcutHelp open={showKeyboardHelp} onClose={() => setShowKeyboardHelp(false)} />
     </div>
   );

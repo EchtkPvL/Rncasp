@@ -7,6 +7,7 @@ import { useTimeFormat } from "@/hooks/useTimeFormat";
 interface PrintGridPageProps {
   event: Event;
   shifts: Shift[];
+  allShifts?: Shift[];
   coverage: CoverageRequirement[];
   eventTeams: EventTeam[];
   hiddenRanges: HiddenRange[];
@@ -21,6 +22,7 @@ const ROWS_PER_PAGE = 25;
 export function PrintGridPage({
   event,
   shifts,
+  allShifts,
   coverage,
   eventTeams,
   hiddenRanges,
@@ -53,7 +55,7 @@ export function PrintGridPage({
 
   const granMinutes = granularityToMinutes(event.time_granularity);
 
-  // Filter shifts that overlap this day
+  // Filter shifts that overlap this day (user-filtered, for grid rows)
   const dayShifts = useMemo(() => {
     if (slots.length === 0) return [];
     const dayStartMs = slots[0].getTime();
@@ -64,6 +66,18 @@ export function PrintGridPage({
       return sStart < dayEndMs && sEnd > dayStartMs;
     });
   }, [shifts, slots, granMinutes]);
+
+  // All shifts for this day (unfiltered by user, for coverage totals)
+  const allDayShifts = useMemo(() => {
+    if (!allShifts || slots.length === 0) return dayShifts;
+    const dayStartMs = slots[0].getTime();
+    const dayEndMs = slots[slots.length - 1].getTime() + granMinutes * 60 * 1000;
+    return allShifts.filter((s) => {
+      const sStart = new Date(s.start_time).getTime();
+      const sEnd = new Date(s.end_time).getTime();
+      return sStart < dayEndMs && sEnd > dayStartMs;
+    });
+  }, [allShifts, dayShifts, slots, granMinutes]);
 
   // Get distinct users
   const users = useMemo(() => groupShiftsByUser(dayShifts), [dayShifts]);
@@ -103,8 +117,8 @@ export function PrintGridPage({
         const slotMs = slot.getTime();
         const slotEndMs = slotMs + granMinutes * 60 * 1000;
 
-        // Count shifts covering this slot for this team
-        const count = dayShifts.filter((s) => {
+        // Count shifts covering this slot for this team (using all shifts, not user-filtered)
+        const count = allDayShifts.filter((s) => {
           if (s.team_id !== teamId) return false;
           const sStart = new Date(s.start_time).getTime();
           const sEnd = new Date(s.end_time).getTime();
@@ -124,7 +138,7 @@ export function PrintGridPage({
 
       return { teamId, team, slotData };
     });
-  }, [showCoverage, teamMap, slots, granMinutes, dayShifts, coverage]);
+  }, [showCoverage, teamMap, slots, granMinutes, allDayShifts, coverage]);
 
   if (slots.length === 0) return null;
 
