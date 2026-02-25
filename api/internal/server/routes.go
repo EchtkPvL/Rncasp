@@ -188,6 +188,7 @@ func (s *Server) setupRoutes() http.Handler {
 			r.Get("/{userId}", userHandler.GetByID)
 
 			// User management: super-admin only
+			r.With(middleware.RequireSuperAdmin).Post("/", userHandler.Create)
 			r.With(middleware.RequireSuperAdmin).Put("/{userId}", userHandler.UpdateUser)
 
 			// Dummy accounts: super-admin only

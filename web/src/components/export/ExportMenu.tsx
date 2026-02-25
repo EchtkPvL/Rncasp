@@ -14,6 +14,7 @@ interface ExportMenuProps {
   onPrint: (config: PrintConfig) => void;
   onDownloadCSV?: (slug: string) => void;
   onDownloadICal?: (slug: string) => void;
+  onDownloadPDF?: (slug: string, config: PrintConfig) => void;
 }
 
 export function ExportMenu({
@@ -27,6 +28,7 @@ export function ExportMenu({
   onPrint,
   onDownloadCSV,
   onDownloadICal,
+  onDownloadPDF,
 }: ExportMenuProps) {
   const { t } = useTranslation(["events"]);
   const [showModal, setShowModal] = useState(false);
@@ -54,6 +56,7 @@ export function ExportMenu({
           onClose={() => setShowModal(false)}
           onDownloadCSV={onDownloadCSV}
           onDownloadICal={onDownloadICal}
+          onDownloadPDF={onDownloadPDF}
         />
       )}
     </>

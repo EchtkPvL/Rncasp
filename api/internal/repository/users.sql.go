@@ -96,19 +96,21 @@ const listUsers = `-- name: ListUsers :many
 SELECT id, username, full_name, display_name, email, password_hash, role, language, account_type, totp_secret, totp_enabled, is_active, time_format, created_at, updated_at FROM users
 WHERE ($1::varchar IS NULL OR role = $1)
   AND ($2::varchar IS NULL OR account_type = $2)
+  AND ($5::varchar IS NULL OR account_type != $5)
 ORDER BY created_at DESC
 LIMIT $3 OFFSET $4
 `
 
 type ListUsersParams struct {
-	Role        *string `json:"role"`
-	AccountType *string `json:"account_type"`
-	Limit       int32   `json:"limit"`
-	Offset      int32   `json:"offset"`
+	Role               *string `json:"role"`
+	AccountType        *string `json:"account_type"`
+	Limit              int32   `json:"limit"`
+	Offset             int32   `json:"offset"`
+	ExcludeAccountType *string `json:"exclude_account_type"`
 }
 
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error) {
-	rows, err := q.db.Query(ctx, listUsers, arg.Role, arg.AccountType, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, listUsers, arg.Role, arg.AccountType, arg.Limit, arg.Offset, arg.ExcludeAccountType)
 	if err != nil {
 		return nil, err
 	}
@@ -145,10 +147,19 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 
 const countUsers = `-- name: CountUsers :one
 SELECT COUNT(*) FROM users
+WHERE ($1::varchar IS NULL OR role = $1)
+  AND ($2::varchar IS NULL OR account_type = $2)
+  AND ($3::varchar IS NULL OR account_type != $3)
 `
 
-func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countUsers)
+type CountUsersParams struct {
+	Role               *string `json:"role"`
+	AccountType        *string `json:"account_type"`
+	ExcludeAccountType *string `json:"exclude_account_type"`
+}
+
+func (q *Queries) CountUsers(ctx context.Context, arg CountUsersParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countUsers, arg.Role, arg.AccountType, arg.ExcludeAccountType)
 	var count int64
 	err := row.Scan(&count)
 	return count, err

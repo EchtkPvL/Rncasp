@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { auditApi, type AuditLogParams } from "@/api/audit";
 import type { AuditLogEntry } from "@/api/types";
@@ -28,6 +29,23 @@ function formatTime(iso: string, hour12: boolean): string {
     return `${h}:${pad(d.getMinutes())} ${ampm}`;
   }
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function formatDateShort(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function formatDateTimeRange(startIso: string, endIso: string, hour12: boolean): string {
+  const startDate = formatDateShort(startIso);
+  const endDate = formatDateShort(endIso);
+  const startTime = formatTime(startIso, hour12);
+  const endTime = formatTime(endIso, hour12);
+  if (startDate === endDate) {
+    return `${startDate} ${startTime} – ${endTime}`;
+  }
+  return `${startDate} ${startTime} – ${endDate} ${endTime}`;
 }
 
 function isTimestamp(v: unknown): boolean {
@@ -145,9 +163,7 @@ function describeEntity(entry: AuditLogEntry, hour12: boolean): string | null {
     if (typeof val.username === "string") parts.push(`@${val.username}`);
     if (typeof val.team_name === "string") parts.push(val.team_name as string);
     if (typeof val.start_time === "string" && typeof val.end_time === "string") {
-      parts.push(
-        `${formatTime(val.start_time, hour12)}–${formatTime(val.end_time, hour12)}`,
-      );
+      parts.push(formatDateTimeRange(val.start_time, val.end_time, hour12));
     }
     return parts.join(" · ") || null;
   }
@@ -208,10 +224,22 @@ export function AuditLogPage() {
       const allKeys = [
         ...new Set([...Object.keys(oldObj), ...Object.keys(newObj)]),
       ];
+
+      // Check if both start_time and end_time changed — render as combined time range
+      const startChanged = shouldShowField("start_time") &&
+        JSON.stringify(oldObj.start_time) !== JSON.stringify(newObj.start_time);
+      const endChanged = shouldShowField("end_time") &&
+        JSON.stringify(oldObj.end_time) !== JSON.stringify(newObj.end_time);
+      const hasTimeRange = (startChanged || endChanged) &&
+        isTimestamp(oldObj.start_time) && isTimestamp(oldObj.end_time) &&
+        isTimestamp(newObj.start_time) && isTimestamp(newObj.end_time);
+
       const changed = allKeys
         .filter(
           (key) =>
             shouldShowField(key) &&
+            // Skip individual time fields if we'll show combined range
+            !(hasTimeRange && (key === "start_time" || key === "end_time")) &&
             JSON.stringify(oldObj[key]) !== JSON.stringify(newObj[key]),
         )
         .map((key) => ({
@@ -220,10 +248,24 @@ export function AuditLogPage() {
           to: resolveValue(key, newObj[key], newObj, hour12),
         }));
 
-      if (changed.length === 0) return null;
+      if (changed.length === 0 && !hasTimeRange) return null;
 
       return (
         <ul className="space-y-0.5 text-xs">
+          {hasTimeRange && (
+            <li>
+              <span className="font-medium text-[var(--color-muted-foreground)]">
+                {t("admin:audit.field_time")}:
+              </span>{" "}
+              <span className="text-[var(--color-error)]">
+                {formatDateTimeRange(oldObj.start_time as string, oldObj.end_time as string, hour12)}
+              </span>
+              {" → "}
+              <span className="text-[var(--color-success)]">
+                {formatDateTimeRange(newObj.start_time as string, newObj.end_time as string, hour12)}
+              </span>
+            </li>
+          )}
           {changed.map((c) => (
             <li key={c.label}>
               <span className="font-medium text-[var(--color-muted-foreground)]">
@@ -238,15 +280,20 @@ export function AuditLogPage() {
       );
     }
 
-    // Create or delete — show key-value summary instead of raw JSON
+    // Create or delete — show key-value summary with combined time range
     const val = (entry.new_value ?? entry.old_value) as Record<
       string,
       unknown
     > | null;
     if (!val || typeof val !== "object") return null;
 
+    const hasTimeRange = isTimestamp(val.start_time) && isTimestamp(val.end_time);
+
     const fields = Object.entries(val)
-      .filter(([key]) => shouldShowField(key))
+      .filter(([key]) =>
+        shouldShowField(key) &&
+        !(hasTimeRange && (key === "start_time" || key === "end_time"))
+      )
       .map(([key, value]) => ({
         label: fieldLabel(key),
         value: resolveValue(key, value, val, hour12),
@@ -254,6 +301,16 @@ export function AuditLogPage() {
 
     return (
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-xs">
+        {hasTimeRange && (
+          <>
+            <dt className="font-medium text-[var(--color-muted-foreground)]">
+              {t("admin:audit.field_time")}
+            </dt>
+            <dd>
+              {formatDateTimeRange(val.start_time as string, val.end_time as string, hour12)}
+            </dd>
+          </>
+        )}
         {fields.map((f) => (
           <Fragment key={f.label}>
             <dt className="font-medium text-[var(--color-muted-foreground)]">
@@ -369,7 +426,10 @@ export function AuditLogPage() {
                   const entityDesc = describeEntity(entry, hour12);
                   return (
                     <Fragment key={entry.id}>
-                      <tr className="border-b border-[var(--color-border)]/50">
+                      <tr
+                        className={`border-b border-[var(--color-border)]/50 ${hasDetails ? "cursor-pointer hover:bg-[var(--color-muted)]/30" : ""}`}
+                        onClick={hasDetails ? () => toggleExpanded(entry.id) : undefined}
+                      >
                         <td className="whitespace-nowrap py-2 pr-3 font-mono text-xs">
                           {formatTimestamp(entry.created_at, hour12)}
                         </td>
@@ -406,14 +466,9 @@ export function AuditLogPage() {
                         </td>
                         <td className="py-2 text-center">
                           {hasDetails && (
-                            <button
-                              type="button"
-                              onClick={() => toggleExpanded(entry.id)}
-                              className="text-[var(--color-muted-foreground)] hover:text-[var(--color-text-primary)]"
-                              aria-label={t("admin:audit.show_details")}
-                            >
+                            <span className="text-[var(--color-muted-foreground)]">
                               {isExpanded ? "▼" : "▶"}
-                            </button>
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -424,6 +479,17 @@ export function AuditLogPage() {
                             className="bg-[var(--color-muted)]/30 px-4 py-3"
                           >
                             {renderChanges(entry)}
+                            {entry.entity_type === "shift" && entry.action !== "delete" && entry.event_slug && entry.entity_id && (
+                              <div className="mt-2 pt-2 border-t border-[var(--color-border)]/50">
+                                <Link
+                                  to={`/events/${entry.event_slug}`}
+                                  className="inline-block rounded-md bg-[var(--color-primary)] px-3 py-1.5 text-xs font-medium text-[var(--color-primary-foreground)] hover:opacity-90"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {t("admin:audit.view_shift")}
+                                </Link>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       )}

@@ -301,16 +301,19 @@ func (q *Queries) CreateShift(ctx context.Context, arg CreateShiftParams) (Shift
 const updateShift = `-- name: UpdateShift :one
 UPDATE shifts SET
     team_id = COALESCE($2, team_id),
-    start_time = COALESCE($3, start_time),
-    end_time = COALESCE($4, end_time),
+    user_id = COALESCE($3, user_id),
+    start_time = COALESCE($4, start_time),
+    end_time = COALESCE($5, end_time),
     updated_at = NOW()
 WHERE id = $1
 RETURNING id, event_id, team_id, user_id, start_time, end_time, created_by, created_at, updated_at
 `
 
+// NOTE: manually updated to add UserID field — regenerate with sqlc generate
 type UpdateShiftParams struct {
 	ID        uuid.UUID  `json:"id"`
 	TeamID    *uuid.UUID `json:"team_id"`
+	UserID    *uuid.UUID `json:"user_id"`
 	StartTime *time.Time `json:"start_time"`
 	EndTime   *time.Time `json:"end_time"`
 }
@@ -319,6 +322,7 @@ func (q *Queries) UpdateShift(ctx context.Context, arg UpdateShiftParams) (Shift
 	row := q.db.QueryRow(ctx, updateShift,
 		arg.ID,
 		arg.TeamID,
+		arg.UserID,
 		arg.StartTime,
 		arg.EndTime,
 	)

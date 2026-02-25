@@ -7,7 +7,7 @@ export function Footer() {
         rel="noopener noreferrer"
         className="hover:text-[var(--color-foreground)] hover:underline"
       >
-        Rncasp v{__APP_VERSION__}
+        Rncasp {__APP_VERSION__.startsWith("v") ? __APP_VERSION__ : `v${__APP_VERSION__}`}
       </a>
       {" \u00b7 Licensed under "}
       <a

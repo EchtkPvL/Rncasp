@@ -14,8 +14,8 @@ interface AvailabilityEditorProps {
 }
 
 const STATUS_COLORS: Record<AvailabilityStatus, { bg: string; border: string; cls: string }> = {
-  available: { bg: "#bbf7d0", border: "#22c55e", cls: "bg-[#bbf7d0] border-[#22c55e]" },
-  preferred: { bg: "#bfdbfe", border: "#3b82f6", cls: "bg-[#bfdbfe] border-[#3b82f6]" },
+  available: { bg: "#bfdbfe", border: "#3b82f6", cls: "bg-[#bfdbfe] border-[#3b82f6]" },
+  preferred: { bg: "#bbf7d0", border: "#22c55e", cls: "bg-[#bbf7d0] border-[#22c55e]" },
   unavailable: { bg: "#fecaca", border: "#ef4444", cls: "bg-[#fecaca] border-[#ef4444]" },
 };
 

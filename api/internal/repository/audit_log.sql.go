@@ -58,9 +58,10 @@ func (q *Queries) CreateAuditLogEntry(ctx context.Context, arg CreateAuditLogEnt
 }
 
 const listAuditLog = `-- name: ListAuditLog :many
-SELECT al.id, al.user_id, al.event_id, al.action, al.entity_type, al.entity_id, al.old_value, al.new_value, al.ip_address, al.created_at, u.username
+SELECT al.id, al.user_id, al.event_id, al.action, al.entity_type, al.entity_id, al.old_value, al.new_value, al.ip_address, al.created_at, u.username, e.slug AS event_slug
 FROM audit_log al
 LEFT JOIN users u ON al.user_id = u.id
+LEFT JOIN events e ON al.event_id = e.id
 WHERE ($1::uuid IS NULL OR al.event_id = $1)
   AND ($2::uuid IS NULL OR al.user_id = $2)
   AND ($3::varchar IS NULL OR al.action = $3)
@@ -90,6 +91,7 @@ type ListAuditLogRow struct {
 	IpAddress  *string         `json:"ip_address"`
 	CreatedAt  time.Time       `json:"created_at"`
 	Username   *string         `json:"username"`
+	EventSlug  *string         `json:"event_slug"`
 }
 
 func (q *Queries) ListAuditLog(ctx context.Context, arg ListAuditLogParams) ([]ListAuditLogRow, error) {
@@ -120,6 +122,7 @@ func (q *Queries) ListAuditLog(ctx context.Context, arg ListAuditLogParams) ([]L
 			&i.IpAddress,
 			&i.CreatedAt,
 			&i.Username,
+			&i.EventSlug,
 		); err != nil {
 			return nil, err
 		}

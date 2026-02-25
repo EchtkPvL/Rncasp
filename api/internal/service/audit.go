@@ -24,6 +24,7 @@ type AuditLogEntry struct {
 	UserID     *string         `json:"user_id"`
 	Username   *string         `json:"username"`
 	EventID    *string         `json:"event_id"`
+	EventSlug  *string         `json:"event_slug"`
 	Action     string          `json:"action"`
 	EntityType string          `json:"entity_type"`
 	EntityID   *string         `json:"entity_id"`
@@ -81,6 +82,9 @@ func (s *AuditService) ListAuditLog(ctx context.Context, filter AuditLogFilter) 
 		if r.EventID != nil {
 			s := r.EventID.String()
 			entry.EventID = &s
+		}
+		if r.EventSlug != nil {
+			entry.EventSlug = r.EventSlug
 		}
 		if r.EntityID != nil {
 			s := r.EntityID.String()

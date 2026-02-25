@@ -14,7 +14,7 @@ export function Navbar({ user, onLogout }: NavbarProps) {
   const { t } = useTranslation(["common", "admin"]);
   const appName = useAppName();
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
   const location = useLocation();
 
   // Close menu on route change
@@ -22,11 +22,11 @@ export function Navbar({ user, onLogout }: NavbarProps) {
     setMenuOpen(false);
   }, [location.pathname]);
 
-  // Close menu on click outside
+  // Close menu on click outside the entire header (includes hamburger button)
   useEffect(() => {
     if (!menuOpen) return;
     function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
       }
     }
@@ -35,7 +35,7 @@ export function Navbar({ user, onLogout }: NavbarProps) {
   }, [menuOpen]);
 
   return (
-    <header className="border-b border-[var(--color-nav-background)] bg-[var(--color-nav-background)]">
+    <header ref={headerRef} className="border-b border-[var(--color-nav-background)] bg-[var(--color-nav-background)]">
       <nav className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         <div className="flex items-center gap-6">
           <Link
@@ -119,7 +119,7 @@ export function Navbar({ user, onLogout }: NavbarProps) {
           <button
             type="button"
             onClick={() => setMenuOpen(!menuOpen)}
-            className="sm:hidden rounded-md p-2 text-[var(--color-nav-text)]/70 hover:bg-[var(--color-nav-hover)]"
+            className="touch-compact sm:hidden rounded-md p-2 text-[var(--color-nav-text)]/70 hover:bg-[var(--color-nav-hover)]"
             aria-label={t("nav.menu", "Menu")}
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -135,10 +135,7 @@ export function Navbar({ user, onLogout }: NavbarProps) {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div
-          ref={menuRef}
-          className="border-t border-[var(--color-nav-border)] bg-[var(--color-nav-background)] px-4 pb-4 sm:hidden"
-        >
+        <div className="border-t border-[var(--color-nav-border)] bg-[var(--color-nav-background)] px-4 pb-4 sm:hidden">
           {user ? (
             <div className="flex flex-col gap-1 pt-2">
               <MobileLink to="/">{t("nav.dashboard")}</MobileLink>
@@ -156,7 +153,7 @@ export function Navbar({ user, onLogout }: NavbarProps) {
                   <MobileLink to="/admin/settings">{t("admin:settings.title")}</MobileLink>
                   <MobileLink to="/admin/oauth">{t("admin:oauth.title")}</MobileLink>
                   <MobileLink to="/admin/smtp">{t("admin:smtp.title")}</MobileLink>
-                  <MobileLink to="/admin/dummy-accounts">{t("admin:dummy.title")}</MobileLink>
+                  <MobileLink to="/admin/webhooks">{t("admin:global_webhooks.title")}</MobileLink>
                   <MobileLink to="/admin/audit-log">{t("nav.audit_log")}</MobileLink>
                 </>
               )}

@@ -31,6 +31,7 @@ type createShiftRequest struct {
 
 type updateShiftRequest struct {
 	TeamID    *string `json:"team_id"`
+	UserID    *string `json:"user_id"`
 	StartTime *string `json:"start_time"`
 	EndTime   *string `json:"end_time"`
 }
@@ -170,6 +171,15 @@ func (h *ShiftHandler) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		input.TeamID = &id
+	}
+
+	if req.UserID != nil {
+		id, err := uuid.Parse(*req.UserID)
+		if err != nil {
+			model.ErrorResponse(w, model.NewFieldError(model.ErrInvalidInput, "user_id", "invalid user ID"))
+			return
+		}
+		input.UserID = &id
 	}
 
 	if req.StartTime != nil {

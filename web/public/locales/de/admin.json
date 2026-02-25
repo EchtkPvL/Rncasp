@@ -18,6 +18,19 @@
     "account_type": "Kontotyp",
     "convert_to_local": "Beim Konvertieren zu einem lokalen Konto muss ein Passwort gesetzt werden",
     "convert_to_dummy": "Dieser Benutzer kann sich nicht mehr anmelden",
+    "create_user": "Benutzer erstellen",
+    "create_user_title": "Benutzer erstellen",
+    "account_type_filter": "Kontotyp",
+    "all_types": "Alle Typen",
+    "hide_dummy": "Dummy-Konten ausblenden",
+    "password": "Passwort",
+    "password_required": "Passwort ist für lokale Konten erforderlich",
+    "prev_page": "Zurück",
+    "next_page": "Weiter",
+    "showing": "Zeige {{from}}-{{to}} von {{total}}",
+    "type_regular": "Normal",
+    "type_dummy": "Dummy",
+    "delete_confirm": "Sind Sie sicher?",
     "roles": {
       "super_admin": "Super-Admin",
       "user": "Benutzer",
@@ -235,7 +248,9 @@
     "field_public": "Öffentlich",
     "field_user": "Benutzer",
     "field_team": "Team",
+    "field_time": "Zeit",
     "showing": "Zeige {{from}}-{{to}}",
-    "empty": "Keine Änderungsprotokolleinträge gefunden."
+    "empty": "Keine Änderungsprotokolleinträge gefunden.",
+    "view_shift": "Im Event anzeigen"
   }
 }

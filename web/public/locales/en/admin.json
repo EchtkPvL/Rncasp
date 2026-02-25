@@ -18,6 +18,19 @@
     "account_type": "Account Type",
     "convert_to_local": "Setting a password is required when converting to a local account",
     "convert_to_dummy": "This user will no longer be able to log in",
+    "create_user": "Create User",
+    "create_user_title": "Create User",
+    "account_type_filter": "Account type",
+    "all_types": "All types",
+    "hide_dummy": "Hide dummy accounts",
+    "password": "Password",
+    "password_required": "Password is required for local accounts",
+    "prev_page": "Previous",
+    "next_page": "Next",
+    "showing": "Showing {{from}}-{{to}} of {{total}}",
+    "type_regular": "Regular",
+    "type_dummy": "Dummy",
+    "delete_confirm": "Are you sure?",
     "roles": {
       "super_admin": "Super Admin",
       "user": "User",
@@ -235,7 +248,9 @@
     "field_public": "Public",
     "field_user": "User",
     "field_team": "Team",
+    "field_time": "Time",
     "showing": "Showing {{from}}-{{to}}",
-    "empty": "No audit log entries found."
+    "empty": "No audit log entries found.",
+    "view_shift": "View in event"
   }
 }

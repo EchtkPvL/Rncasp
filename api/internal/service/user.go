@@ -43,8 +43,13 @@ type UpdateDummyAccountInput struct {
 	DisplayName *string
 }
 
-// ListUsers returns users with optional filters.
-func (s *UserService) ListUsers(ctx context.Context, role *string, accountType *string, limit, offset int32) ([]UserResponse, error) {
+type ListUsersResult struct {
+	Users []UserResponse `json:"users"`
+	Total int64          `json:"total"`
+}
+
+// ListUsers returns users with optional filters and total count for pagination.
+func (s *UserService) ListUsers(ctx context.Context, role *string, accountType *string, excludeAccountType *string, limit, offset int32) (ListUsersResult, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -53,20 +58,30 @@ func (s *UserService) ListUsers(ctx context.Context, role *string, accountType *
 	}
 
 	users, err := s.queries.ListUsers(ctx, repository.ListUsersParams{
-		Role:        role,
-		AccountType: accountType,
-		Limit:       limit,
-		Offset:      offset,
+		Role:               role,
+		AccountType:        accountType,
+		Limit:              limit,
+		Offset:             offset,
+		ExcludeAccountType: excludeAccountType,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("listing users: %w", err)
+		return ListUsersResult{}, fmt.Errorf("listing users: %w", err)
+	}
+
+	total, err := s.queries.CountUsers(ctx, repository.CountUsersParams{
+		Role:               role,
+		AccountType:        accountType,
+		ExcludeAccountType: excludeAccountType,
+	})
+	if err != nil {
+		return ListUsersResult{}, fmt.Errorf("counting users: %w", err)
 	}
 
 	result := make([]UserResponse, len(users))
 	for i, u := range users {
 		result[i] = userToResponse(u)
 	}
-	return result, nil
+	return ListUsersResult{Users: result, Total: total}, nil
 }
 
 // SearchUsers searches users by query string.
@@ -317,4 +332,93 @@ func (s *UserService) DeleteDummyAccount(ctx context.Context, id uuid.UUID) erro
 	}
 
 	return nil
+}
+
+type CreateUserInput struct {
+	AccountType string
+	Username    string
+	FullName    string
+	DisplayName *string
+	Email       *string
+	Password    *string
+	Role        *string
+}
+
+// CreateUser creates a new user (local or dummy).
+func (s *UserService) CreateUser(ctx context.Context, input CreateUserInput) (UserResponse, error) {
+	if input.Username == "" {
+		return UserResponse{}, model.NewFieldError(model.ErrInvalidInput, "username", "username is required")
+	}
+	if input.FullName == "" {
+		return UserResponse{}, model.NewFieldError(model.ErrInvalidInput, "full_name", "full name is required")
+	}
+
+	validTypes := map[string]bool{"local": true, "dummy": true}
+	if !validTypes[input.AccountType] {
+		return UserResponse{}, model.NewFieldError(model.ErrInvalidInput, "account_type", "account_type must be local or dummy")
+	}
+
+	role := "user"
+	if input.Role != nil {
+		validRoles := map[string]bool{"super_admin": true, "user": true, "read_only": true}
+		if !validRoles[*input.Role] {
+			return UserResponse{}, model.NewFieldError(model.ErrInvalidInput, "role", "invalid role")
+		}
+		role = *input.Role
+	}
+
+	if input.AccountType == "local" {
+		if input.Password == nil || *input.Password == "" {
+			return UserResponse{}, model.NewFieldError(model.ErrInvalidInput, "password", "password is required for local accounts")
+		}
+	}
+
+	// Check for duplicate username
+	_, err := s.queries.GetUserByUsername(ctx, input.Username)
+	if err == nil {
+		return UserResponse{}, model.NewDomainError(model.ErrConflict, "username already taken")
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return UserResponse{}, fmt.Errorf("checking username: %w", err)
+	}
+
+	var passwordHash *string
+	if input.AccountType == "local" && input.Password != nil && *input.Password != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(*input.Password), 12)
+		if err != nil {
+			return UserResponse{}, fmt.Errorf("hashing password: %w", err)
+		}
+		h := string(hash)
+		passwordHash = &h
+	}
+
+	user, err := s.queries.CreateUser(ctx, repository.CreateUserParams{
+		Username:     input.Username,
+		FullName:     input.FullName,
+		DisplayName:  input.DisplayName,
+		Email:        input.Email,
+		PasswordHash: passwordHash,
+		Role:         role,
+		Language:     "en",
+		AccountType:  input.AccountType,
+	})
+	if err != nil {
+		return UserResponse{}, fmt.Errorf("creating user: %w", err)
+	}
+
+	s.logger.Info("user created", "user_id", user.ID, "username", user.Username, "account_type", input.AccountType)
+
+	if s.auditService != nil {
+		go s.auditService.Log(context.Background(), nil, nil, "create", "user", &user.ID, nil, userToResponse(user), nil)
+	}
+
+	if s.webhookService != nil {
+		go s.webhookService.DispatchGlobal(context.Background(), "user.created", map[string]string{
+			"user_id":      user.ID.String(),
+			"username":     user.Username,
+			"account_type": user.AccountType,
+		})
+	}
+
+	return userToResponse(user), nil
 }

@@ -1,7 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useDeleteShift, useUpdateShift } from "@/hooks/useShifts";
 import { useTeams } from "@/hooks/useTeams";
+import { useSearchUsers } from "@/hooks/useUsers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTimeFormat } from "@/hooks/useTimeFormat";
 import { useEscapeKey } from "@/hooks/useKeyboard";
@@ -40,6 +41,12 @@ export function ShiftDetailDialog({ shift, eventSlug, canManageShifts, timeGranu
 
   // Edit form state
   const [editTeamId, setEditTeamId] = useState(shift.team_id);
+  const [editUserId, setEditUserId] = useState(shift.user_id);
+  const [editUserLabel, setEditUserLabel] = useState(shift.user_display_name || shift.user_full_name);
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const { data: searchResults } = useSearchUsers(userSearchQuery);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
   const [editStartTime, setEditStartTime] = useState(snap(toLocalDatetime(new Date(shift.start_time))));
   const [editEndTime, setEditEndTime] = useState(snap(toLocalDatetime(new Date(shift.end_time))));
 
@@ -48,6 +55,18 @@ export function ShiftDetailDialog({ shift, eventSlug, canManageShifts, timeGranu
   const isReadOnly = user?.role === "read_only";
   const canEdit = !isReadOnly && (isOwner || isSuperAdmin || canManageShifts);
   const canDelete = canEdit;
+  const canReassign = isSuperAdmin || canManageShifts;
+
+  // Close user dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(e.target as Node)) {
+        setShowUserDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const startDate = new Date(shift.start_time);
   const endDate = new Date(shift.end_time);
@@ -77,6 +96,7 @@ export function ShiftDetailDialog({ shift, eventSlug, canManageShifts, timeGranu
     try {
       const data: Record<string, string> = {};
       if (editTeamId !== shift.team_id) data.team_id = editTeamId;
+      if (editUserId !== shift.user_id) data.user_id = editUserId;
       const newStart = new Date(editStartTime).toISOString();
       const newEnd = new Date(editEndTime).toISOString();
       if (newStart !== shift.start_time) data.start_time = newStart;
@@ -136,9 +156,47 @@ export function ShiftDetailDialog({ shift, eventSlug, canManageShifts, timeGranu
               </select>
             </div>
 
-            <div className="text-sm text-[var(--color-muted-foreground)]">
-              {t("common:user", "User")}: <span className="font-medium text-[var(--color-foreground)]">{shift.user_display_name || shift.user_full_name}</span>
-            </div>
+            {canReassign ? (
+              <div ref={userDropdownRef} className="relative">
+                <label className="mb-1 block text-sm font-medium">{t("common:user", "User")}</label>
+                <input
+                  type="text"
+                  value={showUserDropdown ? userSearchQuery : editUserLabel}
+                  onChange={(e) => {
+                    setUserSearchQuery(e.target.value);
+                    setShowUserDropdown(true);
+                  }}
+                  onFocus={() => setShowUserDropdown(true)}
+                  placeholder={t("shifts:search_user")}
+                  className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+                />
+                {showUserDropdown && searchResults && searchResults.length > 0 && (
+                  <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-md border border-[var(--color-border)] bg-[var(--color-background)] shadow-lg">
+                    {searchResults.map((u) => (
+                      <li key={u.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditUserId(u.id);
+                            setEditUserLabel(u.display_name || u.full_name);
+                            setUserSearchQuery(u.display_name || u.full_name);
+                            setShowUserDropdown(false);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-muted)]"
+                        >
+                          <span className="font-medium">{u.display_name || u.full_name}</span>
+                          <span className="ml-2 text-[var(--color-muted-foreground)]">@{u.username}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm text-[var(--color-muted-foreground)]">
+                {t("common:user", "User")}: <span className="font-medium text-[var(--color-foreground)]">{shift.user_display_name || shift.user_full_name}</span>
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>

@@ -21,6 +21,16 @@ func NewUserHandler(userService *service.UserService) *UserHandler {
 
 // Request types
 
+type createUserRequest struct {
+	AccountType string  `json:"account_type"`
+	Username    string  `json:"username"`
+	FullName    string  `json:"full_name"`
+	DisplayName *string `json:"display_name"`
+	Email       *string `json:"email"`
+	Password    *string `json:"password"`
+	Role        *string `json:"role"`
+}
+
 type createDummyRequest struct {
 	Username    string  `json:"username"`
 	FullName    string  `json:"full_name"`
@@ -48,6 +58,7 @@ type updateUserRequest struct {
 func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 	role := r.URL.Query().Get("role")
 	accountType := r.URL.Query().Get("account_type")
+	excludeAccountType := r.URL.Query().Get("exclude_account_type")
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
 
@@ -64,20 +75,47 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var rolePtr, accountTypePtr *string
+	var rolePtr, accountTypePtr, excludeAccountTypePtr *string
 	if role != "" {
 		rolePtr = &role
 	}
 	if accountType != "" {
 		accountTypePtr = &accountType
 	}
+	if excludeAccountType != "" {
+		excludeAccountTypePtr = &excludeAccountType
+	}
 
-	users, err := h.userService.ListUsers(r.Context(), rolePtr, accountTypePtr, limit, offset)
+	result, err := h.userService.ListUsers(r.Context(), rolePtr, accountTypePtr, excludeAccountTypePtr, limit, offset)
 	if err != nil {
 		model.ErrorResponse(w, err)
 		return
 	}
-	model.JSON(w, http.StatusOK, users)
+	model.JSON(w, http.StatusOK, result)
+}
+
+// Create creates a new user (super-admin only).
+func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
+	var req createUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		model.ErrorResponse(w, model.NewDomainError(model.ErrInvalidInput, "invalid request body"))
+		return
+	}
+
+	user, err := h.userService.CreateUser(r.Context(), service.CreateUserInput{
+		AccountType: req.AccountType,
+		Username:    req.Username,
+		FullName:    req.FullName,
+		DisplayName: req.DisplayName,
+		Email:       req.Email,
+		Password:    req.Password,
+		Role:        req.Role,
+	})
+	if err != nil {
+		model.ErrorResponse(w, err)
+		return
+	}
+	model.JSON(w, http.StatusCreated, user)
 }
 
 // Search searches users by query string.

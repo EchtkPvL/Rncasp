@@ -41,6 +41,7 @@ RETURNING *;
 -- name: UpdateShift :one
 UPDATE shifts SET
     team_id = COALESCE(sqlc.narg('team_id'), team_id),
+    user_id = COALESCE(sqlc.narg('user_id'), user_id),
     start_time = COALESCE(sqlc.narg('start_time'), start_time),
     end_time = COALESCE(sqlc.narg('end_time'), end_time),
     updated_at = NOW()

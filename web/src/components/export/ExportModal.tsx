@@ -21,6 +21,7 @@ interface ExportModalProps {
   onClose: () => void;
   onDownloadCSV?: (slug: string) => void;
   onDownloadICal?: (slug: string) => void;
+  onDownloadPDF?: (slug: string, config: PrintConfig) => void;
 }
 
 export function ExportModal({
@@ -32,6 +33,7 @@ export function ExportModal({
   onClose,
   onDownloadCSV,
   onDownloadICal,
+  onDownloadPDF,
 }: ExportModalProps) {
   const { t } = useTranslation(["events", "common"]);
   const downloadCSV = useDownloadCSV();
@@ -95,18 +97,20 @@ export function ExportModal({
   }
 
   function handlePDF() {
-    downloadPDF.mutate({
-      slug,
-      config: {
-        layout,
-        paperSize,
-        landscape,
-        showCoverage,
-        showTeamColors,
-        selectedDays,
-        selectedUserIds,
-      },
-    });
+    const config: PrintConfig = {
+      layout,
+      paperSize,
+      landscape,
+      showCoverage,
+      showTeamColors,
+      selectedDays,
+      selectedUserIds,
+    };
+    if (onDownloadPDF) {
+      onDownloadPDF(slug, config);
+    } else {
+      downloadPDF.mutate({ slug, config });
+    }
   }
 
   function toggleDay(day: Date) {

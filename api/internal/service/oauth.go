@@ -577,7 +577,7 @@ func (s *OAuthService) loginOrCreateUser(
 
 	// First user gets super_admin
 	role := "user"
-	count, err := s.queries.CountUsers(ctx)
+	count, err := s.queries.CountUsers(ctx, repository.CountUsersParams{})
 	if err != nil {
 		return UserResponse{}, SessionInfo{}, fmt.Errorf("counting users: %w", err)
 	}

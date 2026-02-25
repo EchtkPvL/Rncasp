@@ -11,11 +11,15 @@ SELECT * FROM users WHERE email = $1;
 SELECT * FROM users
 WHERE ($1::varchar IS NULL OR role = $1)
   AND ($2::varchar IS NULL OR account_type = $2)
+  AND ($5::varchar IS NULL OR account_type != $5)
 ORDER BY created_at DESC
 LIMIT $3 OFFSET $4;
 
 -- name: CountUsers :one
-SELECT COUNT(*) FROM users;
+SELECT COUNT(*) FROM users
+WHERE ($1::varchar IS NULL OR role = $1)
+  AND ($2::varchar IS NULL OR account_type = $2)
+  AND ($3::varchar IS NULL OR account_type != $3);
 
 -- name: CreateUser :one
 INSERT INTO users (username, full_name, display_name, email, password_hash, role, language, account_type)

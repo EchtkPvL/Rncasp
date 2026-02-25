@@ -15,7 +15,6 @@ import { SecuritySettingsPage } from "@/pages/SecuritySettingsPage";
 import { OAuthProvidersPage } from "@/pages/OAuthProvidersPage";
 import { NotificationPreferencesPage } from "@/pages/NotificationPreferencesPage";
 import { SMTPSettingsPage } from "@/pages/SMTPSettingsPage";
-import { DummyAccountsPage } from "@/pages/DummyAccountsPage";
 import { ICalSettingsPage } from "@/pages/ICalSettingsPage";
 import { AuditLogPage } from "@/pages/AuditLogPage";
 import { PublicEventPage } from "@/pages/PublicEventPage";
@@ -192,7 +191,7 @@ function App() {
                   <Route path="settings" element={<AppSettingsPage />} />
                   <Route path="oauth" element={<OAuthProvidersPage />} />
                   <Route path="smtp" element={<SMTPSettingsPage />} />
-                  <Route path="dummy-accounts" element={<DummyAccountsPage />} />
+                  <Route path="dummy-accounts" element={<Navigate to="/admin/users" replace />} />
                   <Route path="webhooks" element={<AdminWebhooksPage />} />
                   <Route path="audit-log" element={<AuditLogPage />} />
                 </Route>

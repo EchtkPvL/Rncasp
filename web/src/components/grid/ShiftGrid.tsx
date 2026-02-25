@@ -4,13 +4,13 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
-  TouchSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
 import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core";
 import type { Event, Shift, CoverageRequirement, HiddenRange, AvailabilityGridEntry, EventTeam } from "@/api/types";
 import { generateTimeSlots, granularityToMinutes, groupShiftsByUser } from "@/lib/time";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { TimeRuler } from "./TimeRuler";
 import { GridRow } from "./GridRow";
 import { CoverageBar } from "./CoverageBar";
@@ -117,13 +117,13 @@ export function ShiftGrid({
     return Array.from(teamMap.values());
   }, [eventTeams, shifts]);
 
-  // DnD state
+  // DnD state — disabled on mobile to avoid unintended changes
+  const isMobile = useIsMobile();
   const [activeDrag, setActiveDrag] = useState<{ shift: Shift; width: number } | null>(null);
-  const dragEnabled = !!(onShiftMove || onShiftResize);
+  const dragEnabled = !isMobile && !!(onShiftMove || onShiftResize);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
   );
 
   // Snap modifier for visual feedback during drag
@@ -247,7 +247,7 @@ export function ShiftGrid({
             onCellClick={onCellClick}
             onShiftClick={onShiftClick}
             dragEnabled={dragEnabled}
-            onResizeDelta={onShiftResize ? handleResizeDelta : undefined}
+            onResizeDelta={!isMobile && onShiftResize ? handleResizeDelta : undefined}
             focusedColIndex={focusedCell?.row === rowIndex ? focusedCell.col : null}
           />
         ))

@@ -23,15 +23,15 @@ interface GridRowProps {
 const AVAILABILITY_STYLES: Record<string, { bg: string; stripe: string }> = {
   available: {
     bg: "var(--color-availability-available)",
-    stripe: "rgba(45, 138, 78, 0.55)",
+    stripe: "rgba(91, 186, 213, 0.45)",
   },
   preferred: {
     bg: "var(--color-availability-preferred)",
-    stripe: "rgba(91, 186, 213, 0.55)",
+    stripe: "rgba(45, 138, 78, 0.45)",
   },
   unavailable: {
     bg: "var(--color-availability-unavailable)",
-    stripe: "rgba(178, 1, 1, 0.40)",
+    stripe: "rgba(178, 1, 1, 0.35)",
   },
 };
 
@@ -41,9 +41,9 @@ function availabilityBackground(status: string) {
   return `repeating-linear-gradient(
     -45deg,
     ${s.bg},
-    ${s.bg} 3px,
-    ${s.stripe} 3px,
-    ${s.stripe} 4px
+    ${s.bg} 4px,
+    ${s.stripe} 4px,
+    ${s.stripe} 6px
   )`;
 }
 
@@ -163,6 +163,7 @@ export function GridRow({
                 i === focusedColIndex ? "ring-2 ring-inset ring-[var(--color-primary)]" : ""
               }`}
               style={{ width: slotWidth, height: slotHeight, background: bg }}
+              title={availStatus ? `${userName}: ${availStatus}` : undefined}
               onClick={() => onCellClick?.(userId, slot)}
             />
           );

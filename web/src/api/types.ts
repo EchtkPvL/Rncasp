@@ -159,6 +159,7 @@ export interface CreateShiftRequest {
 
 export interface UpdateShiftRequest {
   team_id?: string;
+  user_id?: string;
   start_time?: string;
   end_time?: string;
 }
@@ -240,6 +241,23 @@ export interface CreateDummyRequest {
 export interface UpdateDummyRequest {
   full_name?: string;
   display_name?: string;
+}
+
+// Create user (admin)
+export interface CreateUserRequest {
+  account_type: "local" | "dummy";
+  username: string;
+  full_name: string;
+  display_name?: string;
+  email?: string;
+  password?: string;
+  role?: string;
+}
+
+// Paginated user list response
+export interface UserListResponse {
+  users: User[];
+  total: number;
 }
 
 // OAuth
@@ -401,6 +419,7 @@ export interface AuditLogEntry {
   user_id: string | null;
   username: string | null;
   event_id: string | null;
+  event_slug: string | null;
   action: string;
   entity_type: string;
   entity_id: string | null;

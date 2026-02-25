@@ -91,7 +91,7 @@ export function NotificationPreferencesPage() {
                     <button
                       type="button"
                       onClick={() => handleToggle(trigger, ch)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      className={`touch-compact relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                         isEnabled(trigger, ch)
                           ? "bg-[var(--color-primary)]"
                           : "bg-[var(--color-muted)]"

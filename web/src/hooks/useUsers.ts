@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usersApi } from "@/api/users";
-import type { CreateDummyRequest, UpdateDummyRequest } from "@/api/types";
+import type { CreateDummyRequest, UpdateDummyRequest, CreateUserRequest } from "@/api/types";
 
-export function useUsers(params?: { role?: string; account_type?: string; limit?: number; offset?: number }) {
+export function useUsers(params?: { role?: string; account_type?: string; exclude_account_type?: string; limit?: number; offset?: number }) {
   return useQuery({
     queryKey: ["users", params],
     queryFn: async () => {
@@ -18,6 +18,16 @@ export function useDummyAccounts() {
     queryFn: async () => {
       const res = await usersApi.list({ account_type: "dummy", limit: 200 });
       return res.data!;
+    },
+  });
+}
+
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateUserRequest) => usersApi.createUser(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
     },
   });
 }

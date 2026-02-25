@@ -93,7 +93,7 @@ interface UserMultiSelectProps {
   placeholder: string;
 }
 
-function UserMultiSelect({ users, selectedIds, onChange, placeholder }: UserMultiSelectProps) {
+export function UserMultiSelect({ users, selectedIds, onChange, placeholder }: UserMultiSelectProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);

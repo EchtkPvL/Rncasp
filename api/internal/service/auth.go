@@ -140,7 +140,7 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput, ip, use
 
 	// Determine role: first user becomes super_admin, others default to read_only
 	role := "read_only"
-	count, err := s.queries.CountUsers(ctx)
+	count, err := s.queries.CountUsers(ctx, repository.CountUsersParams{})
 	if err != nil {
 		return UserResponse{}, SessionInfo{}, fmt.Errorf("counting users: %w", err)
 	}

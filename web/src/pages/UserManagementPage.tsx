@@ -1,22 +1,44 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
-import { useUsers, useSearchUsers, useUpdateUser } from "@/hooks/useUsers";
+import { useUsers, useSearchUsers, useUpdateUser, useCreateUser, useDeleteDummy } from "@/hooks/useUsers";
 import { ApiError } from "@/api/client";
 import type { User } from "@/api/types";
+
+const PAGE_SIZE = 50;
 
 export function UserManagementPage() {
   const { t } = useTranslation(["admin", "common"]);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
+  const [accountTypeFilter, setAccountTypeFilter] = useState("");
+  const [hideDummy, setHideDummy] = useState(true);
+  const [page, setPage] = useState(0);
   const [error, setError] = useState("");
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  const { data: allUsers, isLoading } = useUsers({ role: roleFilter || undefined, limit: 200 });
-  const { data: searchResults } = useSearchUsers(search);
+  const deleteDummy = useDeleteDummy();
   const updateUser = useUpdateUser();
 
-  const users = search.length >= 1 ? searchResults : allUsers;
+  const effectiveExclude = hideDummy && !accountTypeFilter ? "dummy" : undefined;
+
+  const { data: listResult, isLoading } = useUsers({
+    role: roleFilter || undefined,
+    account_type: accountTypeFilter || undefined,
+    exclude_account_type: effectiveExclude,
+    limit: PAGE_SIZE,
+    offset: page * PAGE_SIZE,
+  });
+  const { data: searchResults } = useSearchUsers(search);
+
+  const users = search.length >= 1 ? searchResults : listResult?.users;
+  const total = listResult?.total ?? 0;
+  const isSearching = search.length >= 1;
+  const from = page * PAGE_SIZE + 1;
+  const to = Math.min((page + 1) * PAGE_SIZE, total);
+  const hasNext = (page + 1) * PAGE_SIZE < total;
+  const hasPrev = page > 0;
 
   async function handleRoleChange(user: User, newRole: string) {
     setError("");
@@ -36,16 +58,41 @@ export function UserManagementPage() {
     }
   }
 
+  function handleDelete(userId: string) {
+    deleteDummy.mutate(userId, {
+      onSuccess: () => setConfirmDelete(null),
+      onError: (err) => {
+        if (err instanceof ApiError) setError(err.message);
+        setConfirmDelete(null);
+      },
+    });
+  }
+
+  // Reset page when filters change
+  function handleRoleFilterChange(value: string) {
+    setRoleFilter(value);
+    setPage(0);
+  }
+  function handleAccountTypeFilterChange(value: string) {
+    setAccountTypeFilter(value);
+    setPage(0);
+  }
+  function handleHideDummyChange(checked: boolean) {
+    setHideDummy(checked);
+    setPage(0);
+  }
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t("admin:users.title")}</h1>
-        <Link
-          to="/admin/dummy-accounts"
-          className="rounded-md bg-[var(--color-muted)] px-3 py-1.5 text-sm hover:bg-[var(--color-border)]"
+        <button
+          type="button"
+          onClick={() => setShowCreateDialog(true)}
+          className="rounded-md bg-[var(--color-primary)] px-3 py-1.5 text-sm text-[var(--color-primary-foreground)]"
         >
-          {t("common:nav.dummy_accounts")}
-        </Link>
+          + {t("admin:users.create_user")}
+        </button>
       </div>
 
       {error && (
@@ -65,14 +112,34 @@ export function UserManagementPage() {
         />
         <select
           value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
+          onChange={(e) => handleRoleFilterChange(e.target.value)}
           className="rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
         >
-          <option value="">{t("admin:users.all_roles", "All roles")}</option>
+          <option value="">{t("admin:users.all_roles")}</option>
           <option value="super_admin">{t("admin:users.roles.super_admin")}</option>
           <option value="user">{t("admin:users.roles.user")}</option>
           <option value="read_only">{t("admin:users.roles.read_only")}</option>
         </select>
+        <select
+          value={accountTypeFilter}
+          onChange={(e) => handleAccountTypeFilterChange(e.target.value)}
+          className="rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+        >
+          <option value="">{t("admin:users.all_types")}</option>
+          <option value="local">local</option>
+          <option value="oauth">oauth</option>
+          <option value="dummy">dummy</option>
+        </select>
+        <label className="flex items-center gap-1.5 text-sm text-[var(--color-muted-foreground)]">
+          <input
+            type="checkbox"
+            checked={hideDummy}
+            onChange={(e) => handleHideDummyChange(e.target.checked)}
+            disabled={accountTypeFilter !== ""}
+            className="rounded"
+          />
+          {t("admin:users.hide_dummy")}
+        </label>
       </div>
 
       {/* User list */}
@@ -83,11 +150,11 @@ export function UserManagementPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-[var(--color-border)] bg-[var(--color-muted)]">
               <tr>
-                <th className="px-4 py-2.5 text-left font-medium">{t("admin:users.username", "Username")}</th>
-                <th className="px-4 py-2.5 text-left font-medium">{t("admin:users.full_name", "Full Name")}</th>
-                <th className="px-4 py-2.5 text-left font-medium">{t("admin:users.type", "Type")}</th>
+                <th className="px-4 py-2.5 text-left font-medium">{t("admin:users.username")}</th>
+                <th className="px-4 py-2.5 text-left font-medium">{t("admin:users.full_name")}</th>
+                <th className="px-4 py-2.5 text-left font-medium">{t("admin:users.type")}</th>
                 <th className="px-4 py-2.5 text-left font-medium">{t("admin:users.role")}</th>
-                <th className="px-4 py-2.5 text-left font-medium">{t("admin:users.status", "Status")}</th>
+                <th className="px-4 py-2.5 text-left font-medium">{t("admin:users.status")}</th>
                 <th className="px-4 py-2.5 text-left font-medium"></th>
               </tr>
             </thead>
@@ -131,7 +198,7 @@ export function UserManagementPage() {
                       type="button"
                       onClick={() => handleToggleActive(user)}
                       disabled={updateUser.isPending}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${
+                      className={`touch-compact relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${
                         user.is_active ? "bg-[var(--color-success)]" : "bg-[var(--color-muted)]"
                       }`}
                       title={user.is_active ? t("admin:users.active") : t("admin:users.deactivated")}
@@ -144,13 +211,35 @@ export function UserManagementPage() {
                     </button>
                   </td>
                   <td className="px-4 py-2.5">
-                    <button
-                      type="button"
-                      onClick={() => setEditingUser(user)}
-                      className="text-xs text-[var(--color-primary)] hover:underline"
-                    >
-                      {t("common:edit")}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingUser(user)}
+                        className="text-xs text-[var(--color-primary)] hover:underline"
+                      >
+                        {t("common:edit")}
+                      </button>
+                      {user.account_type === "dummy" && (
+                        confirmDelete === user.id ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(user.id)}
+                            disabled={deleteDummy.isPending}
+                            className="text-xs text-[var(--color-destructive)] hover:underline disabled:opacity-50"
+                          >
+                            {t("common:confirm")}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDelete(user.id)}
+                            className="text-xs text-[var(--color-destructive)] hover:underline"
+                          >
+                            {t("common:delete")}
+                          </button>
+                        )
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -161,6 +250,33 @@ export function UserManagementPage() {
         <p className="text-sm text-[var(--color-muted-foreground)]">{t("common:no_results")}</p>
       )}
 
+      {/* Pagination */}
+      {!isSearching && total > 0 && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-[var(--color-muted-foreground)]">
+            {t("admin:users.showing", { from, to, total })}
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setPage((p) => p - 1)}
+              disabled={!hasPrev}
+              className="rounded-md border border-[var(--color-border)] px-3 py-1 text-sm disabled:opacity-50"
+            >
+              {t("admin:users.prev_page")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage((p) => p + 1)}
+              disabled={!hasNext}
+              className="rounded-md border border-[var(--color-border)] px-3 py-1 text-sm disabled:opacity-50"
+            >
+              {t("admin:users.next_page")}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Edit User Dialog */}
       {editingUser && (
         <EditUserDialog
@@ -168,6 +284,181 @@ export function UserManagementPage() {
           onClose={() => setEditingUser(null)}
         />
       )}
+
+      {/* Create User Dialog */}
+      {showCreateDialog && (
+        <CreateUserDialog onClose={() => setShowCreateDialog(false)} />
+      )}
+    </div>
+  );
+}
+
+function CreateUserDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation(["admin", "common"]);
+  const createUser = useCreateUser();
+  const [accountType, setAccountType] = useState<"local" | "dummy">("local");
+  const [username, setUsername] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("user");
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    try {
+      await createUser.mutateAsync({
+        account_type: accountType,
+        username,
+        full_name: fullName,
+        display_name: displayName || undefined,
+        email: email || undefined,
+        password: accountType === "local" ? password : undefined,
+        role,
+      });
+      onClose();
+    } catch (err) {
+      if (err instanceof ApiError) setError(err.message);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="w-full max-w-md rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-6 shadow-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-lg font-semibold">{t("admin:users.create_user_title")}</h2>
+
+        {error && (
+          <div className="mt-3 rounded-md bg-[var(--color-destructive-light)] p-2 text-sm text-[var(--color-destructive)]">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+          {/* Account type toggle */}
+          <div>
+            <label className="block text-sm font-medium">{t("admin:users.account_type")}</label>
+            <div className="mt-1 flex rounded-md border border-[var(--color-border)] overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setAccountType("local")}
+                className={`flex-1 px-3 py-1.5 text-sm ${
+                  accountType === "local"
+                    ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
+                    : "bg-[var(--color-background)] hover:bg-[var(--color-muted)]"
+                }`}
+              >
+                {t("admin:users.type_regular")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccountType("dummy")}
+                className={`flex-1 px-3 py-1.5 text-sm ${
+                  accountType === "dummy"
+                    ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
+                    : "bg-[var(--color-background)] hover:bg-[var(--color-muted)]"
+                }`}
+              >
+                {t("admin:users.type_dummy")}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium">{t("admin:users.username")}</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              className="mt-1 block w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium">{t("admin:users.full_name")}</label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              className="mt-1 block w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium">{t("admin:users.display_name")}</label>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder={t("common:optional")}
+              className="mt-1 block w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+            />
+          </div>
+
+          {accountType === "local" && (
+            <div>
+              <label className="block text-sm font-medium">{t("admin:users.email")}</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t("common:optional")}
+                className="mt-1 block w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+              />
+            </div>
+          )}
+
+          {accountType === "local" && (
+            <div>
+              <label className="block text-sm font-medium">{t("admin:users.password")}</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+                className="mt-1 block w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+              />
+              {password.length > 0 && password.length < 8 && (
+                <p className="mt-1 text-xs text-[var(--color-warning)]">{t("common:auth.weak_password")}</p>
+              )}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium">{t("admin:users.role")}</label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="mt-1 block w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+            >
+              <option value="user">{t("admin:users.roles.user")}</option>
+              <option value="super_admin">{t("admin:users.roles.super_admin")}</option>
+              <option value="read_only">{t("admin:users.roles.read_only")}</option>
+            </select>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:bg-[var(--color-muted)]"
+            >
+              {t("common:cancel")}
+            </button>
+            <button
+              type="submit"
+              disabled={createUser.isPending}
+              className="rounded-md bg-[var(--color-primary)] px-3 py-1.5 text-sm text-[var(--color-primary-foreground)] disabled:opacity-50"
+            >
+              {t("common:create")}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

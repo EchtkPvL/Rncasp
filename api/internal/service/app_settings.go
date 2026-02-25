@@ -120,7 +120,7 @@ type DashboardStats struct {
 
 // GetDashboardStats returns aggregated stats for the admin dashboard.
 func (s *AppSettingsService) GetDashboardStats(ctx context.Context) (*DashboardStats, error) {
-	totalUsers, err := s.queries.CountUsers(ctx)
+	totalUsers, err := s.queries.CountUsers(ctx, repository.CountUsersParams{})
 	if err != nil {
 		s.logger.Error("failed to count users", "error", err)
 		return nil, err

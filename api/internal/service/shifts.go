@@ -52,6 +52,7 @@ type CreateShiftInput struct {
 
 type UpdateShiftInput struct {
 	TeamID    *uuid.UUID
+	UserID    *uuid.UUID
 	StartTime *time.Time
 	EndTime   *time.Time
 }
@@ -336,10 +337,20 @@ func (s *ShiftService) Update(ctx context.Context, shiftID uuid.UUID, input Upda
 	}
 
 	// Users can only update their own shifts (unless event admin)
+	isEventAdmin := false
 	if callerRole == "user" && existing.UserID != callerID {
-		isAdmin, _ := s.queries.IsEventAdmin(ctx, event.ID, callerID)
-		if !isAdmin {
+		isEventAdmin, _ = s.queries.IsEventAdmin(ctx, event.ID, callerID)
+		if !isEventAdmin {
 			return ShiftResponse{}, model.NewDomainError(model.ErrForbidden, "users can only modify their own shifts")
+		}
+	} else if callerRole != "user" {
+		isEventAdmin, _ = s.queries.IsEventAdmin(ctx, event.ID, callerID)
+	}
+
+	// Only admins can reassign shifts to a different user
+	if input.UserID != nil && *input.UserID != existing.UserID {
+		if callerRole != "super_admin" && !isEventAdmin {
+			return ShiftResponse{}, model.NewDomainError(model.ErrForbidden, "only admins can reassign shifts")
 		}
 	}
 
@@ -356,9 +367,15 @@ func (s *ShiftService) Update(ctx context.Context, shiftID uuid.UUID, input Upda
 		return ShiftResponse{}, model.NewFieldError(model.ErrInvalidInput, "end_time", "end time must be after start time")
 	}
 
+	// Validate shift is within event time range
+	if startTime.Before(event.StartTime) || endTime.After(event.EndTime) {
+		return ShiftResponse{}, model.NewDomainError(model.ErrInvalidInput, "shift must be within event time range")
+	}
+
 	shift, err := s.queries.UpdateShift(ctx, repository.UpdateShiftParams{
 		ID:        shiftID,
 		TeamID:    input.TeamID,
+		UserID:    input.UserID,
 		StartTime: input.StartTime,
 		EndTime:   input.EndTime,
 	})

@@ -11,6 +11,7 @@ import { DayFilter } from "@/components/grid/DayFilter";
 import { GridSkeleton } from "@/components/common/Skeleton";
 import { ExportMenu } from "@/components/export/ExportMenu";
 import { PrintContainer } from "@/components/export/PrintContainer";
+import { UserMultiSelect } from "@/components/grid/ViewSelector";
 import { groupShiftsByUser } from "@/lib/time";
 import { useTimeFormat } from "@/hooks/useTimeFormat";
 import type { EventTeam, PrintConfig } from "@/api/types";
@@ -38,7 +39,7 @@ export function PublicEventPage() {
   const {
     view: rawView, setView: setRawView,
     selectedTeamId, setSelectedTeamId,
-    selectedUserId, setSelectedUserId,
+    selectedUserIds, setSelectedUserIds,
     selectedDay, setSelectedDay,
   } = useViewParams();
   // Public page doesn't support "my_shifts", fall back to "everything"
@@ -53,6 +54,7 @@ export function PublicEventPage() {
     return groupShiftsByUser(shifts).map((u) => ({
       id: u.id,
       name: u.displayName || u.fullName,
+      username: u.username,
     }));
   }, [gridData?.shifts]);
 
@@ -62,12 +64,15 @@ export function PublicEventPage() {
     switch (view) {
       case "by_team":
         return selectedTeamId ? shifts.filter((s) => s.team_id === selectedTeamId) : shifts;
-      case "per_user":
-        return selectedUserId ? shifts.filter((s) => s.user_id === selectedUserId) : shifts;
+      case "per_user": {
+        if (selectedUserIds.length === 0) return shifts;
+        const idSet = new Set(selectedUserIds);
+        return shifts.filter((s) => idSet.has(s.user_id));
+      }
       default:
         return shifts;
     }
-  }, [gridData?.shifts, view, selectedTeamId, selectedUserId]);
+  }, [gridData?.shifts, view, selectedTeamId, selectedUserIds]);
 
   // Print state (same pattern as EventPage)
   const [printConfig, setPrintConfig] = useState<PrintConfig | null>(null);
@@ -121,8 +126,21 @@ export function PublicEventPage() {
     },
   });
 
+  const downloadPDF = useMutation({
+    mutationFn: async ({ eventSlug, config }: { eventSlug: string; config: PrintConfig }) => {
+      const blob = await publicApi.downloadPDF(eventSlug, config);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${eventSlug}-shifts.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+  });
+
   const handleDownloadCSV = useCallback((s: string) => downloadCSV.mutate(s), [downloadCSV]);
   const handleDownloadICal = useCallback((s: string) => downloadICal.mutate(s), [downloadICal]);
+  const handleDownloadPDF = useCallback((s: string, config: PrintConfig) => downloadPDF.mutate({ eventSlug: s, config }), [downloadPDF]);
 
   if (isEventLoading) {
     return <p className="text-[var(--color-muted-foreground)]">{t("common:loading")}</p>;
@@ -152,9 +170,6 @@ export function PublicEventPage() {
           <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">/{event.slug}</p>
         </div>
         <div className="flex gap-2">
-          <span className="rounded-full bg-[var(--color-info-light)] px-2.5 py-1 text-xs text-[var(--color-info)]">
-            {t("events:public")}
-          </span>
           <ExportMenu
             slug={event.slug}
             event={event}
@@ -165,6 +180,7 @@ export function PublicEventPage() {
             onPrint={handlePrint}
             onDownloadCSV={handleDownloadCSV}
             onDownloadICal={handleDownloadICal}
+            onDownloadPDF={handleDownloadPDF}
           />
         </div>
       </div>
@@ -212,8 +228,8 @@ export function PublicEventPage() {
               selectedTeamId={selectedTeamId}
               onTeamChange={setSelectedTeamId}
               users={shiftUsers}
-              selectedUserId={selectedUserId}
-              onUserChange={setSelectedUserId}
+              selectedUserIds={selectedUserIds}
+              onUserChange={setSelectedUserIds}
             />
           </div>
         </div>
@@ -221,10 +237,10 @@ export function PublicEventPage() {
         {isGridLoading ? (
           <GridSkeleton />
         ) : gridData ? (
-          view === "per_user" && selectedUserId ? (
+          view === "per_user" && selectedUserIds.length === 1 ? (
             <UserShiftList
               shifts={filteredShifts}
-              userName={shiftUsers.find((u) => u.id === selectedUserId)?.name || ""}
+              userName={shiftUsers.find((u) => u.id === selectedUserIds[0])?.name || ""}
             />
           ) : (
             <ShiftGrid
@@ -278,7 +294,7 @@ function PublicViewSelector({
   selectedTeamId,
   onTeamChange,
   users,
-  selectedUserId,
+  selectedUserIds,
   onUserChange,
 }: {
   view: PublicView;
@@ -286,9 +302,9 @@ function PublicViewSelector({
   eventTeams: EventTeam[];
   selectedTeamId: string;
   onTeamChange: (id: string) => void;
-  users: { id: string; name: string }[];
-  selectedUserId: string;
-  onUserChange: (id: string) => void;
+  users: { id: string; name: string; username: string }[];
+  selectedUserIds: string[];
+  onUserChange: (ids: string[]) => void;
 }) {
   const { t } = useTranslation(["shifts", "events"]);
 
@@ -333,18 +349,12 @@ function PublicViewSelector({
       )}
 
       {view === "per_user" && users.length > 0 && (
-        <select
-          value={selectedUserId}
-          onChange={(e) => onUserChange(e.target.value)}
-          className="rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1.5 text-sm"
-        >
-          <option value="">{t("events:select_user")}</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.name}
-            </option>
-          ))}
-        </select>
+        <UserMultiSelect
+          users={users}
+          selectedIds={selectedUserIds}
+          onChange={onUserChange}
+          placeholder={t("events:search_user")}
+        />
       )}
     </div>
   );

@@ -36,9 +36,9 @@
   --color-nav-border: rgba(255, 255, 255, 0.1);
   --color-text-on-dark: #ffffff;
   --color-text-on-color: #ffffff;
-  --color-availability-available: rgba(45, 138, 78, 0.35);
-  --color-availability-preferred: rgba(91, 186, 213, 0.35);
-  --color-availability-unavailable: rgba(178, 1, 1, 0.25);
+  --color-availability-available: rgba(91, 186, 213, 0.12);
+  --color-availability-preferred: rgba(45, 138, 78, 0.12);
+  --color-availability-unavailable: rgba(178, 1, 1, 0.10);
 }
 
 body {
@@ -74,20 +74,20 @@ body {
   to { transform: translateY(100%); opacity: 0; }
 }
 
-/* Mobile touch targets */
+/* Mobile touch targets — scoped to standard interactive elements.
+   Uses .touch-compact to opt out for toggle switches, grid shift blocks,
+   inline icon buttons, and other compact UI controls that set their own size. */
 @media (max-width: 640px) {
-  /* Ensure minimum 44px touch targets on mobile */
-  button,
-  [role="button"],
-  select,
-  a {
+  button:not(.touch-compact),
+  select:not(.touch-compact),
+  a:not(.touch-compact) {
     min-height: 44px;
-    min-width: 44px;
   }
 
-  /* Compact buttons can be smaller if explicitly styled */
-  .text-xs {
-    min-height: 36px;
+  /* Elements with role="button" added by libraries (e.g. dnd-kit) should NOT
+     get forced sizing — they manage their own dimensions. */
+  [role="button"] {
+    min-height: unset;
   }
 }
 
