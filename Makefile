@@ -1,4 +1,4 @@
-.PHONY: dev dev-down build migrate sqlc lint test test-api test-web clean release
+.PHONY: dev dev-down build migrate sqlc lint test test-api test-web test-build clean release
 
 # Development
 dev:
@@ -38,6 +38,14 @@ test-api:
 
 test-web:
 	cd web && npm test 2>/dev/null || true
+
+# Test Docker build (same as GitHub Actions release)
+test-build:
+	@echo "Building API image..."
+	docker build -t rncasp-api:test ./api
+	@echo "Building Web image..."
+	docker build -t rncasp-web:test --build-arg APP_VERSION=test ./web
+	@echo "Both images built successfully."
 
 # Release
 release:

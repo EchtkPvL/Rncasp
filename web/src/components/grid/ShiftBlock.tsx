@@ -76,7 +76,7 @@ export function ShiftBlock({
         top: 2,
         backgroundColor: shift.team_color,
       }}
-      title={`${shift.user_display_name || shift.user_full_name} - ${shift.team_name}`}
+      title={`${shift.user_display_name || shift.user_full_name || shift.username} - ${shift.team_name}`}
       onClick={() => {
         if (!isDragging && !resizingRef.current) onClick?.(shift);
       }}

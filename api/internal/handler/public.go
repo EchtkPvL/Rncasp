@@ -21,6 +21,7 @@ func NewPublicHandler(eventService *service.EventService, shiftService *service.
 }
 
 // GetEvent returns a public event by slug (only if is_public=true).
+// Strips internal fields (created_by, participant_count, updated_at) from the response.
 func (h *PublicHandler) GetEvent(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
 
@@ -35,25 +36,28 @@ func (h *PublicHandler) GetEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	model.JSON(w, http.StatusOK, event)
+	// Return only public-safe fields
+	public := map[string]interface{}{
+		"id":               event.ID,
+		"name":             event.Name,
+		"slug":             event.Slug,
+		"description":      event.Description,
+		"location":         event.Location,
+		"start_time":       event.StartTime,
+		"end_time":         event.EndTime,
+		"time_granularity": event.TimeGranularity,
+		"is_locked":        event.IsLocked,
+		"is_public":        event.IsPublic,
+	}
+	model.JSON(w, http.StatusOK, public)
 }
 
 // GetGrid returns the public grid data for a public event.
+// Uses PublicGridData which excludes availability and sensitive user fields.
 func (h *PublicHandler) GetGrid(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
 
-	event, err := h.eventService.GetBySlug(r.Context(), slug)
-	if err != nil {
-		model.ErrorResponse(w, err)
-		return
-	}
-
-	if !event.IsPublic {
-		model.ErrorResponse(w, model.NewDomainError(model.ErrNotFound, "event not found"))
-		return
-	}
-
-	gridData, err := h.shiftService.GridData(r.Context(), slug)
+	gridData, err := h.shiftService.PublicGridData(r.Context(), slug)
 	if err != nil {
 		model.ErrorResponse(w, err)
 		return

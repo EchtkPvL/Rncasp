@@ -8,12 +8,12 @@ interface EventCardProps {
 }
 
 export function EventCard({ event }: EventCardProps) {
-  const { t } = useTranslation("events");
+  const { t, i18n } = useTranslation("events");
   const hour12 = useTimeFormat();
 
   const startDate = new Date(event.start_time);
   const endDate = new Date(event.end_time);
-  const dateFormatter = new Intl.DateTimeFormat(undefined, {
+  const dateFormatter = new Intl.DateTimeFormat(i18n.language, {
     dateStyle: "medium",
     timeStyle: "short",
     hour12,

@@ -11,15 +11,26 @@ import (
 
 type AdminHandler struct {
 	appSettingsService *service.AppSettingsService
+	cleanupService     *service.CleanupService
 }
 
-func NewAdminHandler(appSettingsService *service.AppSettingsService) *AdminHandler {
-	return &AdminHandler{appSettingsService: appSettingsService}
+func NewAdminHandler(appSettingsService *service.AppSettingsService, cleanupService *service.CleanupService) *AdminHandler {
+	return &AdminHandler{appSettingsService: appSettingsService, cleanupService: cleanupService}
 }
 
 // ListSettings returns all app settings.
 func (h *AdminHandler) ListSettings(w http.ResponseWriter, r *http.Request) {
 	settings, err := h.appSettingsService.ListAll(r.Context())
+	if err != nil {
+		model.ErrorResponse(w, err)
+		return
+	}
+	model.JSON(w, http.StatusOK, settings)
+}
+
+// ListPublicSettings returns only the allowlisted settings for unauthenticated access.
+func (h *AdminHandler) ListPublicSettings(w http.ResponseWriter, r *http.Request) {
+	settings, err := h.appSettingsService.ListPublic(r.Context())
 	if err != nil {
 		model.ErrorResponse(w, err)
 		return
@@ -80,4 +91,14 @@ func (h *AdminHandler) DashboardStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	model.JSON(w, http.StatusOK, stats)
+}
+
+// RunCleanup triggers an immediate cleanup and returns the result.
+func (h *AdminHandler) RunCleanup(w http.ResponseWriter, r *http.Request) {
+	result, err := h.cleanupService.RunNow(r.Context())
+	if err != nil {
+		model.ErrorResponse(w, err)
+		return
+	}
+	model.JSON(w, http.StatusOK, result)
 }

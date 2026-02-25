@@ -10,7 +10,7 @@ import { CreateEventDialog } from "@/components/events/CreateEventDialog";
 import { CardSkeleton } from "@/components/common/Skeleton";
 
 export function DashboardPage() {
-  const { t } = useTranslation(["common", "events"]);
+  const { t, i18n } = useTranslation(["common", "events"]);
   const { user } = useAuth();
   const { data: events, isLoading: eventsLoading } = useEvents();
   const { data: allShifts, isLoading: shiftsLoading } = useMyShifts();
@@ -37,12 +37,12 @@ export function DashboardPage() {
 
   const dateFormatter = useMemo(
     () =>
-      new Intl.DateTimeFormat(undefined, {
+      new Intl.DateTimeFormat(i18n.language, {
         dateStyle: "medium",
         timeStyle: "short",
         hour12,
       }),
-    [hour12],
+    [hour12, i18n.language],
   );
 
   return (

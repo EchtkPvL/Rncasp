@@ -19,6 +19,8 @@ const CSS_VAR_MAP: Record<string, string[]> = {
   info: ["--color-info"],
   navBackground: ["--color-nav-background"],
   navText: ["--color-nav-text"],
+  buttonPrimary: ["--color-button-primary"],
+  buttonSecondary: ["--color-button-secondary"],
 };
 
 // Derive light/foreground/border variants from a hex color

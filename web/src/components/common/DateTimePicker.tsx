@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useTimeFormat } from "@/hooks/useTimeFormat";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
@@ -14,12 +15,12 @@ interface DateTimePickerProps {
 
 const pad = (n: number) => n.toString().padStart(2, "0");
 
-function formatDisplay(value: string, hour12: boolean): string {
+function formatDisplay(value: string, hour12: boolean, locale?: string): string {
   if (!value) return "";
   const d = new Date(value);
   if (isNaN(d.getTime())) return value;
-  const dateStr = d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-  const timeStr = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12 });
+  const dateStr = d.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
+  const timeStr = d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12 });
   return `${dateStr} ${timeStr}`;
 }
 
@@ -60,6 +61,7 @@ export function DateTimePicker({
   className,
 }: DateTimePickerProps) {
   const hour12 = useTimeFormat();
+  const { i18n } = useTranslation();
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -128,7 +130,7 @@ export function DateTimePicker({
         onClick={() => setOpen(!open)}
         className={`w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-left text-sm ${className || ""}`}
       >
-        {value ? formatDisplay(value, hour12) : <span className="text-[var(--color-muted-foreground)]">Select...</span>}
+        {value ? formatDisplay(value, hour12, i18n.language) : <span className="text-[var(--color-muted-foreground)]">Select...</span>}
       </button>
       {required && <input type="hidden" value={value} required />}
 
@@ -168,7 +170,7 @@ export function DateTimePicker({
               {/* Preview */}
               {value && (
                 <p className="text-center text-sm text-[var(--color-muted-foreground)]">
-                  {formatDisplay(value, hour12)}
+                  {formatDisplay(value, hour12, i18n.language)}
                 </p>
               )}
 

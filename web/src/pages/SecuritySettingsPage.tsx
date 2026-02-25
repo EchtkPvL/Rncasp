@@ -30,6 +30,7 @@ function ProfileSection() {
   const [displayName, setDisplayName] = useState(user?.display_name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [timeFormat, setTimeFormat] = useState(user?.time_format ?? "24h");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -39,6 +40,10 @@ function ProfileSection() {
     e.preventDefault();
     setError("");
     setSuccess("");
+    if (password && password !== confirmPassword) {
+      setError(t("common:auth.passwords_mismatch"));
+      return;
+    }
     setLoading(true);
     try {
       const data: Record<string, string> = {};
@@ -55,6 +60,7 @@ function ProfileSection() {
 
       await authApi.updateProfile(data);
       setPassword("");
+      setConfirmPassword("");
       setSuccess(t("admin:profile.saved"));
       await refreshUser();
     } catch (err) {
@@ -130,6 +136,29 @@ function ProfileSection() {
             className="mt-1 block w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
           />
         </div>
+        {password && (
+          <div>
+            <label htmlFor="profile-confirm-password" className="block text-sm font-medium">
+              {t("common:auth.confirm_password")}
+            </label>
+            <input
+              id="profile-confirm-password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              autoComplete="new-password"
+              className={`mt-1 block w-full rounded-md border bg-[var(--color-background)] px-3 py-2 text-sm ${
+                confirmPassword && confirmPassword !== password
+                  ? "border-[var(--color-destructive)]"
+                  : "border-[var(--color-border)]"
+              }`}
+            />
+            {confirmPassword && confirmPassword !== password && (
+              <p className="mt-1 text-xs text-[var(--color-destructive)]">{t("common:auth.passwords_mismatch")}</p>
+            )}
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium">{t("admin:profile.time_format")}</label>
           <div className="mt-1 flex gap-4">

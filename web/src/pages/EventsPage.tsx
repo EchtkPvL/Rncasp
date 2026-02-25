@@ -9,7 +9,7 @@ import { CreateEventDialog } from "@/components/events/CreateEventDialog";
 import { CardSkeleton } from "@/components/common/Skeleton";
 
 export function EventsPage() {
-  const { t } = useTranslation(["events", "common"]);
+  const { t, i18n } = useTranslation(["events", "common"]);
   const { user } = useAuth();
   const { data: events, isLoading } = useEvents();
   const hour12 = useTimeFormat();
@@ -35,12 +35,12 @@ export function EventsPage() {
 
   const dateFormatter = useMemo(
     () =>
-      new Intl.DateTimeFormat(undefined, {
+      new Intl.DateTimeFormat(i18n.language, {
         dateStyle: "medium",
         timeStyle: "short",
         hour12,
       }),
-    [hour12],
+    [hour12, i18n.language],
   );
 
   return (

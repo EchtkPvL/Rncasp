@@ -13,6 +13,7 @@ import (
 
 	"github.com/echtkpvl/rncasp/internal/config"
 	"github.com/echtkpvl/rncasp/internal/migrate"
+	"github.com/echtkpvl/rncasp/internal/service"
 	"github.com/echtkpvl/rncasp/internal/sse"
 	"github.com/echtkpvl/rncasp/migrations"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,12 +21,13 @@ import (
 )
 
 type Server struct {
-	cfg       *config.Config
-	db        *pgxpool.Pool
-	rdb       *redis.Client
-	router    http.Handler
-	logger    *slog.Logger
-	sseBroker *sse.Broker
+	cfg            *config.Config
+	db             *pgxpool.Pool
+	rdb            *redis.Client
+	router         http.Handler
+	logger         *slog.Logger
+	sseBroker      *sse.Broker
+	cleanupService *service.CleanupService
 }
 
 func New(cfg *config.Config, logger *slog.Logger) (*Server, error) {
@@ -146,6 +148,9 @@ func (s *Server) Start() error {
 		return fmt.Errorf("server shutdown: %w", err)
 	}
 
+	if s.cleanupService != nil {
+		s.cleanupService.Stop()
+	}
 	if s.sseBroker != nil {
 		s.sseBroker.Close()
 	}

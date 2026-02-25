@@ -36,6 +36,8 @@
   --color-nav-border: rgba(255, 255, 255, 0.1);
   --color-text-on-dark: #ffffff;
   --color-text-on-color: #ffffff;
+  --color-button-primary: #e26729;
+  --color-button-secondary: #818181;
   --color-availability-available: rgba(91, 186, 213, 0.12);
   --color-availability-preferred: rgba(45, 138, 78, 0.12);
   --color-availability-unavailable: rgba(178, 1, 1, 0.10);

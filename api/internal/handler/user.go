@@ -238,6 +238,21 @@ func (h *UserHandler) UpdateDummy(w http.ResponseWriter, r *http.Request) {
 	model.JSON(w, http.StatusOK, user)
 }
 
+// DisableTOTP disables TOTP 2FA for a user (super-admin only).
+func (h *UserHandler) DisableTOTP(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "userId"))
+	if err != nil {
+		model.ErrorResponse(w, model.NewDomainError(model.ErrInvalidInput, "invalid user ID"))
+		return
+	}
+
+	if err := h.userService.AdminDisableTOTP(r.Context(), id); err != nil {
+		model.ErrorResponse(w, err)
+		return
+	}
+	model.JSON(w, http.StatusOK, map[string]string{"message": "TOTP disabled"})
+}
+
 // DeleteDummy deletes a dummy account (super-admin only).
 func (h *UserHandler) DeleteDummy(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "userId"))

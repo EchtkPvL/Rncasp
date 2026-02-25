@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n/config";
 import type { Shift, CoverageRequirement, EventTeam } from "@/api/types";
 
 interface ShiftStatsProps {
@@ -82,7 +83,7 @@ export function ShiftStats({ shifts, coverage, eventTeams, eventStartTime, event
     // Per-day stats
     const dayMap = new Map<string, { totalMs: number; shiftCount: number; userIds: Set<string> }>();
     for (const s of shifts) {
-      const dayKey = new Date(s.start_time).toLocaleDateString(undefined, {
+      const dayKey = new Date(s.start_time).toLocaleDateString(i18n.language, {
         weekday: "short",
         day: "numeric",
         month: "short",

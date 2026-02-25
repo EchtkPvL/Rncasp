@@ -57,6 +57,7 @@ type CreateEventInput struct {
 
 type UpdateEventInput struct {
 	Name             *string
+	Slug             *string
 	Description      *string
 	Location         *string
 	ParticipantCount *int32
@@ -222,6 +223,20 @@ func (s *EventService) Update(ctx context.Context, slug string, input UpdateEven
 		return EventResponse{}, fmt.Errorf("fetching event: %w", err)
 	}
 
+	// Validate and check slug uniqueness if changing
+	if input.Slug != nil && *input.Slug != event.Slug {
+		if !slugRegex.MatchString(*input.Slug) {
+			return EventResponse{}, model.NewFieldError(model.ErrInvalidInput, "slug", "slug must contain only letters, numbers, hyphens, and underscores")
+		}
+		_, err := s.queries.GetEventBySlug(ctx, *input.Slug)
+		if err == nil {
+			return EventResponse{}, model.NewFieldError(model.ErrAlreadyExists, "slug", "slug already in use")
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return EventResponse{}, fmt.Errorf("checking slug: %w", err)
+		}
+	}
+
 	// Validate granularity if changing
 	if input.TimeGranularity != nil && !validGranularities[*input.TimeGranularity] {
 		return EventResponse{}, model.NewFieldError(model.ErrInvalidInput, "time_granularity", "must be 15min, 30min, or 1hour")
@@ -243,6 +258,7 @@ func (s *EventService) Update(ctx context.Context, slug string, input UpdateEven
 	updated, err := s.queries.UpdateEvent(ctx, repository.UpdateEventParams{
 		ID:               event.ID,
 		Name:             input.Name,
+		Slug:             input.Slug,
 		Description:      input.Description,
 		Location:         input.Location,
 		ParticipantCount: input.ParticipantCount,

@@ -14,3 +14,6 @@ WHERE ($1::uuid IS NULL OR al.event_id = $1)
   AND ($4::varchar IS NULL OR al.entity_type = $4)
 ORDER BY al.created_at DESC
 LIMIT $5 OFFSET $6;
+
+-- name: DeleteOldAuditLog :execrows
+DELETE FROM audit_log WHERE created_at < $1;

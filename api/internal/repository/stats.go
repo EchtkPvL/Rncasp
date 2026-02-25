@@ -37,3 +37,48 @@ func (q *Queries) CountTeams(ctx context.Context) (int64, error) {
 	err := row.Scan(&count)
 	return count, err
 }
+
+const countSessions = `SELECT COUNT(*) FROM sessions`
+
+func (q *Queries) CountSessions(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countSessions)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countExpiredSessions = `SELECT COUNT(*) FROM sessions WHERE expires_at <= NOW()`
+
+func (q *Queries) CountExpiredSessions(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countExpiredSessions)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countAuditLogEntries = `SELECT COUNT(*) FROM audit_log`
+
+func (q *Queries) CountAuditLogEntries(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countAuditLogEntries)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countNotifications = `SELECT COUNT(*) FROM notifications`
+
+func (q *Queries) CountNotifications(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countNotifications)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countReadNotifications = `SELECT COUNT(*) FROM notifications WHERE is_read = true`
+
+func (q *Queries) CountReadNotifications(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countReadNotifications)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}

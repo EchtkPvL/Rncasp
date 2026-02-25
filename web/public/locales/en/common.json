@@ -69,6 +69,8 @@
     "totp_code": "Authentication Code",
     "totp_verify_button": "Verify",
     "totp_recovery_hint": "You can also use a recovery code.",
+    "confirm_password": "Confirm Password",
+    "passwords_mismatch": "Passwords do not match",
     "weak_password": "Weak password — consider using at least 8 characters",
     "registration_disabled": "Registration is currently disabled. Please contact an administrator.",
     "username_taken": "This username is already taken.",

@@ -1,4 +1,5 @@
 import type { HiddenRange } from "@/api/types";
+import i18n from "@/i18n/config";
 
 /** Convert granularity string to minutes */
 export function granularityToMinutes(granularity: "15min" | "30min" | "1hour"): number {
@@ -61,12 +62,12 @@ export function isNewDay(slot: Date, prevSlot: Date | null): boolean {
 
 /** Format a time slot for display (e.g., "14:00" or "2:00 PM") */
 export function formatSlotTime(date: Date, hour12 = false): string {
-  return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12 });
+  return date.toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit", hour12 });
 }
 
 /** Format a date header (e.g., "Mon 15 Jan") */
 export function formatDayHeader(date: Date): string {
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(i18n.language, {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -119,14 +120,14 @@ export function getEventDays(startTime: string, endTime: string): Date[] {
 }
 
 /** Group shifts by user */
-export function groupShiftsByUser(shifts: { user_id: string; username: string; user_full_name: string; user_display_name: string | null }[]) {
+export function groupShiftsByUser(shifts: { user_id: string; username: string; user_full_name?: string; user_display_name: string | null }[]) {
   const users = new Map<string, { id: string; username: string; fullName: string; displayName: string | null }>();
   for (const shift of shifts) {
     if (!users.has(shift.user_id)) {
       users.set(shift.user_id, {
         id: shift.user_id,
         username: shift.username,
-        fullName: shift.user_full_name,
+        fullName: shift.user_full_name || shift.username,
         displayName: shift.user_display_name,
       });
     }

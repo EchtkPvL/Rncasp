@@ -36,9 +36,13 @@ export function useUpdateEvent() {
   return useMutation({
     mutationFn: ({ slug, data }: { slug: string; data: UpdateEventRequest }) =>
       eventsApi.update(slug, data),
-    onSuccess: (_data, vars) => {
+    onSuccess: (_res, vars) => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
       queryClient.invalidateQueries({ queryKey: ["events", vars.slug] });
+      // If slug changed, also invalidate new slug queries
+      if (vars.data.slug && vars.data.slug !== vars.slug) {
+        queryClient.invalidateQueries({ queryKey: ["events", vars.data.slug] });
+      }
     },
   });
 }

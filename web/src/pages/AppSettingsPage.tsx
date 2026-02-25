@@ -66,6 +66,13 @@ export function AppSettingsPage() {
   const [registrationEnabled, setRegistrationEnabled] = useState(true);
   const [defaultLanguage, setDefaultLanguage] = useState("en");
   const [palette, setPalette] = useState<ColorPalette | null>(null);
+  const [cleanup, setCleanup] = useState({
+    cleanup_enabled: true,
+    cleanup_interval_hours: 24,
+    retention_days_audit: 90,
+    retention_days_notifications: 30,
+    retention_days_recovery_codes: 90,
+  });
 
   // Parse settings from API into local state
   useEffect(() => {
@@ -83,6 +90,9 @@ export function AppSettingsPage() {
           break;
         case "color_palette":
           setPalette(setting.value as ColorPalette);
+          break;
+        case "cleanup":
+          setCleanup(setting.value as typeof cleanup);
           break;
       }
     }
@@ -115,6 +125,14 @@ export function AppSettingsPage() {
 
   function handleResetPalette() {
     setPalette({ ...DEFAULT_PALETTE });
+  }
+
+  function handleSaveCleanup() {
+    updateSetting.mutate({ key: "cleanup", value: cleanup });
+  }
+
+  function handleToggleCleanup() {
+    setCleanup((prev) => ({ ...prev, cleanup_enabled: !prev.cleanup_enabled }));
   }
 
   if (isLoading) {
@@ -204,6 +222,82 @@ export function AppSettingsPage() {
             }`}
           >
             Deutsch
+          </button>
+        </div>
+      </section>
+
+      {/* Data Retention */}
+      <section className="mt-4 rounded-lg border border-[var(--color-border)] p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">{t("admin:settings.cleanup_title")}</h2>
+            <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
+              {t("admin:settings.cleanup_description")}
+            </p>
+          </div>
+          <button
+            onClick={handleToggleCleanup}
+            disabled={updateSetting.isPending}
+            className={`touch-compact relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+              cleanup.cleanup_enabled ? "bg-[var(--color-primary)]" : "bg-[var(--color-muted)]"
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                cleanup.cleanup_enabled ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="text-sm font-medium">{t("admin:settings.cleanup_interval")}</label>
+            <input
+              type="number"
+              min="1"
+              value={cleanup.cleanup_interval_hours}
+              onChange={(e) => setCleanup((prev) => ({ ...prev, cleanup_interval_hours: parseInt(e.target.value) || 1 }))}
+              className="mt-1 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">{t("admin:settings.cleanup_retention_audit")}</label>
+            <input
+              type="number"
+              min="1"
+              value={cleanup.retention_days_audit}
+              onChange={(e) => setCleanup((prev) => ({ ...prev, retention_days_audit: parseInt(e.target.value) || 1 }))}
+              className="mt-1 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">{t("admin:settings.cleanup_retention_notifications")}</label>
+            <input
+              type="number"
+              min="1"
+              value={cleanup.retention_days_notifications}
+              onChange={(e) => setCleanup((prev) => ({ ...prev, retention_days_notifications: parseInt(e.target.value) || 1 }))}
+              className="mt-1 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">{t("admin:settings.cleanup_retention_recovery")}</label>
+            <input
+              type="number"
+              min="1"
+              value={cleanup.retention_days_recovery_codes}
+              onChange={(e) => setCleanup((prev) => ({ ...prev, retention_days_recovery_codes: parseInt(e.target.value) || 1 }))}
+              className="mt-1 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+        <div className="mt-3 flex justify-end">
+          <button
+            onClick={handleSaveCleanup}
+            disabled={updateSetting.isPending}
+            className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-[var(--color-primary-foreground)] disabled:opacity-50"
+          >
+            {t("common:save")}
           </button>
         </div>
       </section>

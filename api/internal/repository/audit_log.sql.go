@@ -57,6 +57,18 @@ func (q *Queries) CreateAuditLogEntry(ctx context.Context, arg CreateAuditLogEnt
 	return i, err
 }
 
+const deleteOldAuditLog = `-- name: DeleteOldAuditLog :execrows
+DELETE FROM audit_log WHERE created_at < $1
+`
+
+func (q *Queries) DeleteOldAuditLog(ctx context.Context, createdAt time.Time) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteOldAuditLog, createdAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const listAuditLog = `-- name: ListAuditLog :many
 SELECT al.id, al.user_id, al.event_id, al.action, al.entity_type, al.entity_id, al.old_value, al.new_value, al.ip_address, al.created_at, u.username, e.slug AS event_slug
 FROM audit_log al

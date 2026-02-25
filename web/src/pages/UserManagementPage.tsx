@@ -1,13 +1,16 @@
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { useUsers, useSearchUsers, useUpdateUser, useCreateUser, useDeleteDummy } from "@/hooks/useUsers";
+import { useUsers, useSearchUsers, useUpdateUser, useCreateUser, useDeleteDummy, useDisableUserTotp } from "@/hooks/useUsers";
+import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/api/client";
 import type { User } from "@/api/types";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 
 const PAGE_SIZE = 50;
 
 export function UserManagementPage() {
   const { t } = useTranslation(["admin", "common"]);
+  const { user: currentUser } = useAuth();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [accountTypeFilter, setAccountTypeFilter] = useState("");
@@ -17,6 +20,8 @@ export function UserManagementPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [pendingSelfRole, setPendingSelfRole] = useState<{ user: User; role: string } | null>(null);
+  const [pendingSelfDeactivate, setPendingSelfDeactivate] = useState<User | null>(null);
 
   const deleteDummy = useDeleteDummy();
   const updateUser = useUpdateUser();
@@ -41,6 +46,14 @@ export function UserManagementPage() {
   const hasPrev = page > 0;
 
   async function handleRoleChange(user: User, newRole: string) {
+    if (user.id === currentUser?.id && newRole !== user.role) {
+      setPendingSelfRole({ user, role: newRole });
+      return;
+    }
+    await doRoleChange(user, newRole);
+  }
+
+  async function doRoleChange(user: User, newRole: string) {
     setError("");
     try {
       await updateUser.mutateAsync({ userId: user.id, data: { role: newRole } });
@@ -50,6 +63,14 @@ export function UserManagementPage() {
   }
 
   async function handleToggleActive(user: User) {
+    if (user.id === currentUser?.id && user.is_active) {
+      setPendingSelfDeactivate(user);
+      return;
+    }
+    await doToggleActive(user);
+  }
+
+  async function doToggleActive(user: User) {
     setError("");
     try {
       await updateUser.mutateAsync({ userId: user.id, data: { is_active: !user.is_active } });
@@ -220,16 +241,6 @@ export function UserManagementPage() {
                         {t("common:edit")}
                       </button>
                       {user.account_type === "dummy" && (
-                        confirmDelete === user.id ? (
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(user.id)}
-                            disabled={deleteDummy.isPending}
-                            className="text-xs text-[var(--color-destructive)] hover:underline disabled:opacity-50"
-                          >
-                            {t("common:confirm")}
-                          </button>
-                        ) : (
                           <button
                             type="button"
                             onClick={() => setConfirmDelete(user.id)}
@@ -237,7 +248,6 @@ export function UserManagementPage() {
                           >
                             {t("common:delete")}
                           </button>
-                        )
                       )}
                     </div>
                   </td>
@@ -289,6 +299,40 @@ export function UserManagementPage() {
       {showCreateDialog && (
         <CreateUserDialog onClose={() => setShowCreateDialog(false)} />
       )}
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title={t("common:delete")}
+        message={t("admin:users.delete_confirm")}
+        destructive
+        loading={deleteDummy.isPending}
+        onConfirm={() => { if (confirmDelete) handleDelete(confirmDelete); }}
+        onCancel={() => setConfirmDelete(null)}
+      />
+
+      <ConfirmDialog
+        open={pendingSelfRole !== null}
+        title={t("admin:users.role")}
+        message={t("admin:users.self_role_warning")}
+        destructive
+        onConfirm={() => {
+          if (pendingSelfRole) doRoleChange(pendingSelfRole.user, pendingSelfRole.role);
+          setPendingSelfRole(null);
+        }}
+        onCancel={() => setPendingSelfRole(null)}
+      />
+
+      <ConfirmDialog
+        open={pendingSelfDeactivate !== null}
+        title={t("admin:users.status")}
+        message={t("admin:users.self_deactivate_warning")}
+        destructive
+        onConfirm={() => {
+          if (pendingSelfDeactivate) doToggleActive(pendingSelfDeactivate);
+          setPendingSelfDeactivate(null);
+        }}
+        onCancel={() => setPendingSelfDeactivate(null)}
+      />
     </div>
   );
 }
@@ -302,12 +346,17 @@ function CreateUserDialog({ onClose }: { onClose: () => void }) {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState("user");
   const [error, setError] = useState("");
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
+    if (accountType === "local" && password !== confirmPassword) {
+      setError(t("common:auth.passwords_mismatch"));
+      return;
+    }
     try {
       await createUser.mutateAsync({
         account_type: accountType,
@@ -412,20 +461,40 @@ function CreateUserDialog({ onClose }: { onClose: () => void }) {
           )}
 
           {accountType === "local" && (
-            <div>
-              <label className="block text-sm font-medium">{t("admin:users.password")}</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="new-password"
-                className="mt-1 block w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
-              />
-              {password.length > 0 && password.length < 8 && (
-                <p className="mt-1 text-xs text-[var(--color-warning)]">{t("common:auth.weak_password")}</p>
-              )}
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium">{t("admin:users.password")}</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  className="mt-1 block w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+                />
+                {password.length > 0 && password.length < 8 && (
+                  <p className="mt-1 text-xs text-[var(--color-warning)]">{t("common:auth.weak_password")}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium">{t("common:auth.confirm_password")}</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  className={`mt-1 block w-full rounded-md border bg-[var(--color-background)] px-3 py-2 text-sm ${
+                    confirmPassword && confirmPassword !== password
+                      ? "border-[var(--color-destructive)]"
+                      : "border-[var(--color-border)]"
+                  }`}
+                />
+                {confirmPassword && confirmPassword !== password && (
+                  <p className="mt-1 text-xs text-[var(--color-destructive)]">{t("common:auth.passwords_mismatch")}</p>
+                )}
+              </div>
+            </>
           )}
 
           <div>
@@ -466,13 +535,16 @@ function CreateUserDialog({ onClose }: { onClose: () => void }) {
 function EditUserDialog({ user, onClose }: { user: User; onClose: () => void }) {
   const { t } = useTranslation(["admin", "common"]);
   const updateUser = useUpdateUser();
+  const disableTotp = useDisableUserTotp();
   const [username, setUsername] = useState(user.username);
   const [fullName, setFullName] = useState(user.full_name);
   const [displayName, setDisplayName] = useState(user.display_name || "");
   const [email, setEmail] = useState(user.email || "");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [accountType, setAccountType] = useState(user.account_type);
   const [error, setError] = useState("");
+  const [showTotpConfirm, setShowTotpConfirm] = useState(false);
 
   const isConvertingToLocal = accountType === "local" && user.account_type === "dummy";
   const isConvertingToDummy = accountType === "dummy" && user.account_type !== "dummy";
@@ -481,6 +553,10 @@ function EditUserDialog({ user, onClose }: { user: User; onClose: () => void }) 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
+    if (password && password !== confirmPassword) {
+      setError(t("common:auth.passwords_mismatch"));
+      return;
+    }
     try {
       const data: Record<string, unknown> = {};
       if (username !== user.username) data.username = username;
@@ -595,6 +671,46 @@ function EditUserDialog({ user, onClose }: { user: User; onClose: () => void }) 
             )}
           </div>
 
+          {password && (
+            <div>
+              <label className="block text-sm font-medium">{t("common:auth.confirm_password")}</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+                className={`mt-1 block w-full rounded-md border bg-[var(--color-background)] px-3 py-2 text-sm ${
+                  confirmPassword && confirmPassword !== password
+                    ? "border-[var(--color-destructive)]"
+                    : "border-[var(--color-border)]"
+                }`}
+              />
+              {confirmPassword && confirmPassword !== password && (
+                <p className="mt-1 text-xs text-[var(--color-destructive)]">{t("common:auth.passwords_mismatch")}</p>
+              )}
+            </div>
+          )}
+
+          {/* Admin disable 2FA */}
+          {user.totp_enabled && (
+            <div className="rounded-md border border-[var(--color-border)] p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">{t("admin:security.totp_title")}</p>
+                  <p className="text-xs text-[var(--color-success)]">{t("admin:security.totp_enabled")}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowTotpConfirm(true)}
+                  className="rounded-md border border-[var(--color-destructive-border)] px-2.5 py-1 text-xs text-[var(--color-destructive)] hover:bg-[var(--color-destructive-light)]"
+                >
+                  {t("admin:users.disable_totp")}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
@@ -612,6 +728,27 @@ function EditUserDialog({ user, onClose }: { user: User; onClose: () => void }) 
             </button>
           </div>
         </form>
+
+        <ConfirmDialog
+          open={showTotpConfirm}
+          title={t("admin:users.disable_totp")}
+          message={t("admin:users.disable_totp_confirm")}
+          destructive
+          loading={disableTotp.isPending}
+          onConfirm={() => {
+            disableTotp.mutate(user.id, {
+              onSuccess: () => {
+                setShowTotpConfirm(false);
+                onClose();
+              },
+              onError: (err) => {
+                setShowTotpConfirm(false);
+                if (err instanceof ApiError) setError(err.message);
+              },
+            });
+          }}
+          onCancel={() => setShowTotpConfirm(false)}
+        />
       </div>
     </div>
   );

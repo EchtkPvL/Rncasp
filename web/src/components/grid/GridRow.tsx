@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type { Shift, AvailabilityGridEntry } from "@/api/types";
 import { ShiftBlock } from "./ShiftBlock";
 import { isNewDay } from "@/lib/time";
@@ -47,7 +47,7 @@ function availabilityBackground(status: string) {
   )`;
 }
 
-export function GridRow({
+export const GridRow = memo(function GridRow({
   userId,
   userName,
   isDummy,
@@ -185,4 +185,4 @@ export function GridRow({
       </div>
     </div>
   );
-}
+});

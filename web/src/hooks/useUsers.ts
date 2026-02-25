@@ -85,5 +85,15 @@ export function useUpdateUser() {
   });
 }
 
+export function useDisableUserTotp() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => usersApi.disableUserTotp(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+}
+
 // Alias for backward compat
 export const useUpdateUserRole = useUpdateUser;

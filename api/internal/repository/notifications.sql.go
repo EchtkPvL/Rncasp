@@ -7,9 +7,22 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
+
+const deleteOldNotifications = `-- name: DeleteOldNotifications :execrows
+DELETE FROM notifications WHERE created_at < $1 AND is_read = true
+`
+
+func (q *Queries) DeleteOldNotifications(ctx context.Context, createdAt time.Time) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteOldNotifications, createdAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
 
 const createNotification = `-- name: CreateNotification :one
 INSERT INTO notifications (user_id, event_id, title, body, trigger_type)

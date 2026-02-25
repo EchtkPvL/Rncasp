@@ -239,6 +239,39 @@ func (s *UserService) UpdateUser(ctx context.Context, id uuid.UUID, input Update
 	return userToResponse(updated), nil
 }
 
+// AdminDisableTOTP disables TOTP 2FA for a user (admin override, no code required).
+func (s *UserService) AdminDisableTOTP(ctx context.Context, targetUserID uuid.UUID) error {
+	user, err := s.queries.GetUserByID(ctx, targetUserID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.NewDomainError(model.ErrNotFound, "user not found")
+		}
+		return fmt.Errorf("fetching user: %w", err)
+	}
+
+	if !user.TotpEnabled {
+		return model.NewDomainError(model.ErrInvalidInput, "TOTP is not enabled for this user")
+	}
+
+	if err := s.queries.SetTOTPSecret(ctx, targetUserID, nil, false); err != nil {
+		return fmt.Errorf("disabling TOTP: %w", err)
+	}
+
+	if err := s.queries.DeleteRecoveryCodes(ctx, targetUserID); err != nil {
+		return fmt.Errorf("deleting recovery codes: %w", err)
+	}
+
+	s.logger.Info("admin disabled TOTP for user", "target_user_id", targetUserID)
+
+	if s.auditService != nil {
+		go s.auditService.Log(context.Background(), nil, nil, "update", "user", &targetUserID,
+			map[string]interface{}{"totp_enabled": true},
+			map[string]interface{}{"totp_enabled": false}, nil)
+	}
+
+	return nil
+}
+
 func strPtr(s string) *string { return &s }
 
 // CreateDummyAccount creates a dummy (placeholder) account that cannot log in.

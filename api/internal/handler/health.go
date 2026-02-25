@@ -36,7 +36,7 @@ func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
 	// Check PostgreSQL
 	if err := h.db.Ping(ctx); err != nil {
 		resp.Status = "degraded"
-		resp.Services["postgres"] = "unhealthy: " + err.Error()
+		resp.Services["postgres"] = "unhealthy"
 	} else {
 		resp.Services["postgres"] = "healthy"
 	}
@@ -44,7 +44,7 @@ func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
 	// Check Redis
 	if err := h.rdb.Ping(ctx).Err(); err != nil {
 		resp.Status = "degraded"
-		resp.Services["redis"] = "unhealthy: " + err.Error()
+		resp.Services["redis"] = "unhealthy"
 	} else {
 		resp.Services["redis"] = "healthy"
 	}

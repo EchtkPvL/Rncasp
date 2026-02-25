@@ -25,7 +25,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 
 export function EventSettingsPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { t } = useTranslation(["events", "common"]);
+  const { t, i18n } = useTranslation(["events", "common"]);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -53,8 +53,16 @@ export function EventSettingsPage() {
   const [error, setError] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Confirmation dialog state for critical actions
+  const [confirmAction, setConfirmAction] = useState<{
+    type: "coverage" | "coverageByTeam" | "removeTeam" | "removeAdmin" | "removeHiddenRange";
+    id: string;
+    label?: string;
+  } | null>(null);
+
   // Edit form state
   const [editName, setEditName] = useState("");
+  const [editSlug, setEditSlug] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editLocation, setEditLocation] = useState("");
   const [editingDetails, setEditingDetails] = useState(false);
@@ -130,6 +138,7 @@ export function EventSettingsPage() {
   function startEditDetails() {
     if (!event) return;
     setEditName(event.name);
+    setEditSlug(event.slug);
     setEditDescription(event.description ?? "");
     setEditLocation(event.location ?? "");
     setEditingDetails(true);
@@ -139,15 +148,24 @@ export function EventSettingsPage() {
     e.preventDefault();
     setError("");
     try {
-      await updateEvent.mutateAsync({
-        slug: slug!,
-        data: {
-          name: editName,
-          description: editDescription || undefined,
-          location: editLocation || undefined,
-        },
-      });
+      const data: Record<string, unknown> = {};
+      if (editName !== event!.name) data.name = editName;
+      if (editSlug !== event!.slug) data.slug = editSlug;
+      // Send empty string to clear; omit to keep current value
+      if (editDescription !== (event!.description ?? "")) data.description = editDescription;
+      if (editLocation !== (event!.location ?? "")) data.location = editLocation;
+
+      if (Object.keys(data).length === 0) {
+        setEditingDetails(false);
+        return;
+      }
+
+      await updateEvent.mutateAsync({ slug: slug!, data });
       setEditingDetails(false);
+      // Navigate to new slug if it changed
+      if (data.slug && data.slug !== slug) {
+        navigate(`/events/${data.slug}/settings`, { replace: true });
+      }
     } catch (err) {
       if (err instanceof ApiError) setError(err.message);
     }
@@ -335,6 +353,28 @@ export function EventSettingsPage() {
     }
   }
 
+  async function executeConfirmAction() {
+    if (!confirmAction) return;
+    switch (confirmAction.type) {
+      case "coverage":
+        await handleDeleteCoverage(confirmAction.id);
+        break;
+      case "coverageByTeam":
+        await handleDeleteCoverageByTeam(confirmAction.id);
+        break;
+      case "removeTeam":
+        await handleRemoveTeam(confirmAction.id);
+        break;
+      case "removeAdmin":
+        await handleRemoveAdmin(confirmAction.id);
+        break;
+      case "removeHiddenRange":
+        await handleRemoveHiddenRange(parseInt(confirmAction.id));
+        break;
+    }
+    setConfirmAction(null);
+  }
+
   // Teams not yet assigned to this event
   const assignedTeamIds = new Set((eventTeams ?? []).map((et) => et.team_id));
   const unassignedTeams = (allTeams ?? []).filter((t) => !assignedTeamIds.has(t.id));
@@ -373,6 +413,14 @@ export function EventSettingsPage() {
                 className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm" />
             </div>
             <div>
+              <label className="mb-1 block text-sm font-medium">{t("events:slug")}</label>
+              <input type="text" value={editSlug} onChange={(e) => setEditSlug(e.target.value)} required
+                pattern="[a-zA-Z0-9]+(?:[-_][a-zA-Z0-9]+)*"
+                title={t("events:slug_hint")}
+                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm font-mono" />
+              <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">{t("events:slug_hint")}</p>
+            </div>
+            <div>
               <label className="mb-1 block text-sm font-medium">{t("events:description")}</label>
               <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={2}
                 className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm" />
@@ -395,6 +443,7 @@ export function EventSettingsPage() {
           </form>
         ) : (
           <dl className="mt-3 space-y-2 text-sm">
+            <div><dt className="text-[var(--color-muted-foreground)]">{t("events:slug")}</dt><dd className="font-mono">{event.slug}</dd></div>
             <div><dt className="text-[var(--color-muted-foreground)]">{t("events:description")}</dt><dd>{event.description || "—"}</dd></div>
             <div><dt className="text-[var(--color-muted-foreground)]">{t("events:location")}</dt><dd>{event.location || "—"}</dd></div>
             <div><dt className="text-[var(--color-muted-foreground)]">{t("events:granularity")}</dt><dd>{event.time_granularity}</dd></div>
@@ -406,25 +455,49 @@ export function EventSettingsPage() {
       {isSuperAdmin && (
       <section className="rounded-lg border border-[var(--color-border)] p-4">
         <h2 className="text-lg font-semibold">{t("events:access_control")}</h2>
-        <div className="mt-3 flex flex-wrap gap-3">
-          <button
-            onClick={toggleLock}
-            disabled={setLocked.isPending}
-            className={`rounded-md px-4 py-2 text-sm ${
-              event.is_locked ? "bg-[var(--color-warning-light)] text-[var(--color-warning-foreground)]" : "bg-[var(--color-muted)] text-[var(--color-foreground)]"
-            }`}
-          >
-            {event.is_locked ? t("events:unlock_event") : t("events:lock_event")}
-          </button>
-          <button
-            onClick={togglePublic}
-            disabled={setPublic.isPending}
-            className={`rounded-md px-4 py-2 text-sm ${
-              event.is_public ? "bg-[var(--color-success-light)] text-[var(--color-success)]" : "bg-[var(--color-muted)] text-[var(--color-foreground)]"
-            }`}
-          >
-            {event.is_public ? t("events:make_private") : t("events:make_public")}
-          </button>
+        <div className="mt-3 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium">{t("events:lock_event")}</h3>
+              <p className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">
+                {event.is_locked ? t("events:locked_on") : t("events:locked_off")}
+              </p>
+            </div>
+            <button
+              onClick={toggleLock}
+              disabled={setLocked.isPending}
+              className={`touch-compact relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${
+                event.is_locked ? "bg-[var(--color-destructive)]" : "bg-[var(--color-muted)]"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                  event.is_locked ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium">{t("events:public_access")}</h3>
+              <p className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">
+                {event.is_public ? t("events:public_on") : t("events:public_off")}
+              </p>
+            </div>
+            <button
+              onClick={togglePublic}
+              disabled={setPublic.isPending}
+              className={`touch-compact relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${
+                event.is_public ? "bg-[var(--color-primary)]" : "bg-[var(--color-muted)]"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                  event.is_public ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
         </div>
       </section>
       )}
@@ -449,7 +522,7 @@ export function EventSettingsPage() {
                   />
                   {t("events:visible")}
                 </label>
-                <button onClick={() => handleRemoveTeam(et.team_id)} className="text-xs text-[var(--color-destructive)] hover:underline">
+                <button onClick={() => setConfirmAction({ type: "removeTeam", id: et.team_id, label: et.team_name })} className="text-xs text-[var(--color-destructive)] hover:underline">
                   {t("events:remove")}
                 </button>
               </div>
@@ -486,7 +559,7 @@ export function EventSettingsPage() {
                 <span className="font-medium">{admin.full_name}</span>
                 <span className="ml-2 text-[var(--color-muted-foreground)]">@{admin.username}</span>
               </div>
-              <button onClick={() => handleRemoveAdmin(admin.user_id)} className="text-xs text-[var(--color-destructive)] hover:underline">
+              <button onClick={() => setConfirmAction({ type: "removeAdmin", id: admin.user_id, label: admin.full_name })} className="text-xs text-[var(--color-destructive)] hover:underline">
                 {t("events:remove")}
               </button>
             </div>
@@ -547,7 +620,7 @@ export function EventSettingsPage() {
           {hiddenRanges?.map((range, i) => (
             <div key={range.id} className="flex items-center justify-between rounded-md border border-[var(--color-border)] px-3 py-2">
               <span className="text-sm">{range.hide_start_hour}:00 - {range.hide_end_hour}:00</span>
-              <button onClick={() => handleRemoveHiddenRange(i)} className="text-xs text-[var(--color-destructive)] hover:underline">
+              <button onClick={() => setConfirmAction({ type: "removeHiddenRange", id: String(i) })} className="text-xs text-[var(--color-destructive)] hover:underline">
                 {t("events:remove")}
               </button>
             </div>
@@ -598,7 +671,7 @@ export function EventSettingsPage() {
                         <span className="text-sm font-medium">{teamName}</span>
                       </div>
                       <button
-                        onClick={() => handleDeleteCoverageByTeam(teamId)}
+                        onClick={() => setConfirmAction({ type: "coverageByTeam", id: teamId, label: teamName })}
                         className="text-xs text-[var(--color-destructive)] hover:underline"
                       >
                         {t("events:remove_all")}
@@ -652,7 +725,7 @@ export function EventSettingsPage() {
                           <div key={cov.id} className="flex items-center justify-between rounded-md border border-[var(--color-border)] px-3 py-2">
                             <div className="flex items-center gap-3 text-xs text-[var(--color-muted-foreground)]">
                               <span>
-                                {new Date(cov.start_time).toLocaleString()} — {new Date(cov.end_time).toLocaleString()}
+                                {new Date(cov.start_time).toLocaleString(i18n.language)} — {new Date(cov.end_time).toLocaleString(i18n.language)}
                               </span>
                               <span className="font-medium text-[var(--color-foreground)]">
                                 {cov.required_count} {t("events:required_count").toLowerCase()}
@@ -662,7 +735,7 @@ export function EventSettingsPage() {
                               <button onClick={() => startEditCoverage(cov)} className="text-xs text-[var(--color-primary)] hover:underline">
                                 {t("common:edit")}
                               </button>
-                              <button onClick={() => handleDeleteCoverage(cov.id)} className="text-xs text-[var(--color-destructive)] hover:underline">
+                              <button onClick={() => setConfirmAction({ type: "coverage", id: cov.id })} className="text-xs text-[var(--color-destructive)] hover:underline">
                                 {t("common:delete")}
                               </button>
                             </div>
@@ -774,6 +847,25 @@ export function EventSettingsPage() {
         loading={deleteEvent.isPending}
         onConfirm={doDelete}
         onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmAction !== null}
+        title={t("common:confirm")}
+        message={
+          confirmAction?.type === "coverage"
+            ? t("events:delete_coverage_confirm")
+            : confirmAction?.type === "coverageByTeam"
+              ? t("events:delete_coverage_team_confirm", { team: confirmAction.label })
+              : confirmAction?.type === "removeTeam"
+                ? t("events:remove_team_confirm", { team: confirmAction.label })
+                : confirmAction?.type === "removeAdmin"
+                  ? t("events:remove_admin_confirm", { name: confirmAction.label })
+                  : t("events:remove_hidden_range_confirm")
+        }
+        destructive
+        onConfirm={executeConfirmAction}
+        onCancel={() => setConfirmAction(null)}
       />
     </div>
   );

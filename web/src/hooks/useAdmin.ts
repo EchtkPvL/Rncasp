@@ -31,3 +31,13 @@ export function useDashboardStats() {
     },
   });
 }
+
+export function useRunCleanup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => adminApi.runCleanup(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "stats"] });
+    },
+  });
+}

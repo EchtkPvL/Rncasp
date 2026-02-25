@@ -83,6 +83,7 @@ export interface CreateEventRequest {
 
 export interface UpdateEventRequest {
   name?: string;
+  slug?: string;
   description?: string;
   location?: string;
   participant_count?: number;
@@ -125,9 +126,9 @@ export interface Shift {
   team_abbreviation: string;
   team_color: string;
   username: string;
-  user_full_name: string;
+  user_full_name?: string;
   user_display_name: string | null;
-  created_at: string;
+  created_at?: string;
 }
 
 export interface UserShift {

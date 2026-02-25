@@ -20,7 +20,7 @@ type PublicView = "everything" | "by_team" | "per_user";
 
 export function PublicEventPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { t } = useTranslation(["events", "shifts", "common"]);
+  const { t, i18n } = useTranslation(["events", "shifts", "common"]);
   const hour12 = useTimeFormat();
 
   const { data: event, isLoading: isEventLoading, error: eventError } = useQuery({
@@ -156,7 +156,7 @@ export function PublicEventPage() {
 
   const startDate = new Date(event.start_time);
   const endDate = new Date(event.end_time);
-  const dateFormatter = new Intl.DateTimeFormat(undefined, {
+  const dateFormatter = new Intl.DateTimeFormat(i18n.language, {
     dateStyle: "full",
     timeStyle: "short",
     hour12,

@@ -16,6 +16,7 @@ export function RegisterPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
@@ -26,6 +27,10 @@ export function RegisterPage() {
     e.preventDefault();
     setError("");
     setFieldError("");
+    if (password !== confirmPassword) {
+      setError(t("auth.passwords_mismatch"));
+      return;
+    }
     setLoading(true);
     try {
       await register(
@@ -135,6 +140,30 @@ export function RegisterPage() {
           />
           {password.length > 0 && password.length < 8 && (
             <p className="mt-1 text-xs text-[var(--color-warning)]">{t("auth.weak_password")}</p>
+          )}
+        </div>
+        <div>
+          <label
+            htmlFor="confirm_password"
+            className="block text-sm font-medium text-[var(--color-foreground)]"
+          >
+            {t("auth.confirm_password")}
+          </label>
+          <input
+            id="confirm_password"
+            type="password"
+            required
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className={`mt-1 block w-full rounded-md border px-3 py-2 text-sm ${
+              confirmPassword && confirmPassword !== password
+                ? "border-[var(--color-destructive)]"
+                : "border-[var(--color-border)]"
+            } bg-[var(--color-background)]`}
+          />
+          {confirmPassword && confirmPassword !== password && (
+            <p className="mt-1 text-xs text-[var(--color-destructive)]">{t("auth.passwords_mismatch")}</p>
           )}
         </div>
         <button

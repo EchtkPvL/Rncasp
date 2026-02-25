@@ -7,7 +7,7 @@ import type { ICalToken, CreateICalTokenRequest } from "@/api/types";
 import { SettingsTabs } from "@/components/common/SettingsTabs";
 
 export function ICalSettingsPage() {
-  const { t } = useTranslation(["settings", "common"]);
+  const { t, i18n } = useTranslation(["settings", "common"]);
   const { data: tokens, isLoading } = useICalTokens();
   const createToken = useCreateICalToken();
   const revokeToken = useRevokeICalToken();
@@ -177,7 +177,7 @@ export function ICalSettingsPage() {
                   <p className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">
                     {scopeLabel(token)}
                     {token.last_used_at && (
-                      <> &middot; {t("settings:ical.last_used")}: {new Date(token.last_used_at).toLocaleDateString()}</>
+                      <> &middot; {t("settings:ical.last_used")}: {new Date(token.last_used_at).toLocaleDateString(i18n.language)}</>
                     )}
                   </p>
                 </div>

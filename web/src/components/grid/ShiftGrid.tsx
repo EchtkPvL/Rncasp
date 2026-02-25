@@ -13,7 +13,7 @@ import { generateTimeSlots, granularityToMinutes, groupShiftsByUser } from "@/li
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { TimeRuler } from "./TimeRuler";
 import { GridRow } from "./GridRow";
-import { CoverageBar } from "./CoverageBar";
+import { CoverageBar, buildCoverageMap } from "./CoverageBar";
 
 interface ShiftGridProps {
   event: Event;
@@ -116,6 +116,12 @@ export function ShiftGrid({
     }
     return Array.from(teamMap.values());
   }, [eventTeams, shifts]);
+
+  // Pre-compute coverage data for all teams at once (avoids O(teams*slots*shifts) per bar)
+  const coverageMap = useMemo(
+    () => buildCoverageMap(allShifts || shifts, coverage, slots),
+    [allShifts, shifts, coverage, slots],
+  );
 
   // DnD state — disabled on mobile to avoid unintended changes
   const isMobile = useIsMobile();
@@ -262,8 +268,7 @@ export function ShiftGrid({
               teamId={team.id}
               teamName={team.name}
               teamColor={team.color}
-              coverage={coverage}
-              shifts={allShifts || shifts}
+              coverageData={coverageMap.get(team.id)}
               slots={slots}
               slotWidth={slotWidth}
               nameColumnWidth={NAME_COL_WIDTH}

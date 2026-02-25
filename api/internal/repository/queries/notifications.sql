@@ -26,3 +26,6 @@ INSERT INTO notification_preferences (user_id, trigger_type, channel, is_enabled
 VALUES ($1, $2, $3, $4)
 ON CONFLICT (user_id, trigger_type, channel)
 DO UPDATE SET is_enabled = EXCLUDED.is_enabled;
+
+-- name: DeleteOldNotifications :execrows
+DELETE FROM notifications WHERE created_at < $1 AND is_read = true;

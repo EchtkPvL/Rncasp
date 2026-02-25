@@ -52,8 +52,6 @@ export function useCreateShift() {
       shiftsApi.create(slug, data),
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "grid"] });
-      queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "shifts"] });
-      queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "coverage"] });
       queryClient.invalidateQueries({ queryKey: ["my-shifts"] });
     },
   });
@@ -87,7 +85,6 @@ export function useUpdateShift() {
     },
     onSettled: (_data, _error, vars) => {
       queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "grid"] });
-      queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "shifts"] });
       queryClient.invalidateQueries({ queryKey: ["my-shifts"] });
     },
   });
@@ -100,8 +97,6 @@ export function useDeleteShift() {
       shiftsApi.delete(slug, shiftId),
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "grid"] });
-      queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "shifts"] });
-      queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "coverage"] });
       queryClient.invalidateQueries({ queryKey: ["my-shifts"] });
     },
   });
@@ -113,8 +108,7 @@ export function useCreateCoverage() {
     mutationFn: ({ slug, data }: { slug: string; data: CreateCoverageRequest }) =>
       shiftsApi.createCoverage(slug, data),
     onSuccess: (_data, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "grid"] });
-      queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "coverage"] });
+      queryClient.invalidateQueries({ queryKey: ["events", vars.slug] });
     },
   });
 }
@@ -125,8 +119,7 @@ export function useDeleteCoverageByTeam() {
     mutationFn: ({ slug, teamId }: { slug: string; teamId: string }) =>
       shiftsApi.deleteCoverageByTeam(slug, teamId),
     onSuccess: (_data, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "grid"] });
-      queryClient.invalidateQueries({ queryKey: ["events", vars.slug, "coverage"] });
+      queryClient.invalidateQueries({ queryKey: ["events", vars.slug] });
     },
   });
 }

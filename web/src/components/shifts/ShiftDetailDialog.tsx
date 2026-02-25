@@ -25,7 +25,7 @@ function toLocalDatetime(date: Date): string {
 }
 
 export function ShiftDetailDialog({ shift, eventSlug, canManageShifts, timeGranularity, onClose }: ShiftDetailDialogProps) {
-  const { t } = useTranslation(["shifts", "common"]);
+  const { t, i18n } = useTranslation(["shifts", "common"]);
   const { user } = useAuth();
   const hour12 = useTimeFormat();
   const deleteShift = useDeleteShift();
@@ -70,7 +70,7 @@ export function ShiftDetailDialog({ shift, eventSlug, canManageShifts, timeGranu
 
   const startDate = new Date(shift.start_time);
   const endDate = new Date(shift.end_time);
-  const dateFormatter = new Intl.DateTimeFormat(undefined, {
+  const dateFormatter = new Intl.DateTimeFormat(i18n.language, {
     dateStyle: "medium",
     timeStyle: "short",
     hour12,

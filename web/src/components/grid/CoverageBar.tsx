@@ -2,67 +2,127 @@ import { useMemo } from "react";
 import type { Shift, CoverageRequirement } from "@/api/types";
 import { isNewDay } from "@/lib/time";
 
+/** Pre-computed per-slot coverage data for a single team */
+export interface SlotCoverageData {
+  count: number;
+  required: number;
+  hasReq: boolean;
+}
+
+/** Pre-computed coverage map: teamId -> slotIndex -> data */
+export type CoverageMap = Map<string, SlotCoverageData[]>;
+
+/**
+ * Build a pre-computed coverage map for all teams at once.
+ * Called once in ShiftGrid to avoid O(teams * slots * shifts) per-CoverageBar.
+ */
+export function buildCoverageMap(
+  shifts: Shift[],
+  coverage: CoverageRequirement[],
+  slots: Date[],
+): CoverageMap {
+  if (slots.length === 0) return new Map();
+
+  const slotDurationMs = slots.length > 1
+    ? slots[1].getTime() - slots[0].getTime()
+    : 60 * 60 * 1000;
+
+  // Pre-compute slot timestamps once
+  const slotTimes = slots.map((s) => s.getTime());
+
+  // Group shifts by team and pre-parse timestamps
+  const shiftsByTeam = new Map<string, { start: number; end: number }[]>();
+  for (const s of shifts) {
+    let list = shiftsByTeam.get(s.team_id);
+    if (!list) {
+      list = [];
+      shiftsByTeam.set(s.team_id, list);
+    }
+    list.push({ start: new Date(s.start_time).getTime(), end: new Date(s.end_time).getTime() });
+  }
+
+  // Group coverage by team and pre-parse timestamps
+  const covByTeam = new Map<string, { start: number; end: number; required: number }[]>();
+  for (const c of coverage) {
+    let list = covByTeam.get(c.team_id);
+    if (!list) {
+      list = [];
+      covByTeam.set(c.team_id, list);
+    }
+    list.push({ start: new Date(c.start_time).getTime(), end: new Date(c.end_time).getTime(), required: c.required_count });
+  }
+
+  // Collect all unique team IDs
+  const allTeamIds = new Set([...shiftsByTeam.keys(), ...covByTeam.keys()]);
+
+  const result: CoverageMap = new Map();
+  for (const teamId of allTeamIds) {
+    const teamShifts = shiftsByTeam.get(teamId) || [];
+    const teamCov = covByTeam.get(teamId) || [];
+
+    const slotData: SlotCoverageData[] = new Array(slots.length);
+    for (let i = 0; i < slots.length; i++) {
+      const slotMs = slotTimes[i];
+      const slotEndMs = slotMs + slotDurationMs;
+
+      let count = 0;
+      for (const s of teamShifts) {
+        if (s.start < slotEndMs && s.end > slotMs) count++;
+      }
+
+      let required = 0;
+      let hasReq = false;
+      for (const c of teamCov) {
+        if (c.start < slotEndMs && c.end > slotMs) {
+          required = c.required;
+          hasReq = true;
+          break;
+        }
+      }
+
+      slotData[i] = { count, required, hasReq };
+    }
+    result.set(teamId, slotData);
+  }
+
+  return result;
+}
+
+type CoverageStatus = "none" | "understaffed" | "satisfied" | "overstaffed";
+
 interface CoverageBarProps {
   teamId: string;
   teamName: string;
   teamColor: string;
-  coverage: CoverageRequirement[];
-  shifts: Shift[];
+  coverageData?: SlotCoverageData[];
   slots: Date[];
   slotWidth: number;
   nameColumnWidth: number;
 }
 
-type CoverageStatus = "none" | "understaffed" | "satisfied" | "overstaffed";
-
 export function CoverageBar({
-  teamId,
+  teamId: _teamId,
   teamName,
   teamColor,
-  coverage,
-  shifts,
+  coverageData,
   slots,
   slotWidth,
   nameColumnWidth,
 }: CoverageBarProps) {
   const slotStatuses = useMemo(() => {
-    if (slots.length === 0) return [];
+    if (!coverageData || coverageData.length === 0) return [];
 
-    const slotDurationMs = slots.length > 1
-      ? slots[1].getTime() - slots[0].getTime()
-      : 60 * 60 * 1000;
-
-    return slots.map((slot) => {
-      const slotMs = slot.getTime();
-      const slotEndMs = slotMs + slotDurationMs;
-
-      // Count shifts for this team overlapping this slot
-      const count = shifts.filter((s) => {
-        if (s.team_id !== teamId) return false;
-        const shiftStart = new Date(s.start_time).getTime();
-        const shiftEnd = new Date(s.end_time).getTime();
-        return shiftStart < slotEndMs && shiftEnd > slotMs;
-      }).length;
-
-      // Find coverage requirement for this slot
-      const req = coverage.find((c) => {
-        const covStart = new Date(c.start_time).getTime();
-        const covEnd = new Date(c.end_time).getTime();
-        return c.team_id === teamId && covStart < slotEndMs && covEnd > slotMs;
-      });
-
-      if (!req) return { status: "none" as CoverageStatus, count, required: 0, hasReq: false };
-
-      const required = req.required_count;
+    return coverageData.map((d) => {
+      if (!d.hasReq) return { status: "none" as CoverageStatus, count: d.count, required: 0, hasReq: false };
 
       let status: CoverageStatus;
-      if (count < required) status = "understaffed";
-      else if (count === required) status = "satisfied";
+      if (d.count < d.required) status = "understaffed";
+      else if (d.count === d.required) status = "satisfied";
       else status = "overstaffed";
 
-      return { status, count, required, hasReq: true };
+      return { status, count: d.count, required: d.required, hasReq: true };
     });
-  }, [teamId, coverage, shifts, slots]);
+  }, [coverageData]);
 
   const statusStyle = (status: CoverageStatus): React.CSSProperties => {
     switch (status) {

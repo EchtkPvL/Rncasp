@@ -36,6 +36,14 @@ type AppSettingResponse struct {
 	UpdatedAt string          `json:"updated_at"`
 }
 
+// publicSettingsAllowlist defines the keys exposed via the unauthenticated public settings endpoint.
+var publicSettingsAllowlist = map[string]bool{
+	"app_name":             true,
+	"color_palette":        true,
+	"registration_enabled": true,
+	"default_language":     true,
+}
+
 // ListAll returns all app settings.
 func (s *AppSettingsService) ListAll(ctx context.Context) ([]AppSettingResponse, error) {
 	settings, err := s.queries.ListAppSettings(ctx)
@@ -46,6 +54,22 @@ func (s *AppSettingsService) ListAll(ctx context.Context) ([]AppSettingResponse,
 	result := make([]AppSettingResponse, len(settings))
 	for i, setting := range settings {
 		result[i] = appSettingToResponse(setting)
+	}
+	return result, nil
+}
+
+// ListPublic returns only the allowlisted app settings for unauthenticated access.
+func (s *AppSettingsService) ListPublic(ctx context.Context) ([]AppSettingResponse, error) {
+	settings, err := s.queries.ListAppSettings(ctx)
+	if err != nil {
+		s.logger.Error("failed to list app settings", "error", err)
+		return nil, err
+	}
+	var result []AppSettingResponse
+	for _, setting := range settings {
+		if publicSettingsAllowlist[setting.Key] {
+			result = append(result, appSettingToResponse(setting))
+		}
 	}
 	return result, nil
 }
@@ -111,11 +135,16 @@ func (s *AppSettingsService) Delete(ctx context.Context, key string) error {
 
 // DashboardStats holds aggregated stats for the admin dashboard.
 type DashboardStats struct {
-	TotalUsers    int64 `json:"total_users"`
-	TotalEvents   int64 `json:"total_events"`
-	ActiveEvents  int64 `json:"active_events"`
-	TotalShifts   int64 `json:"total_shifts"`
-	TotalTeams    int64 `json:"total_teams"`
+	TotalUsers         int64 `json:"total_users"`
+	TotalEvents        int64 `json:"total_events"`
+	ActiveEvents       int64 `json:"active_events"`
+	TotalShifts        int64 `json:"total_shifts"`
+	TotalTeams         int64 `json:"total_teams"`
+	TotalSessions      int64 `json:"total_sessions"`
+	ExpiredSessions    int64 `json:"expired_sessions"`
+	TotalAuditEntries  int64 `json:"total_audit_entries"`
+	TotalNotifications int64 `json:"total_notifications"`
+	ReadNotifications  int64 `json:"read_notifications"`
 }
 
 // GetDashboardStats returns aggregated stats for the admin dashboard.
@@ -150,12 +179,47 @@ func (s *AppSettingsService) GetDashboardStats(ctx context.Context) (*DashboardS
 		return nil, err
 	}
 
+	totalSessions, err := s.queries.CountSessions(ctx)
+	if err != nil {
+		s.logger.Error("failed to count sessions", "error", err)
+		return nil, err
+	}
+
+	expiredSessions, err := s.queries.CountExpiredSessions(ctx)
+	if err != nil {
+		s.logger.Error("failed to count expired sessions", "error", err)
+		return nil, err
+	}
+
+	totalAuditEntries, err := s.queries.CountAuditLogEntries(ctx)
+	if err != nil {
+		s.logger.Error("failed to count audit log entries", "error", err)
+		return nil, err
+	}
+
+	totalNotifications, err := s.queries.CountNotifications(ctx)
+	if err != nil {
+		s.logger.Error("failed to count notifications", "error", err)
+		return nil, err
+	}
+
+	readNotifications, err := s.queries.CountReadNotifications(ctx)
+	if err != nil {
+		s.logger.Error("failed to count read notifications", "error", err)
+		return nil, err
+	}
+
 	return &DashboardStats{
-		TotalUsers:   totalUsers,
-		TotalEvents:  totalEvents,
-		ActiveEvents: activeEvents,
-		TotalShifts:  totalShifts,
-		TotalTeams:   totalTeams,
+		TotalUsers:         totalUsers,
+		TotalEvents:        totalEvents,
+		ActiveEvents:       activeEvents,
+		TotalShifts:        totalShifts,
+		TotalTeams:         totalTeams,
+		TotalSessions:      totalSessions,
+		ExpiredSessions:    expiredSessions,
+		TotalAuditEntries:  totalAuditEntries,
+		TotalNotifications: totalNotifications,
+		ReadNotifications:  readNotifications,
 	}, nil
 }
 

@@ -41,6 +41,7 @@ services:
       redis-server
       --maxmemory 128mb
       --maxmemory-policy allkeys-lru
+      --save ""
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
     ports:

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -51,8 +52,13 @@ func (s *Server) setupRoutes() http.Handler {
 	exportService := service.NewExportService(queries, s.logger, pdfGen)
 	auditService := service.NewAuditService(queries, s.logger)
 	appSettingsService := service.NewAppSettingsService(queries, s.logger)
+	cleanupService := service.NewCleanupService(queries, s.logger)
 	eventService := service.NewEventService(queries, s.logger, sseBroker)
 	shiftService := service.NewShiftService(queries, s.logger, sseBroker)
+
+	// Start background cleanup scheduler
+	s.cleanupService = cleanupService
+	go cleanupService.Start(context.Background())
 
 	// Wire SMTP and webhooks into auth service for registration notifications
 	authService.SetSMTPService(smtpService)
@@ -90,7 +96,7 @@ func (s *Server) setupRoutes() http.Handler {
 	userHandler := handler.NewUserHandler(userService)
 	exportHandler := handler.NewExportHandler(exportService, s.cfg.App.BaseURL)
 	auditHandler := handler.NewAuditHandler(auditService)
-	adminHandler := handler.NewAdminHandler(appSettingsService)
+	adminHandler := handler.NewAdminHandler(appSettingsService, cleanupService)
 	adminWebhookHandler := handler.NewAdminWebhookHandler(webhookService)
 	publicHandler := handler.NewPublicHandler(eventService, shiftService, exportService)
 
@@ -190,6 +196,7 @@ func (s *Server) setupRoutes() http.Handler {
 			// User management: super-admin only
 			r.With(middleware.RequireSuperAdmin).Post("/", userHandler.Create)
 			r.With(middleware.RequireSuperAdmin).Put("/{userId}", userHandler.UpdateUser)
+			r.With(middleware.RequireSuperAdmin).Delete("/{userId}/totp", userHandler.DisableTOTP)
 
 			// Dummy accounts: super-admin only
 			r.With(middleware.RequireSuperAdmin).Post("/dummy", userHandler.CreateDummy)
@@ -217,6 +224,7 @@ func (s *Server) setupRoutes() http.Handler {
 			r.Put("/settings/{key}", adminHandler.SetSetting)
 			r.Delete("/settings/{key}", adminHandler.DeleteSetting)
 			r.Get("/stats", adminHandler.DashboardStats)
+			r.Post("/cleanup", adminHandler.RunCleanup)
 			r.Route("/webhooks", func(r chi.Router) {
 				r.Get("/", adminWebhookHandler.List)
 				r.Post("/", adminWebhookHandler.Create)
@@ -226,8 +234,8 @@ func (s *Server) setupRoutes() http.Handler {
 			})
 		})
 
-		// Public app settings (no auth - needed for login page, color palette, etc.)
-		r.Get("/settings/public", adminHandler.ListSettings)
+		// Public app settings (no auth - only allowlisted keys: app_name, color_palette, etc.)
+		r.Get("/settings/public", adminHandler.ListPublicSettings)
 
 		// Public event access (no auth required)
 		r.Route("/public/events/{slug}", func(r chi.Router) {

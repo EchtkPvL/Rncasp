@@ -31,6 +31,10 @@
     "type_regular": "Normal",
     "type_dummy": "Dummy",
     "delete_confirm": "Sind Sie sicher?",
+    "self_role_warning": "Sie ändern Ihre eigene Rolle. Sie könnten den Admin-Zugang verlieren. Fortfahren?",
+    "self_deactivate_warning": "Sie deaktivieren Ihr eigenes Konto. Sie werden ausgesperrt. Fortfahren?",
+    "disable_totp": "2FA zurücksetzen",
+    "disable_totp_confirm": "Die Zwei-Faktor-Authentifizierung für diesen Benutzer wird deaktiviert. Er muss sie erneut einrichten. Fortfahren?",
     "roles": {
       "super_admin": "Super-Admin",
       "user": "Benutzer",
@@ -56,7 +60,14 @@
     "default_language_description": "Sprache, die neuen Benutzerkonten zugewiesen wird. Benutzer können ihre Sprache in den Profileinstellungen ändern.",
     "color_palette": "Farbpalette",
     "reset_palette": "Auf Standard zurücksetzen",
-    "preview": "Vorschau"
+    "preview": "Vorschau",
+    "cleanup_title": "Datenaufbewahrung",
+    "cleanup_description": "Automatische Bereinigung von abgelaufenen Sitzungen, alten Protokolleinträgen und gelesenen Benachrichtigungen konfigurieren.",
+    "cleanup_enabled": "Automatische Bereinigung",
+    "cleanup_interval": "Bereinigungsintervall (Stunden)",
+    "cleanup_retention_audit": "Protokoll-Aufbewahrung (Tage)",
+    "cleanup_retention_notifications": "Benachrichtigungs-Aufbewahrung (Tage)",
+    "cleanup_retention_recovery": "Wiederherstellungscode-Aufbewahrung (Tage)"
   },
   "palette": {
     "primary": "Primärfarbe",
@@ -87,6 +98,14 @@
     "active_events": "Aktive Veranstaltungen",
     "total_shifts": "Schichten gesamt",
     "total_teams": "Teams gesamt",
+    "storage": "Speicher",
+    "total_sessions": "Sitzungen",
+    "expired_sessions": "abgelaufen",
+    "audit_entries": "Protokolleinträge",
+    "notifications_total": "Benachrichtigungen",
+    "notifications_read": "gelesen",
+    "purge_now": "Jetzt bereinigen",
+    "purge_result": "Bereinigt: {{sessions}} Sitzungen, {{audit}} Protokolleinträge, {{notifications}} Benachrichtigungen, {{recovery}} Wiederherstellungscodes",
     "quick_links": "Schnellzugriff",
     "overview": "Übersicht"
   },

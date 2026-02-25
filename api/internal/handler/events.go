@@ -33,6 +33,7 @@ type createEventRequest struct {
 
 type updateEventRequest struct {
 	Name             *string `json:"name"`
+	Slug             *string `json:"slug"`
 	Description      *string `json:"description"`
 	Location         *string `json:"location"`
 	ParticipantCount *int32  `json:"participant_count"`
@@ -146,6 +147,7 @@ func (h *EventHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	input := service.UpdateEventInput{
 		Name:             req.Name,
+		Slug:             req.Slug,
 		Description:      req.Description,
 		Location:         req.Location,
 		ParticipantCount: req.ParticipantCount,

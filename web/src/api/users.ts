@@ -33,4 +33,7 @@ export const usersApi = {
 
   deleteDummy: (userId: string) =>
     api.delete<void>(`/users/dummy/${userId}`),
+
+  disableUserTotp: (userId: string) =>
+    api.delete<void>(`/users/${userId}/totp`),
 };

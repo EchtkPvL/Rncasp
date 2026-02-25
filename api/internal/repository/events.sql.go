@@ -156,12 +156,13 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 const updateEvent = `-- name: UpdateEvent :one
 UPDATE events SET
     name = COALESCE($2, name),
-    description = COALESCE($3, description),
-    location = COALESCE($4, location),
-    participant_count = COALESCE($5, participant_count),
-    start_time = COALESCE($6, start_time),
-    end_time = COALESCE($7, end_time),
-    time_granularity = COALESCE($8, time_granularity),
+    slug = COALESCE($3, slug),
+    description = COALESCE($4, description),
+    location = COALESCE($5, location),
+    participant_count = COALESCE($6, participant_count),
+    start_time = COALESCE($7, start_time),
+    end_time = COALESCE($8, end_time),
+    time_granularity = COALESCE($9, time_granularity),
     updated_at = NOW()
 WHERE id = $1
 RETURNING id, name, slug, description, location, participant_count, start_time, end_time, time_granularity, is_locked, is_public, created_by, created_at, updated_at
@@ -170,6 +171,7 @@ RETURNING id, name, slug, description, location, participant_count, start_time, 
 type UpdateEventParams struct {
 	ID               uuid.UUID  `json:"id"`
 	Name             *string    `json:"name"`
+	Slug             *string    `json:"slug"`
 	Description      *string    `json:"description"`
 	Location         *string    `json:"location"`
 	ParticipantCount *int32     `json:"participant_count"`
@@ -182,6 +184,7 @@ func (q *Queries) UpdateEvent(ctx context.Context, arg UpdateEventParams) (Event
 	row := q.db.QueryRow(ctx, updateEvent,
 		arg.ID,
 		arg.Name,
+		arg.Slug,
 		arg.Description,
 		arg.Location,
 		arg.ParticipantCount,

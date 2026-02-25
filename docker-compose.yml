@@ -64,11 +64,12 @@ services:
       redis-server
       --maxmemory 128mb
       --maxmemory-policy allkeys-lru
+      --save ""
       --port 0
       --unixsocket /var/run/redis/redis.sock
       --unixsocketperm 777
     volumes:
-      - ./data/redis:/data
+      - redis-data:/data
       - redis-socket:/var/run/redis
     healthcheck:
       test: ["CMD", "redis-cli", "-s", "/var/run/redis/redis.sock", "ping"]
@@ -79,6 +80,12 @@ services:
       - rncasp
 
 volumes:
+  # Redis data — tmpfs (RAM-backed, no persistence needed for ephemeral data)
+  redis-data:
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "size=128m"
   # Socket volumes — tmpfs (RAM-backed, no persistence needed for sockets)
   pg-socket:
     driver_opts:

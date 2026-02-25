@@ -31,6 +31,10 @@
     "type_regular": "Regular",
     "type_dummy": "Dummy",
     "delete_confirm": "Are you sure?",
+    "self_role_warning": "You are about to change your own role. You may lose admin access. Continue?",
+    "self_deactivate_warning": "You are about to deactivate your own account. You will be locked out. Continue?",
+    "disable_totp": "Reset 2FA",
+    "disable_totp_confirm": "This will disable two-factor authentication for this user. They will need to set it up again. Continue?",
     "roles": {
       "super_admin": "Super Admin",
       "user": "User",
@@ -56,7 +60,14 @@
     "default_language_description": "Language assigned to new user accounts. Users can change their language in their profile settings.",
     "color_palette": "Color Palette",
     "reset_palette": "Reset to Default",
-    "preview": "Preview"
+    "preview": "Preview",
+    "cleanup_title": "Data Retention",
+    "cleanup_description": "Configure automatic cleanup of expired sessions, old audit log entries, and read notifications.",
+    "cleanup_enabled": "Automatic cleanup",
+    "cleanup_interval": "Cleanup interval (hours)",
+    "cleanup_retention_audit": "Audit log retention (days)",
+    "cleanup_retention_notifications": "Notification retention (days)",
+    "cleanup_retention_recovery": "Recovery codes retention (days)"
   },
   "palette": {
     "primary": "Primary",
@@ -87,6 +98,14 @@
     "active_events": "Active Events",
     "total_shifts": "Total Shifts",
     "total_teams": "Total Teams",
+    "storage": "Storage",
+    "total_sessions": "Sessions",
+    "expired_sessions": "expired",
+    "audit_entries": "Audit Log Entries",
+    "notifications_total": "Notifications",
+    "notifications_read": "read",
+    "purge_now": "Purge Now",
+    "purge_result": "Cleaned up: {{sessions}} sessions, {{audit}} audit entries, {{notifications}} notifications, {{recovery}} recovery codes",
     "quick_links": "Quick Links",
     "overview": "Overview"
   },

@@ -78,6 +78,21 @@ type ShiftWithWarnings struct {
 	Warnings []string      `json:"warnings,omitempty"`
 }
 
+// PublicShiftResponse is the public-facing shift representation with sensitive fields removed.
+type PublicShiftResponse struct {
+	ID               string  `json:"id"`
+	EventID          string  `json:"event_id"`
+	TeamID           string  `json:"team_id"`
+	UserID           string  `json:"user_id"`
+	StartTime        string  `json:"start_time"`
+	EndTime          string  `json:"end_time"`
+	TeamName         string  `json:"team_name"`
+	TeamAbbreviation string  `json:"team_abbreviation"`
+	TeamColor        string  `json:"team_color"`
+	Username         string  `json:"username"`
+	UserDisplayName  *string `json:"user_display_name"`
+}
+
 type UserShiftResponse struct {
 	ID               string `json:"id"`
 	EventID          string `json:"event_id"`
@@ -704,6 +719,72 @@ func (s *ShiftService) GridData(ctx context.Context, slug string) (map[string]in
 		"shifts":       shiftResponses,
 		"coverage":     coverageResponses,
 		"availability": availabilityResponses,
+	}, nil
+}
+
+// PublicGridData returns a sanitized version of grid data for unauthenticated public access.
+// It excludes availability data entirely and strips sensitive user fields (full_name, created_at).
+func (s *ShiftService) PublicGridData(ctx context.Context, slug string) (map[string]interface{}, error) {
+	event, err := s.queries.GetEventBySlug(ctx, slug)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, model.NewDomainError(model.ErrNotFound, "event not found")
+		}
+		return nil, fmt.Errorf("fetching event: %w", err)
+	}
+
+	if !event.IsPublic {
+		return nil, model.NewDomainError(model.ErrNotFound, "event not found")
+	}
+
+	shifts, err := s.queries.ListShiftsByEvent(ctx, event.ID)
+	if err != nil {
+		return nil, fmt.Errorf("listing shifts: %w", err)
+	}
+
+	coverage, err := s.queries.ListCoverageRequirements(ctx, event.ID)
+	if err != nil {
+		return nil, fmt.Errorf("listing coverage: %w", err)
+	}
+
+	publicShifts := make([]PublicShiftResponse, len(shifts))
+	for i, sh := range shifts {
+		publicShifts[i] = PublicShiftResponse{
+			ID:               sh.ID.String(),
+			EventID:          sh.EventID.String(),
+			TeamID:           sh.TeamID.String(),
+			UserID:           sh.UserID.String(),
+			StartTime:        sh.StartTime.Format(time.RFC3339),
+			EndTime:          sh.EndTime.Format(time.RFC3339),
+			TeamName:         sh.TeamName,
+			TeamAbbreviation: sh.TeamAbbreviation,
+			TeamColor:        sh.TeamColor,
+			Username:         sh.Username,
+			UserDisplayName:  sh.UserDisplayName,
+		}
+	}
+
+	coverageResponses := make([]CoverageRequirementResponse, len(coverage))
+	for i, c := range coverage {
+		coverageResponses[i] = coverageToResponse(c)
+	}
+
+	return map[string]interface{}{
+		"event": EventResponse{
+			ID:              event.ID.String(),
+			Name:            event.Name,
+			Slug:            event.Slug,
+			Description:     event.Description,
+			Location:        event.Location,
+			StartTime:       event.StartTime.Format(time.RFC3339),
+			EndTime:         event.EndTime.Format(time.RFC3339),
+			TimeGranularity: event.TimeGranularity,
+			IsLocked:        event.IsLocked,
+			IsPublic:        event.IsPublic,
+		},
+		"shifts":       publicShifts,
+		"coverage":     coverageResponses,
+		"availability": []struct{}{},
 	}, nil
 }
 

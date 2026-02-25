@@ -15,6 +15,7 @@ RETURNING *;
 -- name: UpdateEvent :one
 UPDATE events SET
     name = COALESCE(sqlc.narg('name'), name),
+    slug = COALESCE(sqlc.narg('slug'), slug),
     description = COALESCE(sqlc.narg('description'), description),
     location = COALESCE(sqlc.narg('location'), location),
     participant_count = COALESCE(sqlc.narg('participant_count'), participant_count),

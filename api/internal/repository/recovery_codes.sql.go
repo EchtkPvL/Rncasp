@@ -7,6 +7,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/google/uuid"
@@ -94,4 +95,16 @@ DELETE FROM recovery_codes WHERE user_id = $1
 func (q *Queries) DeleteRecoveryCodes(ctx context.Context, userID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteRecoveryCodes, userID)
 	return err
+}
+
+const deleteUsedRecoveryCodes = `-- name: DeleteUsedRecoveryCodes :execrows
+DELETE FROM recovery_codes WHERE used_at IS NOT NULL AND used_at < $1
+`
+
+func (q *Queries) DeleteUsedRecoveryCodes(ctx context.Context, usedAt time.Time) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteUsedRecoveryCodes, usedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
