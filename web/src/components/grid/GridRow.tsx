@@ -18,6 +18,7 @@ interface GridRowProps {
   dragEnabled?: boolean;
   onResizeDelta?: (shiftId: string, deltaPixels: number) => void;
   focusedColIndex?: number | null;
+  hour12?: boolean;
 }
 
 const AVAILABILITY_STYLES: Record<string, { bg: string; stripe: string }> = {
@@ -62,6 +63,7 @@ export const GridRow = memo(function GridRow({
   dragEnabled,
   onResizeDelta,
   focusedColIndex,
+  hour12,
 }: GridRowProps) {
   // Calculate shift positions
   const shiftPositions = useMemo(() => {
@@ -180,6 +182,7 @@ export const GridRow = memo(function GridRow({
             onClick={onShiftClick}
             dragEnabled={dragEnabled}
             onResizeDelta={onResizeDelta}
+            hour12={hour12}
           />
         ))}
       </div>

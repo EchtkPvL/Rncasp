@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import type { Shift } from "@/api/types";
+import { formatSlotTime } from "@/lib/time";
 
 interface ShiftBlockProps {
   shift: Shift;
@@ -10,6 +11,7 @@ interface ShiftBlockProps {
   onClick?: (shift: Shift) => void;
   dragEnabled?: boolean;
   onResizeDelta?: (shiftId: string, deltaPixels: number) => void;
+  hour12?: boolean;
 }
 
 export function ShiftBlock({
@@ -20,6 +22,7 @@ export function ShiftBlock({
   onClick,
   dragEnabled,
   onResizeDelta,
+  hour12 = false,
 }: ShiftBlockProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: shift.id,
@@ -76,14 +79,19 @@ export function ShiftBlock({
         top: 2,
         backgroundColor: shift.team_color,
       }}
-      title={`${shift.user_display_name || shift.user_full_name || shift.username} - ${shift.team_name}`}
+      title={`${shift.user_display_name || shift.user_full_name || shift.username} - ${shift.team_name} (${formatSlotTime(new Date(shift.start_time), hour12)}–${formatSlotTime(new Date(shift.end_time), hour12)})`}
       onClick={() => {
         if (!isDragging && !resizingRef.current) onClick?.(shift);
       }}
       {...listeners}
       {...attributes}
     >
-      <div className="truncate px-1 py-0.5">{shift.team_abbreviation}</div>
+      <div className="truncate px-1 py-0.5">
+        {shift.team_abbreviation}
+        {actualWidth > 50 && (
+          <span className="ml-0.5 opacity-80">{formatSlotTime(new Date(shift.start_time), hour12)}</span>
+        )}
+      </div>
       {onResizeDelta && (
         <div
           className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize hover:bg-[var(--color-text-on-color)]/40"

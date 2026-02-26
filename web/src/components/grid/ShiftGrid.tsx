@@ -11,6 +11,7 @@ import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core";
 import type { Event, Shift, CoverageRequirement, HiddenRange, AvailabilityGridEntry, EventTeam } from "@/api/types";
 import { generateTimeSlots, granularityToMinutes, groupShiftsByUser } from "@/lib/time";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useTimeFormat } from "@/hooks/useTimeFormat";
 import { TimeRuler } from "./TimeRuler";
 import { GridRow } from "./GridRow";
 import { CoverageBar, buildCoverageMap } from "./CoverageBar";
@@ -54,6 +55,7 @@ export function ShiftGrid({
   onGridKeyDown,
 }: ShiftGridProps) {
   const { t } = useTranslation(["shifts"]);
+  const hour12 = useTimeFormat();
 
   // Compute slot width based on granularity
   const granMinutes = granularityToMinutes(event.time_granularity);
@@ -255,6 +257,7 @@ export function ShiftGrid({
             dragEnabled={dragEnabled}
             onResizeDelta={!isMobile && onShiftResize ? handleResizeDelta : undefined}
             focusedColIndex={focusedCell?.row === rowIndex ? focusedCell.col : null}
+            hour12={hour12}
           />
         ))
       )}

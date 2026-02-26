@@ -28,7 +28,7 @@ export function TimeRuler({ slots, slotWidth, nameColumnWidth }: TimeRulerProps)
       {/* Day headers */}
       <div className="flex border-b border-[var(--color-border)]">
         <div
-          className="shrink-0 border-r border-[var(--color-border)]"
+          className="sticky left-0 z-20 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-background)]"
           style={{ width: nameColumnWidth }}
         />
         <div className="flex">
@@ -47,7 +47,7 @@ export function TimeRuler({ slots, slotWidth, nameColumnWidth }: TimeRulerProps)
       {/* Time slot headers */}
       <div className="flex border-b border-[var(--color-border)]">
         <div
-          className="shrink-0 border-r border-[var(--color-border)]"
+          className="sticky left-0 z-20 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-background)]"
           style={{ width: nameColumnWidth }}
         />
         <div className="flex">
