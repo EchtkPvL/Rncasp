@@ -5,6 +5,7 @@ import type {
   UpdateEventRequest,
   EventTeam,
   EventAdmin,
+  EventPinnedUser,
   HiddenRange,
 } from "./types";
 
@@ -40,6 +41,14 @@ export const eventsApi = {
     api.post<{ message: string }>(`/events/${slug}/admins`, { user_id }),
   removeAdmin: (slug: string, userId: string) =>
     api.delete<{ message: string }>(`/events/${slug}/admins/${userId}`),
+
+  // Pinned users
+  listPinnedUsers: (slug: string) =>
+    api.get<EventPinnedUser[]>(`/events/${slug}/pinned-users`),
+  addPinnedUser: (slug: string, user_id: string) =>
+    api.post<{ message: string }>(`/events/${slug}/pinned-users`, { user_id }),
+  removePinnedUser: (slug: string, userId: string) =>
+    api.delete<{ message: string }>(`/events/${slug}/pinned-users/${userId}`),
 
   // Hidden ranges
   listHiddenRanges: (slug: string) =>

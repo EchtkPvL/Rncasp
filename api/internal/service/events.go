@@ -111,6 +111,13 @@ type EventAdminResponse struct {
 	Email       *string `json:"email"`
 }
 
+type EventPinnedUserResponse struct {
+	ID          string  `json:"user_id"`
+	Username    string  `json:"username"`
+	FullName    string  `json:"full_name"`
+	DisplayName *string `json:"display_name"`
+}
+
 type HiddenRangeResponse struct {
 	ID            string `json:"id"`
 	HideStartHour int32  `json:"hide_start_hour"`
@@ -570,6 +577,87 @@ func (s *EventService) IsEventAdmin(ctx context.Context, slug string, userID uui
 	}
 
 	return s.queries.IsEventAdmin(ctx, event.ID, userID)
+}
+
+// Pinned users management
+
+func (s *EventService) ListPinnedUsers(ctx context.Context, slug string) ([]EventPinnedUserResponse, error) {
+	event, err := s.queries.GetEventBySlug(ctx, slug)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, model.NewDomainError(model.ErrNotFound, "event not found")
+		}
+		return nil, fmt.Errorf("fetching event: %w", err)
+	}
+
+	users, err := s.queries.ListEventPinnedUsers(ctx, event.ID)
+	if err != nil {
+		return nil, fmt.Errorf("listing pinned users: %w", err)
+	}
+
+	result := make([]EventPinnedUserResponse, len(users))
+	for i, u := range users {
+		result[i] = EventPinnedUserResponse{
+			ID:          u.ID.String(),
+			Username:    u.Username,
+			FullName:    u.FullName,
+			DisplayName: u.DisplayName,
+		}
+	}
+	return result, nil
+}
+
+func (s *EventService) AddPinnedUser(ctx context.Context, slug string, userID uuid.UUID) error {
+	event, err := s.queries.GetEventBySlug(ctx, slug)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.NewDomainError(model.ErrNotFound, "event not found")
+		}
+		return fmt.Errorf("fetching event: %w", err)
+	}
+
+	// Verify user exists
+	_, err = s.queries.GetUserByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.NewDomainError(model.ErrNotFound, "user not found")
+		}
+		return fmt.Errorf("fetching user: %w", err)
+	}
+
+	if err := s.queries.AddEventPinnedUser(ctx, event.ID, userID); err != nil {
+		return fmt.Errorf("adding pinned user: %w", err)
+	}
+
+	s.logger.Info("pinned user added", "event_id", event.ID, "user_id", userID)
+
+	if s.auditService != nil {
+		go s.auditService.Log(context.Background(), nil, &event.ID, "create", "event_pinned_user", nil, nil, map[string]string{"user_id": userID.String(), "event_slug": slug}, nil)
+	}
+
+	return nil
+}
+
+func (s *EventService) RemovePinnedUser(ctx context.Context, slug string, userID uuid.UUID) error {
+	event, err := s.queries.GetEventBySlug(ctx, slug)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.NewDomainError(model.ErrNotFound, "event not found")
+		}
+		return fmt.Errorf("fetching event: %w", err)
+	}
+
+	if err := s.queries.RemoveEventPinnedUser(ctx, event.ID, userID); err != nil {
+		return fmt.Errorf("removing pinned user: %w", err)
+	}
+
+	s.logger.Info("pinned user removed", "event_id", event.ID, "user_id", userID)
+
+	if s.auditService != nil {
+		go s.auditService.Log(context.Background(), nil, &event.ID, "delete", "event_pinned_user", nil, map[string]string{"user_id": userID.String(), "event_slug": slug}, nil, nil)
+	}
+
+	return nil
 }
 
 // Hidden hours management

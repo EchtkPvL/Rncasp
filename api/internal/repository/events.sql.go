@@ -387,6 +387,66 @@ func (q *Queries) IsEventAdmin(ctx context.Context, eventID uuid.UUID, userID uu
 	return exists, err
 }
 
+const listEventPinnedUsers = `-- name: ListEventPinnedUsers :many
+SELECT u.id, u.username, u.full_name, u.display_name
+FROM users u
+JOIN event_pinned_users ep ON u.id = ep.user_id
+WHERE ep.event_id = $1
+ORDER BY u.username
+`
+
+type ListEventPinnedUsersRow struct {
+	ID          uuid.UUID `json:"id"`
+	Username    string    `json:"username"`
+	FullName    string    `json:"full_name"`
+	DisplayName *string   `json:"display_name"`
+}
+
+func (q *Queries) ListEventPinnedUsers(ctx context.Context, eventID uuid.UUID) ([]ListEventPinnedUsersRow, error) {
+	rows, err := q.db.Query(ctx, listEventPinnedUsers, eventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListEventPinnedUsersRow{}
+	for rows.Next() {
+		var i ListEventPinnedUsersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.FullName,
+			&i.DisplayName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const addEventPinnedUser = `-- name: AddEventPinnedUser :exec
+INSERT INTO event_pinned_users (event_id, user_id)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING
+`
+
+func (q *Queries) AddEventPinnedUser(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, addEventPinnedUser, eventID, userID)
+	return err
+}
+
+const removeEventPinnedUser = `-- name: RemoveEventPinnedUser :exec
+DELETE FROM event_pinned_users WHERE event_id = $1 AND user_id = $2
+`
+
+func (q *Queries) RemoveEventPinnedUser(ctx context.Context, eventID uuid.UUID, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, removeEventPinnedUser, eventID, userID)
+	return err
+}
+
 const listEventHiddenRanges = `-- name: ListEventHiddenRanges :many
 SELECT id, event_id, hide_start_hour, hide_end_hour FROM event_hidden_ranges WHERE event_id = $1 ORDER BY hide_start_hour
 `

@@ -69,6 +69,21 @@ DELETE FROM event_admins WHERE event_id = $1 AND user_id = $2;
 -- name: IsEventAdmin :one
 SELECT EXISTS(SELECT 1 FROM event_admins WHERE event_id = $1 AND user_id = $2);
 
+-- name: ListEventPinnedUsers :many
+SELECT u.id, u.username, u.full_name, u.display_name
+FROM users u
+JOIN event_pinned_users ep ON u.id = ep.user_id
+WHERE ep.event_id = $1
+ORDER BY u.username;
+
+-- name: AddEventPinnedUser :exec
+INSERT INTO event_pinned_users (event_id, user_id)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING;
+
+-- name: RemoveEventPinnedUser :exec
+DELETE FROM event_pinned_users WHERE event_id = $1 AND user_id = $2;
+
 -- name: ListEventHiddenRanges :many
 SELECT * FROM event_hidden_ranges WHERE event_id = $1 ORDER BY hide_start_hour;
 

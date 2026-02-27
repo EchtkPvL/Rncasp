@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router";
 import { useTranslation } from "react-i18next";
-import { useEvent, useEventHiddenRanges, useEventTeams } from "@/hooks/useEvents";
+import { useEvent, useEventHiddenRanges, useEventTeams, useEventPinnedUsers } from "@/hooks/useEvents";
 import { useGridData, useUpdateShift } from "@/hooks/useShifts";
 import { useTeams } from "@/hooks/useTeams";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,6 +35,7 @@ export function EventPage() {
   // Connect to SSE for real-time updates on this event
   useSSE({ slug, enabled: !!slug });
   const { user } = useAuth();
+  const { data: pinnedUsersData } = useEventPinnedUsers(slug!, !!user && (user.role === "super_admin" || !!event?.is_event_admin));
   const hour12 = useTimeFormat();
   const updateShift = useUpdateShift();
 
@@ -79,6 +80,17 @@ export function EventPage() {
       setPrintConfig(null);
     });
   }, []);
+
+  // Map pinned users to grid format
+  const pinnedUsers = useMemo(
+    () => (pinnedUsersData || []).map((p) => ({
+      id: p.user_id,
+      username: p.username,
+      fullName: p.full_name,
+      displayName: p.display_name,
+    })),
+    [pinnedUsersData],
+  );
 
   // All event teams (unfiltered — for grid display)
   const allEventTeams = useMemo(() => eventTeams || [], [eventTeams]);
@@ -300,8 +312,8 @@ export function EventPage() {
         )}
       </div>
 
-      {/* Shift Grid */}
-      <div className="mt-8">
+      {/* Shift Grid — full-width breakout */}
+      <div className="relative left-1/2 mt-8 w-screen -translate-x-1/2 px-4">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">{t("shifts:title")}</h2>
           <div className="flex flex-wrap items-center gap-3">
@@ -371,6 +383,7 @@ export function EventPage() {
               availability={showAvailUsers ? (gridData.availability || []) : []}
               hiddenRanges={hiddenRanges || []}
               eventTeams={allEventTeams}
+              pinnedUsers={pinnedUsers}
               dayFilter={selectedDay}
               showAvailabilityUsers={showAvailUsers}
               onCellClick={handleCellClick}

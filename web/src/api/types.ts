@@ -107,6 +107,13 @@ export interface EventAdmin {
   full_name: string;
 }
 
+export interface EventPinnedUser {
+  user_id: string;
+  username: string;
+  full_name: string;
+  display_name: string | null;
+}
+
 export interface HiddenRange {
   id: string;
   event_id: string;

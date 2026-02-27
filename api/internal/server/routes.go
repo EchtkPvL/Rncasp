@@ -276,7 +276,12 @@ func (s *Server) setupRoutes() http.Handler {
 				r.With(middleware.RequireSuperAdmin).Post("/admins", eventHandler.AddAdmin)
 				r.With(middleware.RequireSuperAdmin).Delete("/admins/{userId}", eventHandler.RemoveAdmin)
 
-				// Hidden hours: any authenticated user can read, admins can modify
+				// Pinned users: event admin or super-admin
+			r.With(middleware.RequireEventAdminOrSuperAdmin(eventService)).Get("/pinned-users", eventHandler.ListPinnedUsers)
+			r.With(middleware.RequireEventAdminOrSuperAdmin(eventService)).Post("/pinned-users", eventHandler.AddPinnedUser)
+			r.With(middleware.RequireEventAdminOrSuperAdmin(eventService)).Delete("/pinned-users/{userId}", eventHandler.RemovePinnedUser)
+
+			// Hidden hours: any authenticated user can read, admins can modify
 				r.Get("/hidden-ranges", eventHandler.ListHiddenRanges)
 				r.With(middleware.RequireEventAdminOrSuperAdmin(eventService)).Put("/hidden-ranges", eventHandler.SetHiddenRanges)
 

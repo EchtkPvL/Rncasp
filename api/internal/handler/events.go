@@ -59,6 +59,10 @@ type addAdminRequest struct {
 	UserID string `json:"user_id"`
 }
 
+type addPinnedUserRequest struct {
+	UserID string `json:"user_id"`
+}
+
 type hiddenRangeRequest struct {
 	HideStartHour int32 `json:"hide_start_hour"`
 	HideEndHour   int32 `json:"hide_end_hour"`
@@ -307,6 +311,51 @@ func (h *EventHandler) RemoveAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	model.JSON(w, http.StatusOK, map[string]string{"message": "admin removed"})
+}
+
+// Pinned users endpoints
+
+func (h *EventHandler) ListPinnedUsers(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	users, err := h.eventService.ListPinnedUsers(r.Context(), slug)
+	if err != nil {
+		model.ErrorResponse(w, err)
+		return
+	}
+	model.JSON(w, http.StatusOK, users)
+}
+
+func (h *EventHandler) AddPinnedUser(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	var req addPinnedUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		model.ErrorResponse(w, model.NewDomainError(model.ErrInvalidInput, "invalid request body"))
+		return
+	}
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		model.ErrorResponse(w, model.NewFieldError(model.ErrInvalidInput, "user_id", "invalid user ID"))
+		return
+	}
+	if err := h.eventService.AddPinnedUser(r.Context(), slug, userID); err != nil {
+		model.ErrorResponse(w, err)
+		return
+	}
+	model.JSON(w, http.StatusOK, map[string]string{"message": "pinned user added"})
+}
+
+func (h *EventHandler) RemovePinnedUser(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	userID, err := uuid.Parse(chi.URLParam(r, "userId"))
+	if err != nil {
+		model.ErrorResponse(w, model.NewDomainError(model.ErrInvalidInput, "invalid user ID"))
+		return
+	}
+	if err := h.eventService.RemovePinnedUser(r.Context(), slug, userID); err != nil {
+		model.ErrorResponse(w, err)
+		return
+	}
+	model.JSON(w, http.StatusOK, map[string]string{"message": "pinned user removed"})
 }
 
 // Hidden hours endpoints

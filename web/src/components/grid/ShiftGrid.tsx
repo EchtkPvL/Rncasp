@@ -16,6 +16,13 @@ import { TimeRuler } from "./TimeRuler";
 import { GridRow } from "./GridRow";
 import { CoverageBar, buildCoverageMap } from "./CoverageBar";
 
+interface PinnedUser {
+  id: string;
+  username: string;
+  fullName: string;
+  displayName: string | null;
+}
+
 interface ShiftGridProps {
   event: Event;
   shifts: Shift[];
@@ -24,6 +31,7 @@ interface ShiftGridProps {
   availability?: AvailabilityGridEntry[];
   hiddenRanges?: HiddenRange[];
   eventTeams?: EventTeam[];
+  pinnedUsers?: PinnedUser[];
   dayFilter?: Date | null;
   showAvailabilityUsers?: boolean;
   onCellClick?: (userId: string, slotTime: Date) => void;
@@ -45,6 +53,7 @@ export function ShiftGrid({
   availability = [],
   hiddenRanges = [],
   eventTeams = [],
+  pinnedUsers = [],
   dayFilter,
   showAvailabilityUsers = false,
   onCellClick,
@@ -82,26 +91,42 @@ export function ShiftGrid({
     [effectiveRange.start, effectiveRange.end, event.time_granularity, hiddenRanges]
   );
 
-  // Group users from shifts, optionally including availability-only users
+  // Group users from shifts, optionally including availability-only users and pinned users
   const users = useMemo(() => {
     const shiftUsers = groupShiftsByUser(shifts);
-    if (!showAvailabilityUsers || availability.length === 0) return shiftUsers;
-
     const userIds = new Set(shiftUsers.map((u) => u.id));
     const extraUsers = new Map<string, { id: string; username: string; fullName: string; displayName: string | null }>();
-    for (const a of availability) {
-      if (!userIds.has(a.user_id) && !extraUsers.has(a.user_id)) {
-        extraUsers.set(a.user_id, {
-          id: a.user_id,
-          username: a.username,
-          fullName: a.user_full_name,
-          displayName: a.user_display_name,
+
+    // Always merge pinned users
+    for (const p of pinnedUsers) {
+      if (!userIds.has(p.id) && !extraUsers.has(p.id)) {
+        extraUsers.set(p.id, {
+          id: p.id,
+          username: p.username,
+          fullName: p.fullName,
+          displayName: p.displayName,
         });
       }
     }
+
+    // Optionally merge availability-only users
+    if (showAvailabilityUsers && availability.length > 0) {
+      for (const a of availability) {
+        if (!userIds.has(a.user_id) && !extraUsers.has(a.user_id)) {
+          extraUsers.set(a.user_id, {
+            id: a.user_id,
+            username: a.username,
+            fullName: a.user_full_name,
+            displayName: a.user_display_name,
+          });
+        }
+      }
+    }
+
+    if (extraUsers.size === 0) return shiftUsers;
     return [...shiftUsers, ...Array.from(extraUsers.values())]
       .sort((a, b) => a.username.localeCompare(b.username));
-  }, [shifts, availability, showAvailabilityUsers]);
+  }, [shifts, availability, showAvailabilityUsers, pinnedUsers]);
 
   // Get all teams: start with event teams, supplement with shift data
   const teams = useMemo(() => {

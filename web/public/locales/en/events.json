@@ -102,5 +102,9 @@
   "open_public_link": "Open public page",
   "pdf_error": "PDF generation failed. Make sure the server has Chrome/Chromium installed.",
   "csv_error": "CSV download failed.",
-  "ical_error": "iCal download failed."
+  "ical_error": "iCal download failed.",
+  "pinned_users": "Pinned Users",
+  "pinned_users_description": "Users listed here always appear in the shift grid, even without shifts.",
+  "no_pinned_users": "No pinned users.",
+  "remove_pinned_confirm": "Remove {{name}} from pinned users?"
 }

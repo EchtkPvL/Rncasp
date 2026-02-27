@@ -13,6 +13,7 @@ import {
   useSetEventPublic,
   useEventTeams,
   useEventAdmins,
+  useEventPinnedUsers,
   useEventHiddenRanges,
 } from "@/hooks/useEvents";
 import { useTeams } from "@/hooks/useTeams";
@@ -39,6 +40,7 @@ export function EventSettingsPage() {
   const setPublic = useSetEventPublic();
   const { data: eventTeams } = useEventTeams(slug!);
   const { data: eventAdmins } = useEventAdmins(slug!, isSuperAdmin);
+  const { data: pinnedUsers } = useEventPinnedUsers(slug!);
   const { data: hiddenRanges } = useEventHiddenRanges(slug!);
   const { data: allTeams } = useTeams();
   const { data: coverageList } = useQuery({
@@ -55,7 +57,7 @@ export function EventSettingsPage() {
 
   // Confirmation dialog state for critical actions
   const [confirmAction, setConfirmAction] = useState<{
-    type: "coverage" | "coverageByTeam" | "removeTeam" | "removeAdmin" | "removeHiddenRange";
+    type: "coverage" | "coverageByTeam" | "removeTeam" | "removeAdmin" | "removePinnedUser" | "removeHiddenRange";
     id: string;
     label?: string;
   } | null>(null);
@@ -77,6 +79,13 @@ export function EventSettingsPage() {
   const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
   const adminRef = useRef<HTMLDivElement>(null);
   const { data: adminSearchResults } = useSearchUsers(adminSearch);
+
+  // Pinned user form
+  const [pinnedSearch, setPinnedSearch] = useState("");
+  const [pinnedSelectedId, setPinnedSelectedId] = useState("");
+  const [pinnedDropdownOpen, setPinnedDropdownOpen] = useState(false);
+  const pinnedRef = useRef<HTMLDivElement>(null);
+  const { data: pinnedSearchResults } = useSearchUsers(pinnedSearch);
 
   // Coverage form (add new)
   const [covTeamId, setCovTeamId] = useState("");
@@ -102,11 +111,14 @@ export function EventSettingsPage() {
     }
   }, [deleteEvent, slug, navigate]);
 
-  // Close admin dropdown on outside click
+  // Close admin/pinned dropdowns on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (adminRef.current && !adminRef.current.contains(e.target as Node)) {
         setAdminDropdownOpen(false);
+      }
+      if (pinnedRef.current && !pinnedRef.current.contains(e.target as Node)) {
+        setPinnedDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -233,6 +245,31 @@ export function EventSettingsPage() {
     try {
       await eventsApi.removeAdmin(slug!, userId);
       queryClient.invalidateQueries({ queryKey: ["events", slug!, "admins"] });
+    } catch (err) {
+      if (err instanceof ApiError) setError(err.message);
+    }
+  }
+
+  async function handleAddPinnedUser(e: React.FormEvent) {
+    e.preventDefault();
+    if (!pinnedSelectedId) return;
+    setError("");
+    try {
+      await eventsApi.addPinnedUser(slug!, pinnedSelectedId);
+      setPinnedSearch("");
+      setPinnedSelectedId("");
+      setPinnedDropdownOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["events", slug!, "pinned-users"] });
+    } catch (err) {
+      if (err instanceof ApiError) setError(err.message);
+    }
+  }
+
+  async function handleRemovePinnedUser(userId: string) {
+    setError("");
+    try {
+      await eventsApi.removePinnedUser(slug!, userId);
+      queryClient.invalidateQueries({ queryKey: ["events", slug!, "pinned-users"] });
     } catch (err) {
       if (err instanceof ApiError) setError(err.message);
     }
@@ -367,6 +404,9 @@ export function EventSettingsPage() {
         break;
       case "removeAdmin":
         await handleRemoveAdmin(confirmAction.id);
+        break;
+      case "removePinnedUser":
+        await handleRemovePinnedUser(confirmAction.id);
         break;
       case "removeHiddenRange":
         await handleRemoveHiddenRange(parseInt(confirmAction.id));
@@ -612,6 +652,76 @@ export function EventSettingsPage() {
         </div>
       </section>
       )}
+
+      {/* Pinned Users */}
+      <section className="rounded-lg border border-[var(--color-border)] p-4">
+        <h2 className="text-lg font-semibold">{t("events:pinned_users")}</h2>
+        <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">
+          {t("events:pinned_users_description")}
+        </p>
+        <div className="mt-3 space-y-2">
+          {pinnedUsers && pinnedUsers.length > 0 ? (
+            pinnedUsers.map((pu) => (
+              <div key={pu.user_id} className="flex items-center justify-between rounded-md border border-[var(--color-border)] px-3 py-2">
+                <div className="text-sm">
+                  <span className="font-medium">{pu.display_name || pu.full_name}</span>
+                  <span className="ml-2 text-[var(--color-muted-foreground)]">@{pu.username}</span>
+                </div>
+                <button onClick={() => setConfirmAction({ type: "removePinnedUser", id: pu.user_id, label: pu.display_name || pu.full_name })} className="text-xs text-[var(--color-destructive)] hover:underline">
+                  {t("events:remove")}
+                </button>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-[var(--color-muted-foreground)]">{t("events:no_pinned_users")}</p>
+          )}
+          <form onSubmit={handleAddPinnedUser} className="flex gap-2">
+            <div ref={pinnedRef} className="relative flex-1">
+              <input
+                type="text"
+                value={pinnedSearch}
+                onChange={(e) => {
+                  setPinnedSearch(e.target.value);
+                  setPinnedSelectedId("");
+                  setPinnedDropdownOpen(e.target.value.length >= 1);
+                }}
+                onFocus={() => { if (pinnedSearch.length >= 1) setPinnedDropdownOpen(true); }}
+                placeholder={t("events:search_user")}
+                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1.5 text-sm"
+              />
+              {pinnedDropdownOpen && pinnedSearchResults && pinnedSearchResults.length > 0 && (
+                <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-md border border-[var(--color-border)] bg-[var(--color-background)] shadow-lg">
+                  {pinnedSearchResults
+                    .filter((u) => !pinnedUsers?.some((p) => p.user_id === u.id))
+                    .map((u) => (
+                      <li key={u.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPinnedSelectedId(u.id);
+                            setPinnedSearch(`@${u.username} — ${u.full_name}`);
+                            setPinnedDropdownOpen(false);
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--color-muted)]"
+                        >
+                          <span className="font-medium">@{u.username}</span>
+                          <span className="text-[var(--color-muted-foreground)]">{u.full_name}</span>
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </div>
+            <button
+              type="submit"
+              disabled={!pinnedSelectedId}
+              className="rounded-md bg-[var(--color-primary)] px-3 py-1.5 text-sm text-[var(--color-primary-foreground)] disabled:opacity-50"
+            >
+              {t("events:add")}
+            </button>
+          </form>
+        </div>
+      </section>
 
       {/* Hidden Hours */}
       <section className="rounded-lg border border-[var(--color-border)] p-4">
@@ -861,7 +971,9 @@ export function EventSettingsPage() {
                 ? t("events:remove_team_confirm", { team: confirmAction.label })
                 : confirmAction?.type === "removeAdmin"
                   ? t("events:remove_admin_confirm", { name: confirmAction.label })
-                  : t("events:remove_hidden_range_confirm")
+                  : confirmAction?.type === "removePinnedUser"
+                    ? t("events:remove_pinned_confirm", { name: confirmAction.label })
+                    : t("events:remove_hidden_range_confirm")
         }
         destructive
         onConfirm={executeConfirmAction}

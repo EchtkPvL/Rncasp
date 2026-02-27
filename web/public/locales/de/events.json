@@ -102,5 +102,9 @@
   "open_public_link": "Öffentliche Seite öffnen",
   "pdf_error": "PDF-Erstellung fehlgeschlagen. Stellen Sie sicher, dass Chrome/Chromium auf dem Server installiert ist.",
   "csv_error": "CSV-Download fehlgeschlagen.",
-  "ical_error": "iCal-Download fehlgeschlagen."
+  "ical_error": "iCal-Download fehlgeschlagen.",
+  "pinned_users": "Angepinnte Benutzer",
+  "pinned_users_description": "Hier aufgeführte Benutzer erscheinen immer im Schichtplan, auch ohne Schichten.",
+  "no_pinned_users": "Keine angepinnten Benutzer.",
+  "remove_pinned_confirm": "{{name}} von den angepinnten Benutzern entfernen?"
 }

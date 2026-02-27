@@ -101,6 +101,17 @@ export function useEventAdmins(slug: string, enabled = true) {
   });
 }
 
+export function useEventPinnedUsers(slug: string, enabled = true) {
+  return useQuery({
+    queryKey: ["events", slug, "pinned-users"],
+    queryFn: async () => {
+      const res = await eventsApi.listPinnedUsers(slug);
+      return res.data!;
+    },
+    enabled: !!slug && enabled,
+  });
+}
+
 export function useEventHiddenRanges(slug: string) {
   return useQuery({
     queryKey: ["events", slug, "hidden-ranges"],
