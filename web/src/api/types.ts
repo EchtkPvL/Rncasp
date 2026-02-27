@@ -443,9 +443,9 @@ export interface PrintConfig {
   paperSize: "A4" | "A3";
   landscape: boolean;
   showCoverage: boolean;
-  showTeamColors: boolean;
   selectedDays: Date[];
   selectedUserIds: string[] | null; // null = all users
+  selectedTeamIds: string[] | null; // null = all teams
 }
 
 // SSE

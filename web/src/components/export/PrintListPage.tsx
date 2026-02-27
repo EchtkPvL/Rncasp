@@ -8,10 +8,9 @@ interface PrintListPageProps {
   event: Event;
   shifts: Shift[];
   selectedDays: Date[];
-  showTeamColors: boolean;
 }
 
-export function PrintListPage({ event, shifts, selectedDays, showTeamColors }: PrintListPageProps) {
+export function PrintListPage({ event, shifts, selectedDays }: PrintListPageProps) {
   const { t } = useTranslation(["events"]);
   const hour12 = useTimeFormat();
 
@@ -93,12 +92,10 @@ export function PrintListPage({ event, shifts, selectedDays, showTeamColors }: P
                 const crossesMidnight = start.toDateString() !== end.toDateString();
                 return (
                   <div key={shift.id} className="print-list-shift">
-                    {showTeamColors && (
-                      <span
-                        className="print-team-dot"
-                        style={{ backgroundColor: shift.team_color }}
-                      />
-                    )}
+                    <span
+                      className="print-team-dot"
+                      style={{ backgroundColor: shift.team_color }}
+                    />
                     <span>
                       {formatSlotTime(start, hour12)}–{formatSlotTime(end, hour12)}
                       {crossesMidnight && ` (${formatDayHeader(end)})`}

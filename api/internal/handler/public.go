@@ -147,7 +147,6 @@ func (h *PublicHandler) ExportPDF(w http.ResponseWriter, r *http.Request) {
 		PaperSize:      q.Get("paper"),
 		Landscape:      q.Get("landscape") != "false",
 		ShowCoverage:   q.Get("coverage") != "false",
-		ShowTeamColors: q.Get("colors") != "false",
 	}
 	if opts.Layout == "" {
 		opts.Layout = "grid"
@@ -160,6 +159,9 @@ func (h *PublicHandler) ExportPDF(w http.ResponseWriter, r *http.Request) {
 	}
 	if u := q.Get("users"); u != "" {
 		opts.UserIDs = strings.Split(u, ",")
+	}
+	if t := q.Get("teams"); t != "" {
+		opts.TeamIDs = strings.Split(t, ",")
 	}
 
 	data, filename, err := h.exportService.ExportPDF(r.Context(), slug, opts)

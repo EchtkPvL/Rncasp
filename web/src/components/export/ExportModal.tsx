@@ -27,6 +27,7 @@ interface ExportModalProps {
 export function ExportModal({
   event,
   shifts,
+  eventTeams,
   selectedDay,
   slug,
   onPrint,
@@ -45,7 +46,9 @@ export function ExportModal({
   const [paperSize, setPaperSize] = useState<PaperSize>("A4");
   const [landscape, setLandscape] = useState(true);
   const [showCoverage, setShowCoverage] = useState(true);
-  const [showTeamColors, setShowTeamColors] = useState(true);
+
+  // Team selection: null = all teams
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[] | null>(null);
 
   // All event days
   const allDays = useMemo(
@@ -90,9 +93,9 @@ export function ExportModal({
       paperSize,
       landscape,
       showCoverage,
-      showTeamColors,
       selectedDays,
       selectedUserIds,
+      selectedTeamIds,
     });
   }
 
@@ -102,9 +105,9 @@ export function ExportModal({
       paperSize,
       landscape,
       showCoverage,
-      showTeamColors,
       selectedDays,
       selectedUserIds,
+      selectedTeamIds,
     };
     if (onDownloadPDF) {
       onDownloadPDF(slug, config);
@@ -149,6 +152,25 @@ export function ExportModal({
     setSelectedUserIds([]);
   }
 
+  function toggleTeam(teamId: string) {
+    setSelectedTeamIds((prev) => {
+      if (prev === null) {
+        return eventTeams.map((t) => t.team_id).filter((id) => id !== teamId);
+      }
+      const exists = prev.includes(teamId);
+      if (exists) return prev.filter((id) => id !== teamId);
+      return [...prev, teamId];
+    });
+  }
+
+  function selectAllTeams() {
+    setSelectedTeamIds(null);
+  }
+
+  function selectNoTeams() {
+    setSelectedTeamIds([]);
+  }
+
   function handleCSV() {
     if (onDownloadCSV) {
       onDownloadCSV(slug);
@@ -170,7 +192,7 @@ export function ExportModal({
   const csvPending = onDownloadCSV ? false : downloadCSV.isPending;
   const icalPending = onDownloadICal ? false : downloadICal.isPending;
 
-  const printDisabled = selectedDays.length === 0 || (selectedUserIds !== null && selectedUserIds.length === 0);
+  const printDisabled = selectedDays.length === 0 || (selectedUserIds !== null && selectedUserIds.length === 0) || (selectedTeamIds !== null && selectedTeamIds.length === 0);
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "print", label: t("events:export_tab_print") },
@@ -181,7 +203,7 @@ export function ExportModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50" onClick={onClose}>
       <div
-        className="w-full max-w-xl rounded-t-lg sm:rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-6 shadow-lg"
+        className="flex max-h-[90vh] w-full max-w-xl flex-col rounded-t-lg sm:rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-bold">{t("events:export_title")}</h2>
@@ -205,7 +227,7 @@ export function ExportModal({
         </div>
 
         {/* Tab content */}
-        <div className="mt-4">
+        <div className="mt-4 min-h-0 overflow-y-auto">
           {tab === "print" && (
             <div className="space-y-4">
               {/* Layout toggle */}
@@ -274,16 +296,50 @@ export function ExportModal({
                 </label>
               )}
 
-              {/* Show team colors toggle */}
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={showTeamColors}
-                  onChange={(e) => setShowTeamColors(e.target.checked)}
-                  className="rounded"
-                />
-                {t("events:print_show_team_colors")}
-              </label>
+              {/* Team selection */}
+              {eventTeams.length > 0 && (
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="block text-sm font-medium">{t("events:print_select_teams")}</label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={selectAllTeams}
+                        className="text-xs text-[var(--color-primary)] hover:underline"
+                      >
+                        {t("events:print_all_teams")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={selectNoTeams}
+                        className="text-xs text-[var(--color-primary)] hover:underline"
+                      >
+                        {t("events:print_no_teams")}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {eventTeams.map((team) => {
+                      const checked = selectedTeamIds === null || selectedTeamIds.includes(team.team_id);
+                      return (
+                        <label key={team.team_id} className="flex items-center gap-1 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleTeam(team.team_id)}
+                            className="rounded"
+                          />
+                          <span
+                            className="inline-block h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: team.team_color }}
+                          />
+                          {team.team_name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Day selection */}
               <div>

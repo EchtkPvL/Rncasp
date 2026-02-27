@@ -30,10 +30,10 @@ type PDFOptions struct {
 	Layout         string   // "grid" or "list"
 	PaperSize      string   // "A4" or "A3"
 	Landscape      bool
-	ShowCoverage   bool
-	ShowTeamColors bool
-	Days           []string // ISO date strings (YYYY-MM-DD); empty = all
+	ShowCoverage bool
+	Days         []string // ISO date strings (YYYY-MM-DD); empty = all
 	UserIDs        []string // UUIDs; empty = all
+	TeamIDs        []string // UUIDs; empty = all
 }
 
 type PDFData struct {
@@ -50,7 +50,10 @@ func (g *PDFGenerator) Generate(ctx context.Context, data PDFData, opts PDFOptio
 	if len(opts.Days) > 0 {
 		shifts = filterShiftsByDays(shifts, opts.Days)
 	}
-	// Keep day-filtered (but not user-filtered) shifts for coverage totals
+	if len(opts.TeamIDs) > 0 {
+		shifts = filterShiftsByTeams(shifts, opts.TeamIDs)
+	}
+	// Keep day+team-filtered (but not user-filtered) shifts for coverage totals
 	allShifts := shifts
 	if len(opts.UserIDs) > 0 {
 		shifts = filterShiftsByUsers(shifts, opts.UserIDs)
@@ -157,6 +160,20 @@ func filterShiftsByUsers(shifts []repository.ListShiftsByEventRow, userIDs []str
 	var result []repository.ListShiftsByEventRow
 	for _, s := range shifts {
 		if set[s.UserID.String()] {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+func filterShiftsByTeams(shifts []repository.ListShiftsByEventRow, teamIDs []string) []repository.ListShiftsByEventRow {
+	set := make(map[string]bool, len(teamIDs))
+	for _, id := range teamIDs {
+		set[id] = true
+	}
+	var result []repository.ListShiftsByEventRow
+	for _, s := range shifts {
+		if set[s.TeamID.String()] {
 			result = append(result, s)
 		}
 	}
@@ -367,6 +384,19 @@ func renderGridLayout(b *strings.Builder, event repository.Event, shifts []repos
 		}
 	}
 
+	// Filter teamMap to only selected teams (for coverage rows)
+	if len(opts.TeamIDs) > 0 {
+		teamSet := make(map[string]bool, len(opts.TeamIDs))
+		for _, id := range opts.TeamIDs {
+			teamSet[id] = true
+		}
+		for id := range teamMap {
+			if !teamSet[id.String()] {
+				delete(teamMap, id)
+			}
+		}
+	}
+
 	for dayIdx, day := range days {
 		// Compute day boundaries clamped to event range
 		dayStart := day
@@ -437,7 +467,7 @@ func renderGridLayout(b *strings.Builder, event repository.Event, shifts []repos
 			b.WriteString("</td>")
 
 			userShifts := filterShiftsForUser(dayShifts, user.id)
-			renderUserCells(b, userShifts, slots, granMinutes, opts.ShowTeamColors)
+			renderUserCells(b, userShifts, slots, granMinutes)
 
 			b.WriteString("</tr>")
 		}
@@ -461,7 +491,7 @@ func filterShiftsForUser(shifts []repository.ListShiftsByEventRow, userID uuid.U
 	return result
 }
 
-func renderUserCells(b *strings.Builder, userShifts []repository.ListShiftsByEventRow, slots []time.Time, granMinutes int, showTeamColors bool) {
+func renderUserCells(b *strings.Builder, userShifts []repository.ListShiftsByEventRow, slots []time.Time, granMinutes int) {
 	rendered := make(map[uuid.UUID]bool)
 	skipUntil := -1
 
@@ -501,10 +531,7 @@ func renderUserCells(b *strings.Builder, userShifts []repository.ListShiftsByEve
 			}
 			skipUntil = i + span
 
-			bgColor := "#f0f0f0"
-			if showTeamColors {
-				bgColor = found.TeamColor + "33"
-			}
+			bgColor := found.TeamColor + "33"
 
 			b.WriteString(fmt.Sprintf(`<td colspan="%d" class="print-shift-cell" style="background-color:%s">`, span, html.EscapeString(bgColor)))
 			b.WriteString(html.EscapeString(found.TeamAbbreviation))
@@ -652,9 +679,7 @@ func renderListLayout(b *strings.Builder, event repository.Event, shifts []repos
 
 			for _, shift := range overlapping {
 				b.WriteString(`<div class="print-list-shift">`)
-				if opts.ShowTeamColors {
-					b.WriteString(fmt.Sprintf(`<span class="print-team-dot" style="background-color:%s"></span>`, html.EscapeString(shift.TeamColor)))
-				}
+				b.WriteString(fmt.Sprintf(`<span class="print-team-dot" style="background-color:%s"></span>`, html.EscapeString(shift.TeamColor)))
 				b.WriteString("<span>")
 				b.WriteString(html.EscapeString(formatTime24(shift.StartTime)))
 				b.WriteString("–")

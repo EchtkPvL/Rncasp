@@ -32,12 +32,14 @@ export const publicApi = {
     params.set("paper", config.paperSize);
     params.set("landscape", String(config.landscape));
     params.set("coverage", String(config.showCoverage));
-    params.set("colors", String(config.showTeamColors));
     if (config.selectedDays.length > 0) {
       params.set("days", config.selectedDays.map((d) => d.toISOString().split("T")[0]).join(","));
     }
     if (config.selectedUserIds) {
       params.set("users", config.selectedUserIds.join(","));
+    }
+    if (config.selectedTeamIds) {
+      params.set("teams", config.selectedTeamIds.join(","));
     }
     const res = await fetch(`${API_BASE}/public/events/${slug}/export/pdf?${params}`);
     if (!res.ok) throw new Error("Failed to download PDF");

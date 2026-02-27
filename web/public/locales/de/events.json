@@ -80,7 +80,6 @@
   "print_orientation": "Ausrichtung",
   "print_portrait": "Hochformat",
   "print_show_coverage": "Besetzungsbalken anzeigen",
-  "print_show_team_colors": "Teamfarben anzeigen",
   "print_select_days": "Einzuschließende Tage",
   "print_all_days": "Alle",
   "print_no_days": "Keine",
@@ -106,5 +105,8 @@
   "pinned_users": "Angepinnte Benutzer",
   "pinned_users_description": "Hier aufgeführte Benutzer erscheinen immer im Schichtplan, auch ohne Schichten.",
   "no_pinned_users": "Keine angepinnten Benutzer.",
-  "remove_pinned_confirm": "{{name}} von den angepinnten Benutzern entfernen?"
+  "remove_pinned_confirm": "{{name}} von den angepinnten Benutzern entfernen?",
+  "print_select_teams": "Einzuschließende Teams",
+  "print_all_teams": "Alle",
+  "print_no_teams": "Keine"
 }

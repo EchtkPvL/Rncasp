@@ -80,7 +80,6 @@
   "print_orientation": "Orientation",
   "print_portrait": "Portrait",
   "print_show_coverage": "Show coverage bars",
-  "print_show_team_colors": "Show team colors",
   "print_select_days": "Days to include",
   "print_all_days": "All",
   "print_no_days": "None",
@@ -106,5 +105,8 @@
   "pinned_users": "Pinned Users",
   "pinned_users_description": "Users listed here always appear in the shift grid, even without shifts.",
   "no_pinned_users": "No pinned users.",
-  "remove_pinned_confirm": "Remove {{name}} from pinned users?"
+  "remove_pinned_confirm": "Remove {{name}} from pinned users?",
+  "print_select_teams": "Teams to include",
+  "print_all_teams": "All",
+  "print_no_teams": "None"
 }

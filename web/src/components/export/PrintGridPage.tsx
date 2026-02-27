@@ -13,7 +13,6 @@ interface PrintGridPageProps {
   hiddenRanges: HiddenRange[];
   day: Date;
   showCoverage: boolean;
-  showTeamColors: boolean;
   isFirstPage: boolean;
 }
 
@@ -28,7 +27,6 @@ export function PrintGridPage({
   hiddenRanges,
   day,
   showCoverage,
-  showTeamColors,
   isFirstPage,
 }: PrintGridPageProps) {
   const { t } = useTranslation(["events"]);
@@ -187,7 +185,6 @@ export function PrintGridPage({
                       userShifts={userShifts}
                       slots={slots}
                       granMinutes={granMinutes}
-                      showTeamColors={showTeamColors}
                     />
                   );
                 })}
@@ -224,13 +221,11 @@ function UserRow({
   userShifts,
   slots,
   granMinutes,
-  showTeamColors,
 }: {
   userName: string;
   userShifts: Shift[];
   slots: Date[];
   granMinutes: number;
-  showTeamColors: boolean;
 }) {
   const cells: React.ReactNode[] = [];
   const rendered = new Set<string>();
@@ -263,7 +258,7 @@ function UserRow({
       span = Math.max(span, 1);
       skipUntil = i + span;
 
-      const bgColor = showTeamColors ? shift.team_color + "33" : "var(--color-surface-alt)";
+      const bgColor = shift.team_color + "33";
 
       cells.push(
         <td

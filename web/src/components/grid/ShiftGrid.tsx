@@ -312,7 +312,7 @@ export function ShiftGrid({
       ref={gridContainerRef}
       tabIndex={0}
       onKeyDown={onGridKeyDown}
-      className="overflow-auto rounded-lg border border-[var(--color-border)] outline-none"
+      className="overflow-auto rounded-lg border border-[var(--color-border)] outline-none sm:max-h-[calc(100vh-14rem)]"
     >
       {dragEnabled ? (
         <DndContext

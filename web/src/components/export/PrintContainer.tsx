@@ -52,12 +52,26 @@ export function PrintContainer({
     });
   }, [shifts, config]);
 
+  // Filter by selected teams
+  const teamFilteredShifts = useMemo(() => {
+    if (!config || config.selectedTeamIds === null) return dayFilteredShifts;
+    const teamSet = new Set(config.selectedTeamIds);
+    return dayFilteredShifts.filter((s) => teamSet.has(s.team_id));
+  }, [dayFilteredShifts, config]);
+
   // Further filter by selected users (for grid rows display)
   const filteredShifts = useMemo(() => {
-    if (!config || config.selectedUserIds === null) return dayFilteredShifts;
+    if (!config || config.selectedUserIds === null) return teamFilteredShifts;
     const userSet = new Set(config.selectedUserIds);
-    return dayFilteredShifts.filter((s) => userSet.has(s.user_id));
-  }, [dayFilteredShifts, config]);
+    return teamFilteredShifts.filter((s) => userSet.has(s.user_id));
+  }, [teamFilteredShifts, config]);
+
+  // Filter eventTeams to only selected teams
+  const filteredEventTeams = useMemo(() => {
+    if (!config || config.selectedTeamIds === null) return eventTeams;
+    const teamSet = new Set(config.selectedTeamIds);
+    return eventTeams.filter((t) => teamSet.has(t.team_id));
+  }, [eventTeams, config]);
 
   // Notify parent when content has rendered
   useEffect(() => {
@@ -76,13 +90,12 @@ export function PrintContainer({
             key={day.toISOString()}
             event={event}
             shifts={filteredShifts}
-            allShifts={dayFilteredShifts}
+            allShifts={teamFilteredShifts}
             coverage={coverage}
-            eventTeams={eventTeams}
+            eventTeams={filteredEventTeams}
             hiddenRanges={hiddenRanges}
             day={day}
             showCoverage={config.showCoverage}
-            showTeamColors={config.showTeamColors}
             isFirstPage={i === 0}
           />
         ))
@@ -91,7 +104,6 @@ export function PrintContainer({
           event={event}
           shifts={filteredShifts}
           selectedDays={config.selectedDays}
-          showTeamColors={config.showTeamColors}
         />
       )
     ) : null,
