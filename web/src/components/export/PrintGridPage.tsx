@@ -14,9 +14,9 @@ interface PrintGridPageProps {
   day: Date;
   showCoverage: boolean;
   isFirstPage: boolean;
+  rangeStart?: Date;
+  rangeEnd?: Date;
 }
-
-const ROWS_PER_PAGE = 25;
 
 export function PrintGridPage({
   event,
@@ -28,22 +28,28 @@ export function PrintGridPage({
   day,
   showCoverage,
   isFirstPage,
+  rangeStart,
+  rangeEnd,
 }: PrintGridPageProps) {
   const { t } = useTranslation(["events"]);
   const hour12 = useTimeFormat();
 
-  // Compute day boundaries clamped to event range
+  // Compute day boundaries clamped to event range and optional time range
   const dayRange = useMemo(() => {
     const dayStart = new Date(day);
     const dayEnd = new Date(day);
     dayEnd.setDate(dayEnd.getDate() + 1);
     const eventStart = new Date(event.start_time);
     const eventEnd = new Date(event.end_time);
+    let start = dayStart > eventStart ? dayStart : eventStart;
+    let end = dayEnd < eventEnd ? dayEnd : eventEnd;
+    if (rangeStart && rangeStart > start) start = rangeStart;
+    if (rangeEnd && rangeEnd < end) end = rangeEnd;
     return {
-      start: (dayStart > eventStart ? dayStart : eventStart).toISOString(),
-      end: (dayEnd < eventEnd ? dayEnd : eventEnd).toISOString(),
+      start: start.toISOString(),
+      end: end.toISOString(),
     };
-  }, [day, event.start_time, event.end_time]);
+  }, [day, event.start_time, event.end_time, rangeStart, rangeEnd]);
 
   // Generate time slots for this day
   const slots = useMemo(
@@ -79,16 +85,6 @@ export function PrintGridPage({
 
   // Get distinct users
   const users = useMemo(() => groupShiftsByUser(dayShifts), [dayShifts]);
-
-  // Split users into page chunks
-  const userChunks = useMemo(() => {
-    if (users.length === 0) return [[]];
-    const chunks: (typeof users)[] = [];
-    for (let i = 0; i < users.length; i += ROWS_PER_PAGE) {
-      chunks.push(users.slice(i, i + ROWS_PER_PAGE));
-    }
-    return chunks;
-  }, [users]);
 
   // Build team lookup
   const teamMap = useMemo(() => {
@@ -143,75 +139,67 @@ export function PrintGridPage({
   const now = new Date();
 
   return (
-    <>
-      {userChunks.map((chunk, chunkIdx) => {
-        const isFirst = isFirstPage && chunkIdx === 0;
-        const isLastChunk = chunkIdx === userChunks.length - 1;
+    <div className={isFirstPage ? "" : "print-day-break"}>
+      {/* Page header — only on first page of each day */}
+      <div className="print-page-header">
+        <span className="print-event-name">{event.name}</span>
+        <span>{formatDayHeader(day)}</span>
+        <span>
+          {t("events:printed_at")} {formatSlotTime(now, hour12)}
+        </span>
+      </div>
 
-        return (
-          <div key={chunkIdx} className={isFirst ? "" : "print-day-break"}>
-            {/* Page header */}
-            <div className="print-page-header">
-              <span className="print-event-name">{event.name}</span>
-              <span>{formatDayHeader(day)}</span>
-              <span>
-                {t("events:printed_at")} {formatSlotTime(now, hour12)}
-              </span>
-            </div>
+      {/* Single table — browser handles page breaks, thead repeats automatically */}
+      <table className="print-grid-table">
+        <thead>
+          <tr>
+            <th className="print-name-col">&nbsp;</th>
+            {slots.map((slot, i) => {
+              const min = slot.getMinutes();
+              const isHourStart = min === 0;
+              return (
+                <th key={i} className={isHourStart ? "print-hour-start" : undefined}>
+                  {isHourStart ? formatSlotTime(slot, hour12) : ""}
+                </th>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {users.map((user) => {
+            const userShifts = dayShifts.filter((s) => s.user_id === user.id);
+            return (
+              <UserRow
+                key={user.id}
+                userName={user.displayName || user.fullName}
+                userShifts={userShifts}
+                slots={slots}
+                granMinutes={granMinutes}
+              />
+            );
+          })}
 
-            {/* Grid table */}
-            <table className="print-grid-table">
-              <thead>
-                <tr>
-                  <th className="print-name-col">&nbsp;</th>
-                  {slots.map((slot, i) => {
-                    const min = slot.getMinutes();
-                    const showTime = min === 0;
-                    return (
-                      <th key={i}>
-                        {showTime ? formatSlotTime(slot, hour12) : ""}
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {chunk.map((user) => {
-                  const userShifts = dayShifts.filter((s) => s.user_id === user.id);
-                  return (
-                    <UserRow
-                      key={user.id}
-                      userName={user.displayName || user.fullName}
-                      userShifts={userShifts}
-                      slots={slots}
-                      granMinutes={granMinutes}
-                    />
-                  );
-                })}
-
-                {/* Coverage rows - only on last chunk */}
-                {isLastChunk && coverageData && coverageData.map(({ teamId, team, slotData }) => (
-                  <tr key={`cov-${teamId}`} className="print-coverage-row">
-                    <td className="print-name-col">{team.abbreviation}</td>
-                    {slotData.map((sd, i) => {
-                      let bgColor = "transparent";
-                      if (sd.required > 0) {
-                        bgColor = sd.count >= sd.required ? "var(--color-success-light)" : "var(--color-destructive-light)";
-                      }
-                      return (
-                        <td key={i} style={{ backgroundColor: bgColor }}>
-                          {sd.required > 0 ? `${sd.count}/${sd.required}` : ""}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        );
-      })}
-    </>
+          {/* Coverage rows at the end */}
+          {coverageData && coverageData.map(({ teamId, team, slotData }) => (
+            <tr key={`cov-${teamId}`} className="print-coverage-row">
+              <td className="print-name-col">{team.abbreviation}</td>
+              {slotData.map((sd, i) => {
+                let bgColor = "transparent";
+                if (sd.required > 0) {
+                  bgColor = sd.count >= sd.required ? "var(--color-success-light)" : "var(--color-destructive-light)";
+                }
+                const isHourStart = slots[i].getMinutes() === 0;
+                return (
+                  <td key={i} className={isHourStart ? "print-hour-start" : undefined} style={{ backgroundColor: bgColor }}>
+                    {sd.required > 0 ? `${sd.count}/${sd.required}` : ""}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -260,18 +248,20 @@ function UserRow({
 
       const bgColor = shift.team_color + "33";
 
+      const isHourStart = slots[i].getMinutes() === 0;
       cells.push(
         <td
           key={i}
           colSpan={span}
-          className="print-shift-cell"
+          className={isHourStart ? "print-shift-cell print-hour-start" : "print-shift-cell"}
           style={{ backgroundColor: bgColor }}
         >
           {shift.team_abbreviation}
         </td>
       );
     } else {
-      cells.push(<td key={i} />);
+      const isHourStart = slots[i].getMinutes() === 0;
+      cells.push(<td key={i} className={isHourStart ? "print-hour-start" : undefined} />);
     }
   }
 

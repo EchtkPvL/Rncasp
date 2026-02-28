@@ -8,9 +8,10 @@ interface PrintListPageProps {
   event: Event;
   shifts: Shift[];
   selectedDays: Date[];
+  onePerPage?: boolean;
 }
 
-export function PrintListPage({ event, shifts, selectedDays }: PrintListPageProps) {
+export function PrintListPage({ event, shifts, selectedDays, onePerPage = false }: PrintListPageProps) {
   const { t } = useTranslation(["events"]);
   const hour12 = useTimeFormat();
 
@@ -68,46 +69,51 @@ export function PrintListPage({ event, shifts, selectedDays }: PrintListPageProp
 
   return (
     <div>
-      {/* Page header */}
-      <div className="print-page-header">
-        <span className="print-event-name">{event.name}</span>
-        <span>{dateRange}</span>
-        <span>
-          {t("events:printed_at")} {formatSlotTime(now, hour12)}
-        </span>
-      </div>
-
-      {/* User blocks */}
-      {userGroups.map(({ user, days }) => (
-        <div key={user.id} className="print-list-user">
-          <div className="print-list-user-name">
-            {user.displayName || user.fullName}
-          </div>
-          {days.map(({ date, shifts: dayShifts }) => (
-            <div key={date.toISOString()}>
-              <div className="print-list-day-header">{formatDayHeader(date)}</div>
-              {dayShifts.map((shift) => {
-                const start = new Date(shift.start_time);
-                const end = new Date(shift.end_time);
-                const crossesMidnight = start.toDateString() !== end.toDateString();
-                return (
-                  <div key={shift.id} className="print-list-shift">
-                    <span
-                      className="print-team-dot"
-                      style={{ backgroundColor: shift.team_color }}
-                    />
-                    <span>
-                      {formatSlotTime(start, hour12)}–{formatSlotTime(end, hour12)}
-                      {crossesMidnight && ` (${formatDayHeader(end)})`}
-                    </span>
-                    <span>
-                      {shift.team_name} ({shift.team_abbreviation})
-                    </span>
-                  </div>
-                );
-              })}
+      {userGroups.map(({ user, days }, userIdx) => (
+        <div key={user.id} className={onePerPage && userIdx > 0 ? "print-day-break" : ""}>
+          {/* Page header — on every page in onePerPage mode, or once at the top */}
+          {(onePerPage || userIdx === 0) && (
+            <div className="print-page-header">
+              <span className="print-event-name">{event.name}</span>
+              <span>{dateRange}</span>
+              <span>
+                {t("events:printed_at")} {formatSlotTime(now, hour12)}
+              </span>
             </div>
-          ))}
+          )}
+
+          <div className="print-list-user">
+            <div className="print-list-user-name">
+              {user.displayName || user.fullName}
+            </div>
+            {days.map(({ date, shifts: dayShifts }) => (
+              <div key={date.toISOString()}>
+                <div className="print-list-day-header">{formatDayHeader(date)}</div>
+                {dayShifts.map((shift) => {
+                  const start = new Date(shift.start_time);
+                  const end = new Date(shift.end_time);
+                  const crossesMidnight = start.toDateString() !== end.toDateString();
+                  return (
+                    <div key={shift.id} className="print-list-shift">
+                      <span
+                        className="print-team-dot"
+                        style={{ backgroundColor: shift.team_color }}
+                      />
+                      <span>
+                        {formatSlotTime(start, hour12)}–{formatSlotTime(end, hour12)}
+                        {crossesMidnight && (
+                          <span className="print-cross-midnight"> ({formatDayHeader(end)})</span>
+                        )}
+                      </span>
+                      <span>
+                        {shift.team_name} ({shift.team_abbreviation})
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </div>

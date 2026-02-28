@@ -443,7 +443,8 @@ export interface PrintConfig {
   paperSize: "A4" | "A3";
   landscape: boolean;
   showCoverage: boolean;
-  selectedDays: Date[];
+  onePerPage: boolean; // list mode: one user per page
+  timeRange: { start: string; end: string }; // ISO datetime strings
   selectedUserIds: string[] | null; // null = all users
   selectedTeamIds: string[] | null; // null = all teams
 }

@@ -29,34 +29,6 @@ export function useRevokeICalToken() {
   });
 }
 
-export function useDownloadCSV() {
-  return useMutation({
-    mutationFn: async (slug: string) => {
-      const blob = await exportApi.downloadCSV(slug);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${slug}-shifts.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    },
-  });
-}
-
-export function useDownloadICal() {
-  return useMutation({
-    mutationFn: async (slug: string) => {
-      const blob = await exportApi.downloadICal(slug);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${slug}-shifts.ics`;
-      a.click();
-      URL.revokeObjectURL(url);
-    },
-  });
-}
-
 export function useDownloadPDF() {
   return useMutation({
     mutationFn: async ({ slug, config }: { slug: string; config: PrintConfig }) => {

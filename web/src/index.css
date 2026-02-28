@@ -98,6 +98,11 @@ body {
   display: none;
 }
 
+/* @page must be top-level (not inside @media) for Chrome to apply it */
+@page {
+  margin: 3mm;
+}
+
 /* Print styles */
 @media print {
   /* Hide everything except print container */
@@ -112,6 +117,8 @@ body {
   body {
     background: white;
     color: black;
+    margin: 0;
+    padding: 0;
     min-width: 0;
     font-size: 9pt;
   }
@@ -127,18 +134,23 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    font-size: 8pt;
+    font-size: 7pt;
     border-bottom: 0.5pt solid var(--color-muted-foreground);
-    padding-bottom: 1mm;
-    margin-bottom: 2mm;
+    padding-bottom: 0.5mm;
+    margin-bottom: 1mm;
   }
 
   .print-event-name {
     font-weight: bold;
-    font-size: 10pt;
+    font-size: 8pt;
   }
 
-  /* Grid table */
+  /*
+   * Grid table — base styles (A4 landscape / A3 portrait default)
+   * table-layout: fixed + width: 100% = columns share remaining
+   * space equally after the name column. The name column gets a
+   * fixed width; every time-slot column is identical.
+   */
   .print-grid-table {
     width: 100%;
     border-collapse: collapse;
@@ -146,20 +158,36 @@ body {
     font-size: 7pt;
   }
 
+  /* Repeat time header row on every printed page */
+  .print-grid-table thead {
+    display: table-header-group;
+  }
+
   .print-grid-table th,
   .print-grid-table td {
-    border: 0.5pt solid var(--color-border);
-    padding: 1mm;
+    border: 0.5pt solid #999;
+    padding: 0.3mm 0.3mm;
     text-align: center;
     overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .print-hour-start {
+    border-left: 1.5pt solid #333;
+  }
+
+  .print-grid-table tr {
+    break-inside: avoid;
   }
 
   .print-name-col {
     width: 25mm;
+    max-width: 25mm;
     text-align: left;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    border-right: 1.5pt solid #333;
   }
 
   .print-shift-cell {
@@ -169,7 +197,6 @@ body {
 
   .print-coverage-row td {
     font-size: 6pt;
-    height: 5mm;
   }
 
   /* Page breaks */
@@ -211,6 +238,74 @@ body {
     height: 2.5mm;
     flex-shrink: 0;
     margin-top: 0.5mm;
+  }
+
+  /* Cross-midnight date indicator */
+  .print-cross-midnight {
+    color: #666;
+    font-style: italic;
+  }
+
+  /* --- A4 portrait: narrow (194mm), tall — smallest fonts --- */
+  #print-root[data-format="A4-portrait"] {
+    font-size: 7pt;
+  }
+  #print-root[data-format="A4-portrait"] .print-event-name {
+    font-size: 8pt;
+  }
+  #print-root[data-format="A4-portrait"] .print-grid-table {
+    font-size: 6pt;
+  }
+  #print-root[data-format="A4-portrait"] .print-name-col {
+    width: 20mm;
+    max-width: 20mm;
+  }
+  #print-root[data-format="A4-portrait"] .print-shift-cell {
+    font-size: 6pt;
+  }
+  #print-root[data-format="A4-portrait"] .print-coverage-row td {
+    font-size: 5pt;
+  }
+  #print-root[data-format="A4-portrait"] .print-list-user-name {
+    font-size: 9pt;
+  }
+  #print-root[data-format="A4-portrait"] .print-list-day-header {
+    font-size: 7pt;
+  }
+  #print-root[data-format="A4-portrait"] .print-list-shift {
+    font-size: 7pt;
+  }
+
+  /* --- A4 landscape / A3 portrait: medium (281mm) — base sizes, no overrides needed --- */
+
+  /* --- A3 landscape: wide (404mm) — largest fonts --- */
+  #print-root[data-format="A3-landscape"] {
+    font-size: 10pt;
+  }
+  #print-root[data-format="A3-landscape"] .print-event-name {
+    font-size: 12pt;
+  }
+  #print-root[data-format="A3-landscape"] .print-grid-table {
+    font-size: 9pt;
+  }
+  #print-root[data-format="A3-landscape"] .print-name-col {
+    width: 30mm;
+    max-width: 30mm;
+  }
+  #print-root[data-format="A3-landscape"] .print-shift-cell {
+    font-size: 9pt;
+  }
+  #print-root[data-format="A3-landscape"] .print-coverage-row td {
+    font-size: 7pt;
+  }
+  #print-root[data-format="A3-landscape"] .print-list-user-name {
+    font-size: 12pt;
+  }
+  #print-root[data-format="A3-landscape"] .print-list-day-header {
+    font-size: 9pt;
+  }
+  #print-root[data-format="A3-landscape"] .print-list-shift {
+    font-size: 9pt;
   }
 
   /* Remove shadows */

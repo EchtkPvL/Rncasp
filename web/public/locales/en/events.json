@@ -80,9 +80,9 @@
   "print_orientation": "Orientation",
   "print_portrait": "Portrait",
   "print_show_coverage": "Show coverage bars",
-  "print_select_days": "Days to include",
-  "print_all_days": "All",
-  "print_no_days": "None",
+  "print_time_range": "Time range",
+  "print_range_start": "From",
+  "print_range_end": "To",
   "csv_description": "Download all shifts as a CSV file.",
   "ical_description": "Download all shifts as an iCal file.",
   "download_csv": "Download CSV",
@@ -108,5 +108,8 @@
   "remove_pinned_confirm": "Remove {{name}} from pinned users?",
   "print_select_teams": "Teams to include",
   "print_all_teams": "All",
-  "print_no_teams": "None"
+  "print_no_teams": "None",
+  "print_filter_all": "All",
+  "print_filter_custom": "Custom",
+  "print_one_per_page": "One user per page"
 }

@@ -27,13 +27,15 @@ func NewPDFGenerator(logger *slog.Logger) *PDFGenerator {
 }
 
 type PDFOptions struct {
-	Layout         string   // "grid" or "list"
-	PaperSize      string   // "A4" or "A3"
-	Landscape      bool
+	Layout       string     // "grid" or "list"
+	PaperSize    string     // "A4" or "A3"
+	Landscape    bool
 	ShowCoverage bool
-	Days         []string // ISO date strings (YYYY-MM-DD); empty = all
-	UserIDs        []string // UUIDs; empty = all
-	TeamIDs        []string // UUIDs; empty = all
+	Start        *time.Time // nil = event start
+	End          *time.Time // nil = event end
+	UserIDs      []string   // UUIDs; empty = all
+	TeamIDs      []string   // UUIDs; empty = all
+	OnePerPage   bool       // list mode: one user per page
 }
 
 type PDFData struct {
@@ -45,11 +47,18 @@ type PDFData struct {
 }
 
 func (g *PDFGenerator) Generate(ctx context.Context, data PDFData, opts PDFOptions) ([]byte, error) {
-	// Filter shifts by selected days if provided
-	shifts := data.Shifts
-	if len(opts.Days) > 0 {
-		shifts = filterShiftsByDays(shifts, opts.Days)
+	// Resolve time range (defaults to full event)
+	rangeStart := data.Event.StartTime
+	rangeEnd := data.Event.EndTime
+	if opts.Start != nil {
+		rangeStart = *opts.Start
 	}
+	if opts.End != nil {
+		rangeEnd = *opts.End
+	}
+
+	// Filter shifts by time range
+	shifts := filterShiftsByTimeRange(data.Shifts, rangeStart, rangeEnd)
 	if len(opts.TeamIDs) > 0 {
 		shifts = filterShiftsByTeams(shifts, opts.TeamIDs)
 	}
@@ -59,7 +68,7 @@ func (g *PDFGenerator) Generate(ctx context.Context, data PDFData, opts PDFOptio
 		shifts = filterShiftsByUsers(shifts, opts.UserIDs)
 	}
 
-	htmlContent := renderHTML(data.Event, shifts, allShifts, data.EventTeams, data.Coverage, data.HiddenRanges, opts)
+	htmlContent := renderHTML(data.Event, shifts, allShifts, data.EventTeams, data.Coverage, data.HiddenRanges, opts, rangeStart, rangeEnd)
 
 	// Paper dimensions in inches
 	width, height := paperDimensions(opts.PaperSize, opts.Landscape)
@@ -93,10 +102,10 @@ func (g *PDFGenerator) Generate(ctx context.Context, data PDFData, opts PDFOptio
 			buf, _, err := page.PrintToPDF().
 				WithPaperWidth(width).
 				WithPaperHeight(height).
-				WithMarginTop(0.31).
-				WithMarginBottom(0.31).
-				WithMarginLeft(0.31).
-				WithMarginRight(0.31).
+				WithMarginTop(0.12).
+				WithMarginBottom(0.12).
+				WithMarginLeft(0.12).
+				WithMarginRight(0.12).
 				WithPrintBackground(true).
 				WithPreferCSSPageSize(false).
 				Do(ctx)
@@ -128,25 +137,11 @@ func paperDimensions(paperSize string, landscape bool) (width, height float64) {
 
 // --- Shift filtering ---
 
-func filterShiftsByDays(shifts []repository.ListShiftsByEventRow, days []string) []repository.ListShiftsByEventRow {
-	daySet := make(map[string]bool, len(days))
-	for _, d := range days {
-		daySet[d] = true
-	}
-
+func filterShiftsByTimeRange(shifts []repository.ListShiftsByEventRow, rangeStart, rangeEnd time.Time) []repository.ListShiftsByEventRow {
 	var result []repository.ListShiftsByEventRow
 	for _, s := range shifts {
-		// Check if shift overlaps any selected day
-		for d := range daySet {
-			dayStart, err := time.Parse("2006-01-02", d)
-			if err != nil {
-				continue
-			}
-			dayEnd := dayStart.AddDate(0, 0, 1)
-			if s.StartTime.Before(dayEnd) && s.EndTime.After(dayStart) {
-				result = append(result, s)
-				break
-			}
+		if s.StartTime.Before(rangeEnd) && s.EndTime.After(rangeStart) {
+			result = append(result, s)
 		}
 	}
 	return result
@@ -277,7 +272,45 @@ func getEventDays(start, end time.Time) []time.Time {
 
 // --- HTML rendering ---
 
-func renderHTML(event repository.Event, shifts []repository.ListShiftsByEventRow, allShifts []repository.ListShiftsByEventRow, eventTeams []repository.ListEventTeamsRow, coverage []repository.CoverageRequirement, hiddenRanges []repository.EventHiddenRange, opts PDFOptions) string {
+func renderHTML(event repository.Event, shifts []repository.ListShiftsByEventRow, allShifts []repository.ListShiftsByEventRow, eventTeams []repository.ListEventTeamsRow, coverage []repository.CoverageRequirement, hiddenRanges []repository.EventHiddenRange, opts PDFOptions, rangeStart, rangeEnd time.Time) string {
+	// Format-dependent CSS values based on paper + orientation
+	// Printable widths:  A4P=194mm, A4L=281mm, A3P=281mm, A3L=404mm
+	// 3 width tiers: Narrow (A4P), Medium (A4L/A3P), Wide (A3L)
+	bodyFont := "9pt"
+	eventNameFont := "10pt"
+	gridFont := "7pt"
+	shiftFont := "7pt"
+	coverageFont := "6pt"
+	nameColWidth := "25mm"
+	listUserFont := "10pt"
+	listDayFont := "8pt"
+	listShiftFont := "8pt"
+
+	if opts.PaperSize == "A4" && !opts.Landscape {
+		// A4 portrait — narrowest (194mm), use smallest fonts
+		bodyFont = "7pt"
+		eventNameFont = "8pt"
+		gridFont = "6pt"
+		shiftFont = "6pt"
+		coverageFont = "5pt"
+		nameColWidth = "20mm"
+		listUserFont = "9pt"
+		listDayFont = "7pt"
+		listShiftFont = "7pt"
+	} else if opts.PaperSize == "A3" && opts.Landscape {
+		// A3 landscape — widest (404mm), use largest fonts
+		bodyFont = "10pt"
+		eventNameFont = "12pt"
+		gridFont = "9pt"
+		shiftFont = "9pt"
+		coverageFont = "7pt"
+		nameColWidth = "30mm"
+		listUserFont = "12pt"
+		listDayFont = "9pt"
+		listShiftFont = "9pt"
+	}
+	// A4 landscape and A3 portrait share the same width (281mm) — use base values
+
 	var b strings.Builder
 	b.WriteString(`<!DOCTYPE html>
 <html>
@@ -285,73 +318,98 @@ func renderHTML(event repository.Event, shifts []repository.ListShiftsByEventRow
 <meta charset="utf-8">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Noto Sans', Arial, sans-serif; font-size: 9pt; color: #000; }
-
+`)
+	fmt.Fprintf(&b, "body { font-family: 'Noto Sans', Arial, sans-serif; font-size: %s; color: #000; }\n", bodyFont)
+	b.WriteString(`
 .print-page-header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 8pt;
+  font-size: 7pt;
   border-bottom: 0.5pt solid #999;
-  padding-bottom: 1mm;
-  margin-bottom: 2mm;
+  padding-bottom: 0.5mm;
+  margin-bottom: 1mm;
 }
-.print-event-name { font-weight: bold; font-size: 10pt; }
-
+`)
+	fmt.Fprintf(&b, ".print-event-name { font-weight: bold; font-size: %s; }\n", eventNameFont)
+	fmt.Fprintf(&b, `
 .print-grid-table {
-  width: 100%;
+  width: 100%%;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 7pt;
+  font-size: %s;
 }
-.print-grid-table th,
+.print-grid-table thead {
+  display: table-header-group;
+}
+`, gridFont)
+	b.WriteString(`.print-grid-table th,
 .print-grid-table td {
-  border: 0.5pt solid #ccc;
-  padding: 1mm;
+  border: 0.5pt solid #999;
+  padding: 0.3mm 0.3mm;
   text-align: center;
   overflow: hidden;
+  white-space: nowrap;
 }
-.print-name-col {
-  width: 25mm;
+.print-hour-start {
+  border-left: 1.5pt solid #333;
+}
+.print-grid-table tr {
+  break-inside: avoid;
+}
+`)
+	fmt.Fprintf(&b, `.print-name-col {
+  width: %s;
+  max-width: %s;
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border-right: 1.5pt solid #333;
 }
-.print-shift-cell { font-weight: bold; font-size: 7pt; }
-.print-coverage-row td { font-size: 6pt; height: 5mm; }
-
+`, nameColWidth, nameColWidth)
+	fmt.Fprintf(&b, ".print-shift-cell { font-weight: bold; font-size: %s; }\n", shiftFont)
+	fmt.Fprintf(&b, ".print-coverage-row td { font-size: %s; }\n", coverageFont)
+	b.WriteString(`
 .print-day-break { break-before: page; }
 
 .print-list-user {
   break-inside: avoid;
   margin-bottom: 4mm;
 }
-.print-list-user-name {
-  font-size: 10pt;
+`)
+	fmt.Fprintf(&b, `.print-list-user-name {
+  font-size: %s;
   font-weight: bold;
   border-bottom: 0.5pt solid #ccc;
   padding-bottom: 0.5mm;
   margin-bottom: 1mm;
 }
-.print-list-day-header {
-  font-size: 8pt;
+`, listUserFont)
+	fmt.Fprintf(&b, `.print-list-day-header {
+  font-size: %s;
   font-weight: bold;
   padding-left: 3mm;
   margin-top: 1mm;
 }
-.print-list-shift {
-  font-size: 8pt;
+`, listDayFont)
+	fmt.Fprintf(&b, `.print-list-shift {
+  font-size: %s;
   display: flex;
   gap: 2mm;
   padding-left: 6mm;
 }
-.print-team-dot {
+`, listShiftFont)
+	b.WriteString(`.print-team-dot {
   display: inline-block;
   width: 2.5mm;
   height: 2.5mm;
   flex-shrink: 0;
   margin-top: 0.5mm;
+}
+.print-cross-midnight {
+  color: #666;
+  font-style: italic;
 }
 </style>
 </head>
@@ -359,17 +417,17 @@ body { font-family: 'Noto Sans', Arial, sans-serif; font-size: 9pt; color: #000;
 `)
 
 	if opts.Layout == "list" {
-		renderListLayout(&b, event, shifts, opts)
+		renderListLayout(&b, event, shifts, opts, rangeStart, rangeEnd)
 	} else {
-		renderGridLayout(&b, event, shifts, allShifts, eventTeams, coverage, hiddenRanges, opts)
+		renderGridLayout(&b, event, shifts, allShifts, eventTeams, coverage, hiddenRanges, opts, rangeStart, rangeEnd)
 	}
 
 	b.WriteString("</body>\n</html>")
 	return b.String()
 }
 
-func renderGridLayout(b *strings.Builder, event repository.Event, shifts []repository.ListShiftsByEventRow, allShifts []repository.ListShiftsByEventRow, eventTeams []repository.ListEventTeamsRow, coverage []repository.CoverageRequirement, hiddenRanges []repository.EventHiddenRange, opts PDFOptions) {
-	days := getEventDays(event.StartTime, event.EndTime)
+func renderGridLayout(b *strings.Builder, event repository.Event, shifts []repository.ListShiftsByEventRow, allShifts []repository.ListShiftsByEventRow, eventTeams []repository.ListEventTeamsRow, coverage []repository.CoverageRequirement, hiddenRanges []repository.EventHiddenRange, opts PDFOptions, rangeStart, rangeEnd time.Time) {
+	days := getEventDays(rangeStart, rangeEnd)
 	granMinutes := granularityToMinutes(event.TimeGranularity)
 	now := time.Now()
 
@@ -398,7 +456,7 @@ func renderGridLayout(b *strings.Builder, event repository.Event, shifts []repos
 	}
 
 	for dayIdx, day := range days {
-		// Compute day boundaries clamped to event range
+		// Compute day boundaries clamped to event range and time range
 		dayStart := day
 		dayEnd := day.AddDate(0, 0, 1)
 		if dayStart.Before(event.StartTime) {
@@ -406,6 +464,12 @@ func renderGridLayout(b *strings.Builder, event repository.Event, shifts []repos
 		}
 		if dayEnd.After(event.EndTime) {
 			dayEnd = event.EndTime
+		}
+		if dayStart.Before(rangeStart) {
+			dayStart = rangeStart
+		}
+		if dayEnd.After(rangeEnd) {
+			dayEnd = rangeEnd
 		}
 
 		slots := generateTimeSlots(dayStart, dayEnd, event.TimeGranularity, hiddenRanges)
@@ -452,9 +516,11 @@ func renderGridLayout(b *strings.Builder, event repository.Event, shifts []repos
 		// Grid table
 		b.WriteString(`<table class="print-grid-table"><thead><tr><th class="print-name-col">&nbsp;</th>`)
 		for _, slot := range slots {
-			b.WriteString("<th>")
 			if slot.Minute() == 0 {
+				b.WriteString(`<th class="print-hour-start">`)
 				b.WriteString(html.EscapeString(formatTime24(slot)))
+			} else {
+				b.WriteString("<th>")
 			}
 			b.WriteString("</th>")
 		}
@@ -533,11 +599,19 @@ func renderUserCells(b *strings.Builder, userShifts []repository.ListShiftsByEve
 
 			bgColor := found.TeamColor + "33"
 
-			b.WriteString(fmt.Sprintf(`<td colspan="%d" class="print-shift-cell" style="background-color:%s">`, span, html.EscapeString(bgColor)))
+			cls := "print-shift-cell"
+			if slots[i].Minute() == 0 {
+				cls = "print-shift-cell print-hour-start"
+			}
+			b.WriteString(fmt.Sprintf(`<td colspan="%d" class="%s" style="background-color:%s">`, span, cls, html.EscapeString(bgColor)))
 			b.WriteString(html.EscapeString(found.TeamAbbreviation))
 			b.WriteString("</td>")
 		} else {
-			b.WriteString("<td></td>")
+			if slots[i].Minute() == 0 {
+				b.WriteString(`<td class="print-hour-start"></td>`)
+			} else {
+				b.WriteString("<td></td>")
+			}
 		}
 	}
 }
@@ -601,33 +675,21 @@ func renderCoverageRows(b *strings.Builder, teamMap map[uuid.UUID]teamEntry, slo
 				content = fmt.Sprintf("%d/%d", count, required)
 			}
 
-			b.WriteString(fmt.Sprintf(`<td style="background-color:%s">%s</td>`, bgColor, content))
+			if slot.Minute() == 0 {
+				b.WriteString(fmt.Sprintf(`<td class="print-hour-start" style="background-color:%s">%s</td>`, bgColor, content))
+			} else {
+				b.WriteString(fmt.Sprintf(`<td style="background-color:%s">%s</td>`, bgColor, content))
+			}
 		}
 
 		b.WriteString("</tr>")
 	}
 }
 
-func renderListLayout(b *strings.Builder, event repository.Event, shifts []repository.ListShiftsByEventRow, opts PDFOptions) {
+func renderListLayout(b *strings.Builder, event repository.Event, shifts []repository.ListShiftsByEventRow, opts PDFOptions, rangeStart, rangeEnd time.Time) {
 	now := time.Now()
 	users := groupShiftsByUser(shifts)
-	days := getEventDays(event.StartTime, event.EndTime)
-
-	// Filter to selected days only
-	if len(opts.Days) > 0 {
-		daySet := make(map[string]bool)
-		for _, d := range opts.Days {
-			daySet[d] = true
-		}
-		var filtered []time.Time
-		for _, d := range days {
-			if daySet[d.Format("2006-01-02")] {
-				filtered = append(filtered, d)
-			}
-		}
-		days = filtered
-	}
-
+	days := getEventDays(rangeStart, rangeEnd)
 	sort.Slice(days, func(i, j int) bool { return days[i].Before(days[j]) })
 
 	// Date range label
@@ -636,18 +698,33 @@ func renderListLayout(b *strings.Builder, event repository.Event, shifts []repos
 		dateRange = formatDay(days[0]) + " – " + formatDay(days[len(days)-1])
 	}
 
-	// Header
-	b.WriteString(`<div class="print-page-header">`)
-	b.WriteString(`<span class="print-event-name">`)
-	b.WriteString(html.EscapeString(event.Name))
-	b.WriteString(`</span><span>`)
-	b.WriteString(html.EscapeString(dateRange))
-	b.WriteString(`</span><span>`)
-	b.WriteString(html.EscapeString(formatTime24(now)))
-	b.WriteString(`</span></div>`)
+	renderListHeader := func() {
+		b.WriteString(`<div class="print-page-header">`)
+		b.WriteString(`<span class="print-event-name">`)
+		b.WriteString(html.EscapeString(event.Name))
+		b.WriteString(`</span><span>`)
+		b.WriteString(html.EscapeString(dateRange))
+		b.WriteString(`</span><span>`)
+		b.WriteString(html.EscapeString(formatTime24(now)))
+		b.WriteString(`</span></div>`)
+	}
+
+	// Print header on first page (or before each user if onePerPage)
+	if !opts.OnePerPage {
+		renderListHeader()
+	}
 
 	// User blocks
-	for _, user := range users {
+	for userIdx, user := range users {
+		if opts.OnePerPage {
+			if userIdx > 0 {
+				b.WriteString(`<div class="print-day-break">`)
+			} else {
+				b.WriteString("<div>")
+			}
+			renderListHeader()
+		}
+
 		b.WriteString(`<div class="print-list-user">`)
 		b.WriteString(`<div class="print-list-user-name">`)
 		b.WriteString(html.EscapeString(userName(user)))
@@ -684,6 +761,11 @@ func renderListLayout(b *strings.Builder, event repository.Event, shifts []repos
 				b.WriteString(html.EscapeString(formatTime24(shift.StartTime)))
 				b.WriteString("–")
 				b.WriteString(html.EscapeString(formatTime24(shift.EndTime)))
+				if shift.StartTime.YearDay() != shift.EndTime.YearDay() || shift.StartTime.Year() != shift.EndTime.Year() {
+					b.WriteString(` <span class="print-cross-midnight">(`)
+					b.WriteString(html.EscapeString(formatDay(shift.EndTime)))
+					b.WriteString(")</span>")
+				}
 				b.WriteString("</span><span>")
 				b.WriteString(html.EscapeString(shift.TeamName))
 				b.WriteString(" (")
@@ -693,6 +775,9 @@ func renderListLayout(b *strings.Builder, event repository.Event, shifts []repos
 		}
 
 		b.WriteString("</div>")
+
+		if opts.OnePerPage {
+			b.WriteString("</div>")
+		}
 	}
 }
-

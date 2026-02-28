@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/echtkpvl/rncasp/internal/model"
 	"github.com/echtkpvl/rncasp/internal/pdf"
@@ -154,14 +155,24 @@ func (h *PublicHandler) ExportPDF(w http.ResponseWriter, r *http.Request) {
 	if opts.PaperSize == "" {
 		opts.PaperSize = "A4"
 	}
-	if d := q.Get("days"); d != "" {
-		opts.Days = strings.Split(d, ",")
+	if s := q.Get("start"); s != "" {
+		if t, err := time.Parse(time.RFC3339, s); err == nil {
+			opts.Start = &t
+		}
+	}
+	if s := q.Get("end"); s != "" {
+		if t, err := time.Parse(time.RFC3339, s); err == nil {
+			opts.End = &t
+		}
 	}
 	if u := q.Get("users"); u != "" {
 		opts.UserIDs = strings.Split(u, ",")
 	}
 	if t := q.Get("teams"); t != "" {
 		opts.TeamIDs = strings.Split(t, ",")
+	}
+	if q.Get("onePerPage") == "true" {
+		opts.OnePerPage = true
 	}
 
 	data, filename, err := h.exportService.ExportPDF(r.Context(), slug, opts)

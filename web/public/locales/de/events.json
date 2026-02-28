@@ -80,9 +80,9 @@
   "print_orientation": "Ausrichtung",
   "print_portrait": "Hochformat",
   "print_show_coverage": "Besetzungsbalken anzeigen",
-  "print_select_days": "Einzuschließende Tage",
-  "print_all_days": "Alle",
-  "print_no_days": "Keine",
+  "print_time_range": "Zeitbereich",
+  "print_range_start": "Von",
+  "print_range_end": "Bis",
   "csv_description": "Alle Schichten als CSV-Datei herunterladen.",
   "ical_description": "Alle Schichten als iCal-Datei herunterladen.",
   "download_csv": "CSV herunterladen",
@@ -108,5 +108,8 @@
   "remove_pinned_confirm": "{{name}} von den angepinnten Benutzern entfernen?",
   "print_select_teams": "Einzuschließende Teams",
   "print_all_teams": "Alle",
-  "print_no_teams": "Keine"
+  "print_no_teams": "Keine",
+  "print_filter_all": "Alle",
+  "print_filter_custom": "Auswahl",
+  "print_one_per_page": "Ein Benutzer pro Seite"
 }

@@ -12,8 +12,6 @@ interface ExportMenuProps {
   hiddenRanges?: HiddenRange[];
   selectedDay: Date | null;
   onPrint: (config: PrintConfig) => void;
-  onDownloadCSV?: (slug: string) => void;
-  onDownloadICal?: (slug: string) => void;
   onDownloadPDF?: (slug: string, config: PrintConfig) => void;
 }
 
@@ -26,8 +24,6 @@ export function ExportMenu({
   hiddenRanges,
   selectedDay,
   onPrint,
-  onDownloadCSV,
-  onDownloadICal,
   onDownloadPDF,
 }: ExportMenuProps) {
   const { t } = useTranslation(["events"]);
@@ -54,8 +50,6 @@ export function ExportMenu({
           slug={slug}
           onPrint={onPrint}
           onClose={() => setShowModal(false)}
-          onDownloadCSV={onDownloadCSV}
-          onDownloadICal={onDownloadICal}
           onDownloadPDF={onDownloadPDF}
         />
       )}

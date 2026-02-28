@@ -101,31 +101,7 @@ export function PublicEventPage() {
     });
   }, []);
 
-  // Public download callbacks
-  const downloadCSV = useMutation({
-    mutationFn: async (eventSlug: string) => {
-      const blob = await publicApi.downloadCSV(eventSlug);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${eventSlug}-shifts.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    },
-  });
-
-  const downloadICal = useMutation({
-    mutationFn: async (eventSlug: string) => {
-      const blob = await publicApi.downloadICal(eventSlug);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${eventSlug}-shifts.ics`;
-      a.click();
-      URL.revokeObjectURL(url);
-    },
-  });
-
+  // Public download callback
   const downloadPDF = useMutation({
     mutationFn: async ({ eventSlug, config }: { eventSlug: string; config: PrintConfig }) => {
       const blob = await publicApi.downloadPDF(eventSlug, config);
@@ -138,8 +114,6 @@ export function PublicEventPage() {
     },
   });
 
-  const handleDownloadCSV = useCallback((s: string) => downloadCSV.mutate(s), [downloadCSV]);
-  const handleDownloadICal = useCallback((s: string) => downloadICal.mutate(s), [downloadICal]);
   const handleDownloadPDF = useCallback((s: string, config: PrintConfig) => downloadPDF.mutate({ eventSlug: s, config }), [downloadPDF]);
 
   if (isEventLoading) {
@@ -178,8 +152,6 @@ export function PublicEventPage() {
             eventTeams={eventTeams}
             selectedDay={selectedDay}
             onPrint={handlePrint}
-            onDownloadCSV={handleDownloadCSV}
-            onDownloadICal={handleDownloadICal}
             onDownloadPDF={handleDownloadPDF}
           />
         </div>
