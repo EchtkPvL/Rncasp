@@ -214,26 +214,30 @@ export function ShiftGrid({
     [shifts, slotWidth, granMinutes, onShiftResize],
   );
 
-  // Scroll focused cell into view
+  // Refs for split TimeRuler / body structure
   const gridContainerRef = useRef<HTMLDivElement>(null);
+  const timeRulerRef = useRef<HTMLDivElement>(null);
+
+  // Sync TimeRuler horizontal scroll with body
+  const handleBodyScroll = useCallback(() => {
+    if (timeRulerRef.current && gridContainerRef.current) {
+      timeRulerRef.current.scrollLeft = gridContainerRef.current.scrollLeft;
+    }
+  }, []);
+
+  // Scroll focused cell into view
   useEffect(() => {
     if (!focusedCell || !gridContainerRef.current) return;
-    const el = gridContainerRef.current;
+    const bodyEl = gridContainerRef.current;
     const x = NAME_COL_WIDTH + focusedCell.col * slotWidth;
-    const y = focusedCell.row * SLOT_HEIGHT;
-    // Only scroll if the cell is outside the visible area
-    const visibleLeft = el.scrollLeft + NAME_COL_WIDTH;
-    const visibleRight = el.scrollLeft + el.clientWidth;
-    const visibleTop = el.scrollTop;
-    const visibleBottom = el.scrollTop + el.clientHeight;
-    let scrollX = el.scrollLeft;
-    let scrollY = el.scrollTop;
+    // Horizontal scroll on body (TimeRuler syncs via onScroll)
+    const visibleLeft = bodyEl.scrollLeft + NAME_COL_WIDTH;
+    const visibleRight = bodyEl.scrollLeft + bodyEl.clientWidth;
+    let scrollX = bodyEl.scrollLeft;
     if (x < visibleLeft) scrollX = x - NAME_COL_WIDTH;
-    if (x + slotWidth > visibleRight) scrollX = x + slotWidth - el.clientWidth;
-    if (y < visibleTop) scrollY = y;
-    if (y + SLOT_HEIGHT > visibleBottom) scrollY = y + SLOT_HEIGHT - el.clientHeight;
-    if (scrollX !== el.scrollLeft || scrollY !== el.scrollTop) {
-      el.scrollTo({ left: scrollX, top: scrollY, behavior: "smooth" });
+    if (x + slotWidth > visibleRight) scrollX = x + slotWidth - bodyEl.clientWidth;
+    if (scrollX !== bodyEl.scrollLeft) {
+      bodyEl.scrollTo({ left: scrollX, behavior: "smooth" });
     }
   }, [focusedCell, slotWidth]);
 
@@ -245,21 +249,16 @@ export function ShiftGrid({
     );
   }
 
-  const gridContent = (
-    <div style={{ minWidth: NAME_COL_WIDTH + slots.length * slotWidth }}>
-      {/* Time ruler header */}
-      <TimeRuler
-        slots={slots}
-        slotWidth={slotWidth}
-        nameColumnWidth={NAME_COL_WIDTH}
-      />
+  const totalMinWidth = NAME_COL_WIDTH + slots.length * slotWidth;
 
+  const gridBody = (
+    <div style={{ minWidth: totalMinWidth }}>
       {/* User rows */}
       {users.length === 0 ? (
         <div className="flex border-b border-[var(--color-border)]" style={{ height: SLOT_HEIGHT }}>
           <div
             className="flex items-center justify-center text-xs text-[var(--color-muted-foreground)]"
-            style={{ width: NAME_COL_WIDTH + slots.length * slotWidth }}
+            style={{ width: totalMinWidth }}
           >
             {t("shifts:no_shifts", "No shifts assigned yet")}
           </div>
@@ -309,38 +308,56 @@ export function ShiftGrid({
 
   return (
     <div
-      ref={gridContainerRef}
       tabIndex={0}
       onKeyDown={onGridKeyDown}
-      className="overflow-auto rounded-lg border border-[var(--color-border)] outline-none sm:max-h-[calc(100vh-14rem)]"
+      className="rounded-lg border border-[var(--color-border)] outline-none"
     >
-      {dragEnabled ? (
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          {gridContent}
-          <DragOverlay modifiers={[snapModifier]}>
-            {activeDrag ? (
-              <div
-                className="cursor-grabbing overflow-hidden rounded-sm border border-[var(--color-text-on-color)]/30 text-[10px] font-medium leading-tight text-[var(--color-text-on-color)] shadow-lg"
-                style={{
-                  width: Math.max(activeDrag.width - 1, 4),
-                  height: SLOT_HEIGHT - 4,
-                  backgroundColor: activeDrag.shift.team_color,
-                }}
-              >
-                <div className="truncate px-1 py-0.5">
-                  {activeDrag.shift.team_abbreviation}
+      {/* Time ruler — sticky header, stays at viewport top during page scroll */}
+      <div ref={timeRulerRef} className="sticky top-0 z-30 overflow-hidden bg-[var(--color-background)]">
+        <div style={{ minWidth: totalMinWidth }}>
+          <TimeRuler
+            slots={slots}
+            slotWidth={slotWidth}
+            nameColumnWidth={NAME_COL_WIDTH}
+          />
+        </div>
+      </div>
+
+      {/* Grid body — horizontal scroll synced with TimeRuler */}
+      <div
+        ref={gridContainerRef}
+        data-grid-scroll
+        className="overflow-x-auto"
+        onScroll={handleBodyScroll}
+      >
+        {dragEnabled ? (
+          <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            {gridBody}
+            <DragOverlay modifiers={[snapModifier]}>
+              {activeDrag ? (
+                <div
+                  className="cursor-grabbing overflow-hidden rounded-sm border border-[var(--color-text-on-color)]/30 text-[10px] font-medium leading-tight text-[var(--color-text-on-color)] shadow-lg"
+                  style={{
+                    width: Math.max(activeDrag.width - 1, 4),
+                    height: SLOT_HEIGHT - 4,
+                    backgroundColor: activeDrag.shift.team_color,
+                  }}
+                >
+                  <div className="truncate px-1 py-0.5">
+                    {activeDrag.shift.team_abbreviation}
+                  </div>
                 </div>
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      ) : (
-        gridContent
-      )}
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        ) : (
+          gridBody
+        )}
+      </div>
     </div>
   );
 }

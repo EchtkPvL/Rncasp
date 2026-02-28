@@ -312,60 +312,61 @@ export function EventPage() {
         )}
       </div>
 
-      {/* Shift Grid — full-width breakout */}
-      <div className="relative left-1/2 mt-8 w-screen -translate-x-1/2 px-4">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">{t("shifts:title")}</h2>
-          <div className="flex flex-wrap items-center gap-3">
-            <DayFilter
-              eventStartTime={event.start_time}
-              eventEndTime={event.end_time}
-              selectedDay={selectedDay}
-              onDayChange={setSelectedDay}
-            />
-            <ViewSelector
-              view={view}
-              onViewChange={setView}
-              teams={teams?.filter((t) => visibleTeamIds.has(t.id))}
-              selectedTeamId={selectedTeamId}
-              onTeamChange={setSelectedTeamId}
-              users={allUsers}
-              selectedUserIds={selectedUserIds}
-              onUserChange={setSelectedUserIds}
-            />
+      {/* Shift Grid toolbar */}
+      <div className="mt-8 mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">{t("shifts:title")}</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <DayFilter
+            eventStartTime={event.start_time}
+            eventEndTime={event.end_time}
+            selectedDay={selectedDay}
+            onDayChange={setSelectedDay}
+          />
+          <ViewSelector
+            view={view}
+            onViewChange={setView}
+            teams={teams?.filter((t) => visibleTeamIds.has(t.id))}
+            selectedTeamId={selectedTeamId}
+            onTeamChange={setSelectedTeamId}
+            users={allUsers}
+            selectedUserIds={selectedUserIds}
+            onUserChange={setSelectedUserIds}
+          />
+          <button
+            type="button"
+            onClick={() => setShowAvailUsers((v) => !v)}
+            className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
+              showAvailUsers
+                ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                : "border-[var(--color-border)] hover:bg-[var(--color-muted)]"
+            }`}
+            title={t("events:show_availability_users")}
+          >
+            {t("events:show_availability_users")}
+          </button>
+          {!isReadOnly && (
             <button
               type="button"
-              onClick={() => setShowAvailUsers((v) => !v)}
-              className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
-                showAvailUsers
-                  ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
-                  : "border-[var(--color-border)] hover:bg-[var(--color-muted)]"
-              }`}
-              title={t("events:show_availability_users")}
+              onClick={() => setShowAvailability(true)}
+              className="rounded-md bg-[var(--color-muted)] px-3 py-1.5 text-sm hover:bg-[var(--color-border)]"
             >
-              {t("events:show_availability_users")}
+              {t("events:edit_availability")}
             </button>
-            {!isReadOnly && (
-              <button
-                type="button"
-                onClick={() => setShowAvailability(true)}
-                className="rounded-md bg-[var(--color-muted)] px-3 py-1.5 text-sm hover:bg-[var(--color-border)]"
-              >
-                {t("events:edit_availability")}
-              </button>
-            )}
-            {canEdit && (
-              <button
-                type="button"
-                onClick={() => setCreateDialogState({ time: new Date(event.start_time) })}
-                className="rounded-md bg-[var(--color-primary)] px-3 py-1.5 text-sm text-[var(--color-primary-foreground)]"
-              >
-                + {t("shifts:create")}
-              </button>
-            )}
-          </div>
+          )}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setCreateDialogState({ time: new Date(event.start_time) })}
+              className="rounded-md bg-[var(--color-primary)] px-3 py-1.5 text-sm text-[var(--color-primary-foreground)]"
+            >
+              + {t("shifts:create")}
+            </button>
+          )}
         </div>
+      </div>
 
+      {/* Shift Grid — full-width breakout */}
+      <div className="relative left-1/2 w-screen -translate-x-1/2 px-4">
         {isGridLoading ? (
           <GridSkeleton />
         ) : gridData ? (

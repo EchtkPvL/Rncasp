@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useTimeFormat } from "@/hooks/useTimeFormat";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -65,15 +66,37 @@ export function DateTimePicker({
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
 
   const parsed = parseDatetimeLocal(value);
   const minuteOptions = getMinuteOptions(granularity);
 
-  // Close on outside click (desktop only)
+  // Compute dropdown position when opening on desktop
+  const updateDropdownPos = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const dropdownHeight = 280; // approximate max height
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow >= dropdownHeight ? rect.bottom + 4 : rect.top - dropdownHeight - 4;
+    setDropdownPos({ top: Math.max(4, top), left: rect.left });
+  }, []);
+
+  useEffect(() => {
+    if (!open || isMobile) return;
+    updateDropdownPos();
+  }, [open, isMobile, updateDropdownPos]);
+
+  // Close on outside click (desktop: check both trigger and portal dropdown)
   useEffect(() => {
     if (!open || isMobile) return;
     function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        containerRef.current && !containerRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
         setOpen(false);
       }
     }
@@ -126,6 +149,7 @@ export function DateTimePicker({
     <div ref={containerRef} className="relative">
       {/* Display input */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(!open)}
         className={`w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-left text-sm ${className || ""}`}
@@ -186,9 +210,13 @@ export function DateTimePicker({
         </div>
       )}
 
-      {/* Desktop: dropdown panel */}
-      {open && !isMobile && (
-        <div className="absolute left-0 z-50 mt-1 w-72 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-3 shadow-lg">
+      {/* Desktop: dropdown panel (portaled to body to escape overflow clipping) */}
+      {open && !isMobile && dropdownPos && createPortal(
+        <div
+          ref={dropdownRef}
+          className="fixed z-[100] w-72 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-3 shadow-lg"
+          style={{ top: dropdownPos.top, left: dropdownPos.left }}
+        >
           {/* Date */}
           <div className="mb-3">
             <label className="mb-1 block text-xs font-medium text-[var(--color-muted-foreground)]">Date</label>
@@ -245,7 +273,8 @@ export function DateTimePicker({
               </div>
             </div>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

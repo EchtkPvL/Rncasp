@@ -210,30 +210,31 @@ export function PublicEventPage() {
         )}
       </div>
 
-      {/* Shift Grid */}
-      <div className="mt-8">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">{t("shifts:title")}</h2>
-          <div className="flex flex-wrap items-center gap-3">
-            <DayFilter
-              eventStartTime={event.start_time}
-              eventEndTime={event.end_time}
-              selectedDay={selectedDay}
-              onDayChange={setSelectedDay}
-            />
-            <PublicViewSelector
-              view={view}
-              onViewChange={setView}
-              eventTeams={eventTeams}
-              selectedTeamId={selectedTeamId}
-              onTeamChange={setSelectedTeamId}
-              users={shiftUsers}
-              selectedUserIds={selectedUserIds}
-              onUserChange={setSelectedUserIds}
-            />
-          </div>
+      {/* Shift Grid toolbar */}
+      <div className="mt-8 mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">{t("shifts:title")}</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <DayFilter
+            eventStartTime={event.start_time}
+            eventEndTime={event.end_time}
+            selectedDay={selectedDay}
+            onDayChange={setSelectedDay}
+          />
+          <PublicViewSelector
+            view={view}
+            onViewChange={setView}
+            eventTeams={eventTeams}
+            selectedTeamId={selectedTeamId}
+            onTeamChange={setSelectedTeamId}
+            users={shiftUsers}
+            selectedUserIds={selectedUserIds}
+            onUserChange={setSelectedUserIds}
+          />
         </div>
+      </div>
 
+      {/* Shift Grid — full-width breakout */}
+      <div className="relative left-1/2 w-screen -translate-x-1/2 px-4">
         {isGridLoading ? (
           <GridSkeleton />
         ) : gridData ? (
